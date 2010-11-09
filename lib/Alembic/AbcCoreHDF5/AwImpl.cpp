@@ -121,26 +121,27 @@ AwImpl::~AwImpl()
         H5Gclose( m_group );
         m_group = -1;
     }
-    
-    // std::cout << "AwImpl::~AwImpl() " << getName() << std::endl;
+
     if ( m_file >= 0 )
-    {    
-        int dsetCount = H5Fget_obj_count( m_file, H5F_OBJ_DATASET );
-        int grpCount = H5Fget_obj_count( m_file, H5F_OBJ_GROUP );
-        int dtypCount = H5Fget_obj_count( m_file, H5F_OBJ_DATATYPE );
-        int attrCount = H5Fget_obj_count( m_file, H5F_OBJ_ATTR );
-        
+    {
+        int dsetCount = H5Fget_obj_count( m_file,
+            H5F_OBJ_LOCAL | H5F_OBJ_DATASET);
+        int grpCount = H5Fget_obj_count( m_file,
+            H5F_OBJ_LOCAL | H5F_OBJ_GROUP );
+        int dtypCount = H5Fget_obj_count( m_file,
+            H5F_OBJ_LOCAL | H5F_OBJ_DATATYPE );
+        int attrCount = H5Fget_obj_count( m_file,
+            H5F_OBJ_LOCAL | H5F_OBJ_ATTR );
+
         int objCount = dsetCount + grpCount + dtypCount + attrCount;
-        
+
         if ( objCount != 0 )
         {
             std::string excStr =
                 ( boost::format(
-                      "Aw dang, man - I was all trying to close "
-                      "this HDF5 file, but there are still open objects.\n"
-                      "That sucks, man.\n"
-                      "Dsets: %d, Grps: %d, "
-                      "Dtyps: %d, Attrs: %d" )
+                      "Open HDF5 handles detected during writing:\n"
+                      "DataSets: %d, Groups: %d, "
+                      "DataTypes: %d, Attributes: %d" )
                   % dsetCount
                   % grpCount
                   % dtypCount
@@ -149,7 +150,7 @@ AwImpl::~AwImpl()
             m_file = -1;
             ABCA_THROW( excStr );
         }
-        
+
         H5Fflush( m_file, H5F_SCOPE_GLOBAL );
         
         H5Fclose( m_file );
