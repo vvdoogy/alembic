@@ -47,7 +47,6 @@ ArImpl::ArImpl( const std::string &iFileName,
                 AbcA::ReadArraySampleCachePtr iCache )
   : m_fileName( iFileName )
   , m_file( -1 )
-  , m_group( -1 )
   , m_readArraySampleCache( iCache )
 {
     // OPEN THE FILE!
@@ -58,20 +57,8 @@ ArImpl::ArImpl( const std::string &iFileName,
     ABCA_ASSERT( m_file >= 0,
                  "Could not open file: " << m_fileName );
 
-    // OPEN THE ROOT GROUP!
-    m_group = H5Gopen2( m_file, "/", H5P_DEFAULT );
-    if ( m_group < 0 )
-    {
-        H5Fclose( m_file );
-        m_file = -1;
-        m_group = -1;
-        ABCA_THROW(
-            "Could not create root group in file: " << m_fileName
-            << " for reading" );
-    }
-    
     // Read the top object
-    m_top = new TopOrImpl( *this, m_group );
+    m_top = new TopOrImpl( *this, m_file );
 }
 
 //-*****************************************************************************
@@ -107,12 +94,6 @@ ArImpl::~ArImpl()
 {
     delete m_top;
     m_top = NULL;
-
-    if ( m_group >= 0 )
-    {
-        H5Gclose( m_group );
-        m_group = -1;
-    }
 
     if ( m_file >= 0 )
     {
