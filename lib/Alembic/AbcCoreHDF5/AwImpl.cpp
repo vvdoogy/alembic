@@ -48,7 +48,6 @@ AwImpl::AwImpl( const std::string &iFileName,
   : m_fileName( iFileName )
   , m_metaData( iMetaData )
   , m_file( -1 )
-  , m_group( -1 )
 {
     // OPEN THE FILE!
     hid_t faid = H5Pcreate( H5P_FILE_ACCESS );
@@ -69,17 +68,8 @@ AwImpl::AwImpl( const std::string &iFileName,
         ABCA_THROW( "Could not open file: " << m_fileName );
     }
 
-    // OPEN THE ROOT GROUP!
-    m_group = H5Gopen( m_file, "/", H5P_DEFAULT );
-    if ( m_group < 0 )
-    {
-        H5Fclose( m_file );
-        m_file = -1;
-        ABCA_THROW( "Could not open root group in file: " << m_fileName );
-    }
-
     // Create top explicitly.
-    m_top = new TopOwImpl( *this, m_group, m_metaData );
+    m_top = new TopOwImpl( *this, m_file, m_metaData );
 }
 
 //-*****************************************************************************
@@ -116,12 +106,6 @@ AwImpl::~AwImpl()
     delete m_top;
     m_top = NULL;
 
-    if ( m_group >= 0 )
-    {
-        H5Gclose( m_group );
-        m_group = -1;
-    }
-
     if ( m_file >= 0 )
     {
         int dsetCount = H5Fget_obj_count( m_file,
@@ -152,7 +136,7 @@ AwImpl::~AwImpl()
         }
 
         H5Fflush( m_file, H5F_SCOPE_GLOBAL );
-        
+
         H5Fclose( m_file );
         m_file = -1;
     }
