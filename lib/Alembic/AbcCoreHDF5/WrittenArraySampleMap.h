@@ -114,7 +114,6 @@ protected:
     typedef UnorderedMapUtil<WrittenArraySampleIDPtr>::umap_type Map;
     
     Map m_map;
-    hid_t mFileId;
 };
 
 } // End namespace AbcCoreHDF5
