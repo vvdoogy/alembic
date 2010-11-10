@@ -106,6 +106,9 @@ AwImpl::~AwImpl()
     delete m_top;
     m_top = NULL;
 
+    // empty out the map so any dataset IDs will be freed up
+    m_writtenArraySampleMap.m_map.clear();
+
     if ( m_file >= 0 )
     {
         int dsetCount = H5Fget_obj_count( m_file,
@@ -134,8 +137,6 @@ AwImpl::~AwImpl()
             m_file = -1;
             ABCA_THROW( excStr );
         }
-
-        H5Fflush( m_file, H5F_SCOPE_GLOBAL );
 
         H5Fclose( m_file );
         m_file = -1;
