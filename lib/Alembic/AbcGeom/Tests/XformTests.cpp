@@ -98,16 +98,28 @@ void xformIn()
     XformOpVec ops = a.getSchema().getOps();
     TESTING_ASSERT( ops.size() == 1 );
     TESTING_ASSERT( a.getSchema().getNumAnimSamples() == 20 );
+    TESTING_ASSERT( a.getSchema().inherits() );
+    for ( index_t i = 0; i < 20; ++i )
+    {
+        Abc::M44d mat = a.getSchema().getMatrix(Abc::ISampleSelector(i));
+        TESTING_ASSERT( mat ==
+            Abc::M44d().setTranslation( V3d(12.0, i+42.0, 20.0)) );
+    }
+
+    Abc::M44d identity;
 
     IXform b( a, "b" );
     TESTING_ASSERT( b.getSchema().getOps().size() == 0 );
+    TESTING_ASSERT( b.getSchema().getMatrix() == identity );
 
     IXform c( b, "c" );
     TESTING_ASSERT( c.getSchema().getOps().size() == 0 );
+    TESTING_ASSERT( c.getSchema().getMatrix() == identity );
+    TESTING_ASSERT( c.getSchema().inherits() );
 
     IXform d( c, "d" );
     TESTING_ASSERT( d.getSchema().getOps().size() == 1 );
-
+    TESTING_ASSERT( d.getSchema().inherits() );
 }
 
 //-*****************************************************************************

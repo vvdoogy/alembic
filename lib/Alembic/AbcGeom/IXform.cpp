@@ -45,15 +45,11 @@ void IXformSchema::init( const Abc::IArgument &iArg0,
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IXformTrait::init()" );
 
-    // It seems like I'm not using kNoMatching correctly.
-    // What I really want to do is to have an invalid object, if
-    // the array properties don't exist.
-    // Instead exceptions are being thrown.
+    // .ops, .static, .anim and .inherits do not need to exist
 
-    Abc::IUInt32ArrayProperty ops( *this, ".ops", kNoMatching );
-
-    if (ops.valid())
+    if (this->getPropertyHeader(".ops") != NULL)
     {
+        Abc::IUInt32ArrayProperty ops( *this, ".ops" );
         Abc::UInt32ArraySamplePtr opSamp;
         ops.get(opSamp);
         if (opSamp)
@@ -69,15 +65,17 @@ void IXformSchema::init( const Abc::IArgument &iArg0,
         }
     }
 
-    Abc::IDoubleArrayProperty staticData( *this, ".static",
-        args.getSchemaInterpMatching() );
-    if (staticData.valid())
+    if (this->getPropertyHeader(".static") != NULL)
     {
+        Abc::IDoubleArrayProperty staticData( *this, ".static");
         staticData.get(m_static);
     }
 
-    m_anim = Abc::IDoubleArrayProperty( *this, ".anim", kNoMatching );
-    m_inherits = Abc::IBoolProperty( *this, ".inherits", kNoMatching );
+    if (this->getPropertyHeader(".anim") != NULL)
+        m_anim = Abc::IDoubleArrayProperty( *this, ".anim" );
+
+    if (this->getPropertyHeader(".inherits") != NULL)
+        m_inherits = Abc::IBoolProperty( *this, ".inherits" );
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
@@ -88,7 +86,8 @@ Abc::M44d IXformSchema::getMatrix( const Abc::ISampleSelector &iSS )
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IXformTrait::getMatrix()" );
 
     Abc::DoubleArraySamplePtr anim;
-    m_anim.get(anim, iSS);
+    if ( m_anim.valid() )
+        m_anim.get( anim, iSS );
 
     size_t staticIndex = 0;
     size_t animIndex = 0;
@@ -106,13 +105,13 @@ Abc::M44d IXformSchema::getMatrix( const Abc::ISampleSelector &iSS )
                 {
                     if (m_ops[i].isIndexAnimated(j))
                     {
-                        m.x[j][k] = (*m_static)[staticIndex];
-                        staticIndex ++;
+                        m.x[j][k] = (*anim)[animIndex];
+                        animIndex ++;
                     }
                     else
                     {
-                        m.x[j][k] = (*anim)[animIndex];
-                        animIndex ++;
+                        m.x[j][k] = (*m_static)[staticIndex];
+                        staticIndex ++;
                     }
                 }
             }
@@ -122,35 +121,35 @@ Abc::M44d IXformSchema::getMatrix( const Abc::ISampleSelector &iSS )
             double x, y, z;
             if (m_ops[i].isXAnimated())
             {
-                x = (*m_static)[staticIndex];
-                staticIndex ++;
+                x = (*anim)[animIndex];
+                animIndex ++;
             }
             else
             {
-                x = (*anim)[animIndex];
-                animIndex ++;
+                x = (*m_static)[staticIndex];
+                staticIndex ++;
             }
 
             if (m_ops[i].isYAnimated())
             {
-                y = (*m_static)[staticIndex];
-                staticIndex ++;
+                y = (*anim)[animIndex];
+                animIndex ++;
             }
             else
             {
-                y = (*anim)[animIndex];
-                animIndex ++;
+                y = (*m_static)[staticIndex];
+                staticIndex ++;
             }
 
             if (m_ops[i].isZAnimated())
             {
-                z = (*m_static)[staticIndex];
-                staticIndex ++;
+                z = (*anim)[animIndex];
+                animIndex ++;
             }
             else
             {
-                z = (*anim)[animIndex];
-                animIndex ++;
+                z = (*m_static)[staticIndex];
+                staticIndex ++;
             }
 
             if (type == cScaleOperation)
@@ -166,13 +165,13 @@ Abc::M44d IXformSchema::getMatrix( const Abc::ISampleSelector &iSS )
                 double angle;
                 if (m_ops[i].isAngleAnimated())
                 {
-                    angle = (*m_static)[staticIndex];
-                    staticIndex ++;
+                    angle = (*anim)[animIndex];
+                    animIndex ++;
                 }
                 else
                 {
-                    angle = (*anim)[animIndex];
-                    animIndex ++;
+                    angle = (*m_static)[staticIndex];
+                    staticIndex ++;
                 }
 
                 m.setAxisAngle( V3d(x,y,z), angle );

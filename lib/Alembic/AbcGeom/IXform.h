@@ -143,11 +143,13 @@ public:
     bool inherits(
         const Abc::ISampleSelector &iSS = Abc::ISampleSelector() )
     {
+        // if m_inherits doesn't exist we'll default to true
         Alembic::Util::bool_t ret = true;
 
         ALEMBIC_ABC_SAFE_CALL_BEGIN( "IXformSchema::inherits()" );
 
-        m_inherits.get( ret, iSS );
+        if ( m_inherits.valid() )
+            m_inherits.get( ret, iSS );
 
         // Could error check here.
 
