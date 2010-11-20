@@ -52,32 +52,6 @@ class OXformSchema : public Abc::OSchema<XformSchemaInfo>
     //-*************************************************************************
 public:
 
-    //-*************************************************************************
-    // XFORM SCHEMA SAMPLE TYPE
-    //-*************************************************************************
-    class Sample
-    {
-    public:
-        //! Creates a default sample with no channel data in it.
-        //! inherits default to true
-        Sample() {m_inheritsTransform = true;}
-        Sample(const Abc::DoubleArraySample & iChannels, bool iFlag = true) :
-            m_anim(iChannels),
-            m_inheritsTransform(iFlag)
-        {}
-
-        const Abc::DoubleArraySample & getChannels() const { return m_anim; }
-        void setChannels( const  Abc::DoubleArraySample & iSmp)
-        { m_anim = iSmp; }
-
-        bool inheritsTransform() const { return m_inheritsTransform; }
-        void setInheritsTransform(bool iFlag) { m_inheritsTransform = iFlag; }
-
-    protected:
-        Abc::DoubleArraySample m_anim;
-        bool m_inheritsTransform;
-    };
-
     //! By convention we always define this_type in AbcGeom classes.
     //! Used by unspecified-bool-type conversion below
     typedef OXformSchema this_type;
@@ -134,7 +108,7 @@ public:
     //! Return the time sampling type, which is stored on each of the
     //! sub properties.
     AbcA::TimeSamplingType getTimeSamplingType() const
-    { return m_inherits.getTimeSamplingType(); }
+    { return m_anim.getTimeSamplingType(); }
 
     //-*************************************************************************
     // SAMPLE STUFF
@@ -143,7 +117,7 @@ public:
     //! Get number of samples written so far.
     //! ...
     size_t getNumSamples()
-    { return m_inherits.getNumSamples(); }
+    { return m_anim.getNumSamples(); }
 
     //! Sets up the xform operations. This function be called before calling
     //! set.
@@ -151,11 +125,15 @@ public:
     //! the transform and decides what is static, and what is animated.
     //! \param iStatic For the parts of the operations that do not change
     void setXform( const XformOpVec & iOp,
-        const Abc::DoubleArraySamplePtr iStatic );
+        const Abc::DoubleArraySample & iStatic );
 
-    //! Set a sample.  setXform needs to be called first.
-    void set( const Sample &iSample,
+    //! Set an animated sample.  setXform needs to be called first.
+    void set( const Abc::DoubleArraySample & iAnim,
               const Abc::OSampleSelector &iSS = Abc::OSampleSelector() );
+
+    //! Set the inherits transform hint
+    void setInherits(bool iInherits,
+        const Abc::OSampleSelector &iSS = Abc::OSampleSelector() );
 
     //! Set from previous sample. Will hold the animated channels.
     void setFromPrevious( const Abc::OSampleSelector &iSS );
@@ -172,8 +150,9 @@ public:
     {
         m_anim.reset();
         m_inherits.reset();
-        m_xform = false;
+        m_writtenOps = false;
         m_numAnimated = 0;
+        m_time = AbcA::TimeSamplingType();
         Abc::OSchema<XformSchemaInfo>::reset();
     }
 
@@ -194,8 +173,9 @@ protected:
     Abc::OBoolProperty m_inherits;
 
 private:
-    bool m_xform;
+    bool m_writtenOps;
     size_t m_numAnimated;
+    AbcA::TimeSamplingType m_time;
 };
 
 //-*****************************************************************************
