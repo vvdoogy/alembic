@@ -96,13 +96,19 @@ public:
     //! Default copy constructor used.
     //! Default assignment operator used.
 
-
-    //! Return the number of samples contained in the property.
+    //! Return the number of samples contained in the animated property.
     //! This can be any number, including zero.
     //! This returns the number of samples that were written, independently
     //! of whether or not they were constant.
-    size_t getNumSamples()
-    { return std::max( m_anim.getNumSamples(), m_inherits.getNumSamples() ); }
+    size_t getNumAnimSamples()
+    { return m_anim.getNumSamples(); }
+
+    //! Return the number of samples contained in the inherits property.
+    //! This can be any number, including zero.
+    //! This returns the number of samples that were written, independently
+    //! of whether or not they were constant.
+    size_t getNumInheritsSamples()
+    { return m_inherits.getNumSamples(); }
 
     //! Time sampling type.
     AbcA::TimeSamplingType getTimeSamplingType() const
@@ -115,10 +121,7 @@ public:
     //! sampling information, which otherwise defaults to Identity.
     AbcA::TimeSampling getTimeSampling()
     {
-        if ( !m_anim.getTimeSampling().isStatic() )
-        { return m_anim.getTimeSampling(); }
-        else
-        { return m_inherits.getTimeSampling(); }
+        return m_anim.getTimeSampling();
     }
 
     //-*************************************************************************

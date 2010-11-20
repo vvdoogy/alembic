@@ -42,11 +42,11 @@ namespace AbcGeom {
 
 //-*****************************************************************************
 void OXformSchema::setXform( const XformOpVec & iOp,
-    const Abc::DoubleArraySamplePtr iStatic )
+    const Abc::DoubleArraySample & iStatic )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "OXformSchema::setXform()" );
 
-    ABCA_ASSERT( !m_xform,
+    ABCA_ASSERT( !m_writtenOps,
         "Xform operations have already been written." );
 
     XformOpVec::const_iterator it = iOp.begin();
@@ -73,7 +73,7 @@ void OXformSchema::setXform( const XformOpVec & iOp,
         data[i] = it->getEncodedValue();
     }
 
-    ABCA_ASSERT( numStatic == iStatic->size(),
+    ABCA_ASSERT( numStatic == iStatic.size(),
         "Not enough static data provided in OXformSchema::setXform");
 
     if ( !data.empty() )
@@ -82,34 +82,50 @@ void OXformSchema::setXform( const XformOpVec & iOp,
         ops.set(data);
 
         Abc::ODoubleArrayProperty staticData( *this, ".static" );
-        staticData.set(*iStatic);
+        staticData.set(iStatic);
     }
 
-    m_xform = true;
+    m_writtenOps = true;
     ALEMBIC_ABC_SAFE_CALL_END();
 }
 
 //-*****************************************************************************
-void OXformSchema::set( const Sample &iSamp, const Abc::OSampleSelector &iSS  )
+void OXformSchema::set( const Abc::DoubleArraySample & iAnim,
+    const Abc::OSampleSelector &iSS  )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "OXformSchema::set()" );
 
-    ABCA_ASSERT( m_xform,
+    ABCA_ASSERT( m_writtenOps,
         "Must write xform operations before writing animated samples." );
 
-    size_t animSize = iSamp.getChannels().size();
+    size_t animSize = iAnim.size();
     ABCA_ASSERT( m_numAnimated == animSize, "Sample doesn't have enough data.");
+
+    if (!m_anim)
+        m_anim = Abc::ODoubleArrayProperty( *this, ".anim", m_time );
 
     if ( iSS.getIndex() == 0 )
     {
-        m_anim.set( iSamp.getChannels(), iSS );
-        m_inherits.set( iSamp.inheritsTransform(), iSS );
+        m_anim.set( iAnim, iSS );
     }
     else
     {
-        SetPropUsePrevIfNull( m_anim, iSamp.getChannels(), iSS );
-        SetPropUsePrevIfNull( m_inherits, iSamp.inheritsTransform(), iSS );
+        SetPropUsePrevIfNull( m_anim, iAnim, iSS );
     }
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+}
+
+//-*****************************************************************************
+void OXformSchema::setInherits( bool iInherits,
+    const Abc::OSampleSelector &iSS  )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "OXformSchema::setInherits()" );
+
+    if (!m_inherits)
+        m_inherits = Abc::OBoolProperty( *this, ".inherits", m_time );
+
+    m_inherits.set( iInherits, iSS );
 
     ALEMBIC_ABC_SAFE_CALL_END();
 }
@@ -119,8 +135,11 @@ void OXformSchema::setFromPrevious( const Abc::OSampleSelector &iSS )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "OXformSchema::setFromPrevious" );
 
-    m_anim.setFromPrevious( iSS );
-    m_inherits.setFromPrevious( iSS );
+    if (m_anim)
+        m_anim.setFromPrevious( iSS );
+
+    if (m_inherits)
+        m_inherits.setFromPrevious( iSS );
 
     ALEMBIC_ABC_SAFE_CALL_END();
 }
@@ -130,9 +149,9 @@ void OXformSchema::init( const AbcA::TimeSamplingType &iTst )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "OXformSchema::init()" );
 
-    m_anim = Abc::ODoubleArrayProperty( *this, ".anim", iTst );
-    m_inherits = Abc::OBoolProperty( *this, ".inherits", iTst );
-
+    m_time = iTst;
+    m_writtenOps = false;
+    m_numAnimated = 0;
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
 

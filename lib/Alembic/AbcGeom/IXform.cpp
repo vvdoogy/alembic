@@ -45,12 +45,12 @@ void IXformSchema::init( const Abc::IArgument &iArg0,
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IXformTrait::init()" );
 
-    Abc::IArguments args;
-    iArg0.setInto( args );
-    iArg1.setInto( args );
+    // It seems like I'm not using kNoMatching correctly.
+    // What I really want to do is to have an invalid object, if
+    // the array properties don't exist.
+    // Instead exceptions are being thrown.
 
-    Abc::IUInt32ArrayProperty ops( *this, ".ops",
-        args.getSchemaInterpMatching() );
+    Abc::IUInt32ArrayProperty ops( *this, ".ops", kNoMatching );
 
     if (ops.valid())
     {
@@ -76,10 +76,8 @@ void IXformSchema::init( const Abc::IArgument &iArg0,
         staticData.get(m_static);
     }
 
-    m_anim = Abc::IDoubleArrayProperty( *this, ".anim",
-                                          args.getSchemaInterpMatching() );
-    m_inherits = Abc::IBoolProperty( *this, ".inherits",
-                                        args.getSchemaInterpMatching() );
+    m_anim = Abc::IDoubleArrayProperty( *this, ".anim", kNoMatching );
+    m_inherits = Abc::IBoolProperty( *this, ".inherits", kNoMatching );
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
