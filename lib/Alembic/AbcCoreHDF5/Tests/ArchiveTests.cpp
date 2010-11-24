@@ -96,6 +96,7 @@ void testReadWriteEmptyArchive()
         A5::ReadArchive r;
         ABC::ArchiveReaderPtr a = r( archiveName );
         ABC::ObjectReaderPtr archive = a->getTop();
+
         TESTING_ASSERT(archive->getName() == "ABC");
         TESTING_ASSERT(archive->getFullName() == "/ABC");
         TESTING_ASSERT(archive->getParent() == NULL);
@@ -104,6 +105,12 @@ void testReadWriteEmptyArchive()
         ABC::CompoundPropertyReaderPtr parent = archive->getProperties();
         TESTING_ASSERT(parent->getNumProperties() == 0);
 
+        // get it again to make sure we clean ourselves up properly
+        A5::ReadArchive r2;
+        ABC::ArchiveReaderPtr a2 = r2( archiveName );
+        ABC::ObjectReaderPtr archive2 = a2->getTop();
+        ABC::CompoundPropertyReaderPtr p2 = archive2->getProperties();
+        TESTING_ASSERT(p2->getNumProperties() == 0);
     }
 }
 
