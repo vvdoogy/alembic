@@ -80,6 +80,7 @@ void IXformSchema::init( const Abc::IArgument &iArg0,
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
 
+//-*****************************************************************************
 Abc::M44d IXformSchema::getMatrix( const Abc::ISampleSelector &iSS )
 {
     Abc::M44d ret;
@@ -97,13 +98,13 @@ Abc::M44d IXformSchema::getMatrix( const Abc::ISampleSelector &iSS )
     {
         Abc::M44d m;
         XformOperationType type = m_ops[i].getType();
-        if (type == cMatrixOperation)
+        if (type == kMatrixOperation)
         {
             for (size_t j = 0; j < 4; ++j)
             {
                 for (size_t k = 0; k < 4; ++k)
                 {
-                    if (m_ops[i].isIndexAnimated(j))
+                    if (m_ops[i].isIndexAnimated(j*4 + k))
                     {
                         m.x[j][k] = (*anim)[animIndex];
                         animIndex ++;
@@ -152,15 +153,15 @@ Abc::M44d IXformSchema::getMatrix( const Abc::ISampleSelector &iSS )
                 staticIndex ++;
             }
 
-            if (type == cScaleOperation)
+            if (type == kScaleOperation)
             {
                 m.setScale( V3d(x,y,z) );
             }
-            else if (type == cTranslateOperation)
+            else if (type == kTranslateOperation)
             {
                 m.setTranslation( V3d(x, y, z) );
             }
-            else if (type == cRotateOperation)
+            else if (type == kRotateOperation)
             {
                 double angle;
                 if (m_ops[i].isAngleAnimated())
@@ -183,6 +184,114 @@ Abc::M44d IXformSchema::getMatrix( const Abc::ISampleSelector &iSS )
     ALEMBIC_ABC_SAFE_CALL_END();
 
     return ret;
+}
+
+//-*****************************************************************************
+void IXformSchema::getSample( XformSampleVec & oVec,
+    const Abc::ISampleSelector &iSS )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "IXformTrait::getSample()" );
+
+    Abc::DoubleArraySamplePtr anim;
+    if ( m_anim.valid() )
+        m_anim.get( anim, iSS );
+
+    size_t staticIndex = 0;
+    size_t animIndex = 0;
+
+    size_t numOps = m_ops.size();
+    for (size_t i = 0; i < numOps; ++i)
+    {
+        XformOperationType type = m_ops[i].getType();
+        if (type == kMatrixOperation)
+        {
+            Abc::M44d m;
+            for (size_t j = 0; j < 4; ++j)
+            {
+                for (size_t k = 0; k < 4; ++k)
+                {
+                    if (m_ops[i].isIndexAnimated(j*4 + k))
+                    {
+                        m.x[j][k] = (*anim)[animIndex];
+                        animIndex ++;
+                    }
+                    else
+                    {
+                        m.x[j][k] = (*m_static)[staticIndex];
+                        staticIndex ++;
+                    }
+                }
+            }
+            XformSamplePtr p(new MatrixSample(m));
+            oVec.push_back( p );
+        }
+        else
+        {
+            double x, y, z;
+            if (m_ops[i].isXAnimated())
+            {
+                x = (*anim)[animIndex];
+                animIndex ++;
+            }
+            else
+            {
+                x = (*m_static)[staticIndex];
+                staticIndex ++;
+            }
+
+            if (m_ops[i].isYAnimated())
+            {
+                y = (*anim)[animIndex];
+                animIndex ++;
+            }
+            else
+            {
+                y = (*m_static)[staticIndex];
+                staticIndex ++;
+            }
+
+            if (m_ops[i].isZAnimated())
+            {
+                z = (*anim)[animIndex];
+                animIndex ++;
+            }
+            else
+            {
+                z = (*m_static)[staticIndex];
+                staticIndex ++;
+            }
+
+            if (type == kScaleOperation)
+            {
+                XformSamplePtr p( new ScaleSample(V3d(x,y,z)) );
+                oVec.push_back( p );
+            }
+            else if (type == kTranslateOperation)
+            {
+                XformSamplePtr p( new TranslateSample(V3d(x,y,z)) );
+                oVec.push_back( p );
+            }
+            else if (type == kRotateOperation)
+            {
+                double angle;
+                if (m_ops[i].isAngleAnimated())
+                {
+                    angle = (*anim)[animIndex];
+                    animIndex ++;
+                }
+                else
+                {
+                    angle = (*m_static)[staticIndex];
+                    staticIndex ++;
+                }
+
+                XformSamplePtr p( new RotateSample(V3d(x,y,z), angle) );
+                oVec.push_back( p );
+            }
+        }
+
+    }
+    ALEMBIC_ABC_SAFE_CALL_END();
 }
 
 } // End namespace AbcGeom

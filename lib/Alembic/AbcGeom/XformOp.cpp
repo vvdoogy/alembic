@@ -39,21 +39,26 @@
 namespace Alembic {
 namespace AbcGeom {
 
-XformOp::XformOp() : m_type(cTranslateOperation), m_anim(0), m_hint(0) 
-{};
+//-*****************************************************************************
+XformOp::XformOp() : m_type(kTranslateOperation), m_anim(0), m_hint(0) 
+{
+};
 
-XformOp::XformOp(XformOperationType iType, Alembic::Util::uint8_t iHint) : 
-m_type(iType)
+//-*****************************************************************************
+XformOp::XformOp(XformOperationType iType, Alembic::Util::uint8_t iHint)
+    : m_type(iType)
 {
     setHint(iHint);
     m_anim = 0;
 }
 
+//-*****************************************************************************
 XformOperationType XformOp::getType() const
 {
     return m_type;
 }
 
+//-*****************************************************************************
 void XformOp::setType(XformOperationType iType)
 {
     m_type = iType;
@@ -61,28 +66,30 @@ void XformOp::setType(XformOperationType iType)
     m_anim = 0;
 }
 
+//-*****************************************************************************
 uint8_t XformOp::getHint() const
 {
     return m_hint;
 }
 
+//-*****************************************************************************
 void XformOp::setHint(Alembic::Util::uint8_t iHint)
 {
     // if a non-existant hint value is set, default it to 0
-    if ( m_type == cScaleOperation && iHint > cScale )
+    if ( m_type == kScaleOperation && iHint > kScaleHint )
     {
         m_hint = 0;
     }
-    else if ( m_type == cTranslateOperation && iHint > 
-        cRotatePivotTranslation )
+    else if ( m_type == kTranslateOperation && iHint > 
+        kRotatePivotTranslationHint )
     {
         m_hint = 0;
     }
-    else if ( m_type == cRotateOperation && iHint > cRotateOrientation )
+    else if ( m_type == kRotateOperation && iHint > kRotateOrientationHint )
     {
         m_hint = 0;
     }
-    else if ( m_type == cMatrixOperation && iHint > cMayaShear )
+    else if ( m_type == kMatrixOperation && iHint > kMayaShearHint )
     {
         m_hint = 0;
     }
@@ -92,56 +99,66 @@ void XformOp::setHint(Alembic::Util::uint8_t iHint)
     }
 }
 
+//-*****************************************************************************
 bool XformOp::isXAnimated() const
 {
     return isIndexAnimated(0);
 }
 
+//-*****************************************************************************
 void XformOp::setXAnimated(bool iAnim)
 {
     setIndexAnimated(0, iAnim);
 }
 
+//-*****************************************************************************
 bool XformOp::isYAnimated() const
 {
     return isIndexAnimated(1);
 }
 
+//-*****************************************************************************
 void XformOp::setYAnimated(bool iAnim)
 {
     setIndexAnimated(1, iAnim);
 }
 
+//-*****************************************************************************
 bool XformOp::isZAnimated() const
 {
     return isIndexAnimated(2);
 }
 
+//-*****************************************************************************
 void XformOp::setZAnimated(bool iAnim)
 {
     setIndexAnimated(2, iAnim);
 }
 
+//-*****************************************************************************
 bool XformOp::isAngleAnimated() const
 {
     return isIndexAnimated(3);
 }
 
+//-*****************************************************************************
 void XformOp::setAngleAnimated(bool iAnim)
 {
     setIndexAnimated(3, iAnim);
 }
 
+//-*****************************************************************************
 bool XformOp::isIndexAnimated(uint8_t iIndex) const
 {
     return ( m_anim >> iIndex ) & 0x01;
 }
 
+//-*****************************************************************************
 void XformOp::setIndexAnimated(uint8_t iIndex, bool iAnim)
 {
     // if the index is not correct for the operation, then just return
-    if ( iIndex > 15 || (m_type == cRotateOperation && iIndex > 3) ||
-        ((m_type == cTranslateOperation || m_type == cScaleOperation) &&
+    if ( iIndex > 15 || (m_type == kRotateOperation && iIndex > 3) ||
+        ((m_type == kTranslateOperation || m_type == kScaleOperation) &&
         iIndex > 2) )
     {
         return;
@@ -155,20 +172,21 @@ void XformOp::setIndexAnimated(uint8_t iIndex, bool iAnim)
         m_anim = m_anim & (0xffff ^ (0x1 << iIndex));
 }
 
+//-*****************************************************************************
 Alembic::Util::uint8_t XformOp::getNumIndices() const
 {
     switch (m_type)
     {
-        case cScaleOperation:
-        case cTranslateOperation:
+        case kScaleOperation:
+        case kTranslateOperation:
             return 3;
         break;
 
-        case cRotateOperation:
+        case kRotateOperation:
             return 4;
         break;
 
-        case cMatrixOperation:
+        case kMatrixOperation:
             return 16;
         break;
 
@@ -179,15 +197,25 @@ Alembic::Util::uint8_t XformOp::getNumIndices() const
     return 0;
 }
 
+//-*****************************************************************************
 Alembic::Util::uint32_t XformOp::getEncodedValue() const
 {
     return (m_anim << 16) | (m_hint << 8) | m_type;
 }
 
+//-*****************************************************************************
 void XformOp::setEncodedValue(Alembic::Util::uint32_t iVal)
 {
-    // do it this way to make sure the data is sanitized
-    XformOperationType type = (XformOperationType)(iVal & 0xff);
+    // do it this way to make sure every byte is sane, or end up being
+    // broken down into a sane value
+
+    Alembic::Util::uint32_t rawType = iVal & 0xff;
+
+    // beyond matrix reset to type scale
+    if (rawType > 3)
+        rawType = 0;
+
+    XformOperationType type = (XformOperationType)(rawType);
     this->setType(type);
     this->setHint((iVal >> 8) & 0xff);
     uint16_t anim = (iVal >> 16) & 0xffff;
@@ -195,6 +223,116 @@ void XformOp::setEncodedValue(Alembic::Util::uint32_t iVal)
     {
         this->setIndexAnimated(i, (anim >> i) & 0x1);
     }
+}
+
+//-*****************************************************************************
+TranslateSample::TranslateSample(const Abc::V3d & iData)
+    : XformSample(kTranslateOperation), m_data(iData)
+{
+}
+
+//-*****************************************************************************
+TranslateSample::TranslateSample(XformSamplePtr iXform)
+    : XformSample(kTranslateOperation)
+{
+    if (iXform && iXform->getType() == kTranslateOperation)
+    {
+        boost::shared_ptr < TranslateSample > t =
+            boost::static_pointer_cast < TranslateSample > (iXform);
+
+        m_data = t->get();
+    }
+    else
+    {
+        m_data = V3d(0, 0, 0);
+    }
+}
+
+//-*****************************************************************************
+Abc::M44d TranslateSample::getMatrix() const
+{
+    return Abc::M44d().setTranslation(m_data);
+}
+
+//-*****************************************************************************
+ScaleSample::ScaleSample(const Abc::V3d & iData)
+    : XformSample(kScaleOperation), m_data(iData)
+{
+}
+
+//-*****************************************************************************
+ScaleSample::ScaleSample(XformSamplePtr iXform) : XformSample(kScaleOperation)
+{
+    if (iXform && iXform->getType() == kScaleOperation)
+    {
+        boost::shared_ptr < ScaleSample > s =
+            boost::static_pointer_cast < ScaleSample > (iXform);
+        m_data = s->get();
+    }
+    else
+    {
+        m_data = V3d(1, 1, 1);
+    }
+}
+
+//-*****************************************************************************
+Abc::M44d ScaleSample::getMatrix() const
+{
+    return Abc::M44d().setScale(m_data);
+}
+
+//-*****************************************************************************
+RotateSample::RotateSample(const Abc::V3d & iAxis, double iAngle)
+    : XformSample(kRotateOperation), m_axis(iAxis), m_angle(iAngle)
+{
+}
+
+//-*****************************************************************************
+RotateSample::RotateSample(XformSamplePtr iXform)
+    : XformSample(kRotateOperation)
+{
+    if (iXform && iXform->getType() == kRotateOperation)
+    {
+        boost::shared_ptr < RotateSample > r =
+            boost::static_pointer_cast < RotateSample > (iXform);
+        m_angle = r->getAngle();
+        m_axis = r->getAxis();
+    }
+    else
+    {
+        m_angle = 0;
+        m_axis = V3d(0, 0, 0);
+    }
+}
+
+//-*****************************************************************************
+Abc::M44d RotateSample::getMatrix() const
+{
+    return Abc::M44d().setAxisAngle(m_axis, m_angle);
+}
+
+//-*****************************************************************************
+MatrixSample::MatrixSample(const Abc::M44d & iMatrix)
+    : XformSample(kMatrixOperation), m_matrix(iMatrix)
+{
+}
+
+//-*****************************************************************************
+MatrixSample::MatrixSample(XformSamplePtr iXform)
+    : XformSample(kMatrixOperation)
+{
+    if (iXform && iXform->getType() == kMatrixOperation)
+    {
+        boost::shared_ptr < MatrixSample > m =
+            boost::static_pointer_cast < MatrixSample > (iXform);
+        m_matrix = m->get();
+    }
+}
+
+//-*****************************************************************************
+Abc::M44d MatrixSample::getMatrix() const
+{
+    return m_matrix;
 }
 
 } // End namespace AbcGeom
