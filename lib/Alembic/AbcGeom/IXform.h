@@ -164,14 +164,16 @@ public:
 
     const XformOpVec & getOps() { return m_ops; }
 
+    void getSample(XformSampleVec & oVec,
+        const Abc::ISampleSelector &iSS = Abc::ISampleSelector());
+
     //-*************************************************************************
     // ABC BASE MECHANISMS
     // These functions are used by Abc to deal with errors, rewrapping,
     // and so on.
     //-*************************************************************************
 
-    //! Reset returns this function set to an empty, default
-    //! state.
+    //! Reset returns this function set to an empty, default state.
     void reset()
     {
         m_ops.clear();
@@ -182,8 +184,7 @@ public:
         Abc::ISchema<XformSchemaInfo>::reset();
     }
 
-    //! Valid returns whether this function set is
-    //! valid.
+    //! Valid returns whether this function set is valid.
     bool valid() const
     {
         return ( Abc::ISchema<XformSchemaInfo>::valid() );
