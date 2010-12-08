@@ -164,6 +164,12 @@ public:
 
     const XformOpVec & getOps() { return m_ops; }
 
+    //! Returns the total number of operations.
+    size_t getNumOps() const { return m_ops.size(); }
+
+    //! Returns true if a particular op has no animated components.
+    bool isOpStatic( size_t iIndex ) const;
+
     void getSample(XformSampleVec & oVec,
         const Abc::ISampleSelector &iSS = Abc::ISampleSelector());
 

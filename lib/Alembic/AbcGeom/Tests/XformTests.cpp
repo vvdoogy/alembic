@@ -96,7 +96,9 @@ void xformIn()
                       "Xform1.abc" );
     IXform a( IObject( archive, kTop ), "a" );
     XformOpVec ops = a.getSchema().getOps();
+    TESTING_ASSERT( ops.size() == a.getSchema().getNumOps() );
     TESTING_ASSERT( ops.size() == 1 );
+    TESTING_ASSERT( a.getSchema().isOpStatic(0) == false );
     TESTING_ASSERT( a.getSchema().getNumAnimSamples() == 20 );
     TESTING_ASSERT( a.getSchema().inherits() );
     for ( index_t i = 0; i < 20; ++i )
@@ -122,19 +124,23 @@ void xformIn()
     b.getSchema().getSample(xs);
     TESTING_ASSERT( xs.size() == 0 );
     TESTING_ASSERT( b.getSchema().getOps().size() == 0 );
+    TESTING_ASSERT( b.getSchema().getNumOps() == 0 );
     TESTING_ASSERT( b.getSchema().getMatrix() == identity );
 
     IXform c( b, "c" );
     c.getSchema().getSample(xs);
     TESTING_ASSERT( xs.size() == 0 );
     TESTING_ASSERT( c.getSchema().getOps().size() == 0 );
+    TESTING_ASSERT( c.getSchema().getNumOps() == 0 );
     TESTING_ASSERT( c.getSchema().getMatrix() == identity );
     TESTING_ASSERT( c.getSchema().inherits() );
 
     IXform d( c, "d" );
     d.getSchema().getSample(xs);
     TESTING_ASSERT( xs.size() == 1 );
+    TESTING_ASSERT( d.getSchema().getNumOps() == 1 );
     TESTING_ASSERT( xs[0]->getType() == kScaleOperation );
+    TESTING_ASSERT( d.getSchema().isOpStatic(0) );
     ScaleSample s(xs[0]);
     TESTING_ASSERT( s.get() == V3d(3.0, 6.0, 9.0) );
     TESTING_ASSERT( s.getMatrix() ==
@@ -250,59 +256,66 @@ void someOpsXform()
         IArchive archive( Alembic::AbcCoreHDF5::ReadArchive(), name );
         IXform a( IObject( archive, kTop ), "a" );
         XformOpVec ops = a.getSchema().getOps();
-        TESTING_ASSERT(ops.size() == 6);
+        TESTING_ASSERT( ops.size() == 6 );
+        TESTING_ASSERT( a.getSchema().getNumOps() == 6 );
 
-        TESTING_ASSERT(ops[0].getType() == kScaleOperation);
-        TESTING_ASSERT(ops[0].getHint() == kScaleHint);
-        TESTING_ASSERT(ops[0].isXAnimated());
-        TESTING_ASSERT(!ops[0].isYAnimated());
-        TESTING_ASSERT(!ops[0].isZAnimated());
+        TESTING_ASSERT( ops[0].getType() == kScaleOperation );
+        TESTING_ASSERT( ops[0].getHint() == kScaleHint );
+        TESTING_ASSERT( ops[0].isXAnimated() );
+        TESTING_ASSERT( !ops[0].isYAnimated() );
+        TESTING_ASSERT( !ops[0].isZAnimated() );
+        TESTING_ASSERT( !a.getSchema().isOpStatic(0) );
 
-        TESTING_ASSERT(ops[1].getType() == kMatrixOperation);
-        TESTING_ASSERT(ops[1].getHint() == kMayaShearHint);
-        TESTING_ASSERT(!ops[1].isIndexAnimated(0));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(1));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(2));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(3));
-        TESTING_ASSERT(ops[1].isIndexAnimated(4));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(5));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(6));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(7));
-        TESTING_ASSERT(ops[1].isIndexAnimated(8));
-        TESTING_ASSERT(ops[1].isIndexAnimated(9));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(10));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(11));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(12));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(13));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(14));
-        TESTING_ASSERT(!ops[1].isIndexAnimated(15));
+        TESTING_ASSERT( ops[1].getType() == kMatrixOperation );
+        TESTING_ASSERT( ops[1].getHint() == kMayaShearHint );
+        TESTING_ASSERT( !a.getSchema().isOpStatic(1) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(0) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(1) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(2) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(3) );
+        TESTING_ASSERT( ops[1].isIndexAnimated(4) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(5) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(6) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(7) );
+        TESTING_ASSERT( ops[1].isIndexAnimated(8) );
+        TESTING_ASSERT( ops[1].isIndexAnimated(9) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(10) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(11) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(12) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(13) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(14) );
+        TESTING_ASSERT( !ops[1].isIndexAnimated(15) );
 
-        TESTING_ASSERT(ops[2].getType() == kRotateOperation);
-        TESTING_ASSERT(ops[2].getHint() == kRotateHint);
-        TESTING_ASSERT(!ops[2].isXAnimated());
-        TESTING_ASSERT(!ops[2].isYAnimated());
-        TESTING_ASSERT(!ops[2].isZAnimated());
-        TESTING_ASSERT(!ops[2].isAngleAnimated());
+        TESTING_ASSERT( ops[2].getType() == kRotateOperation );
+        TESTING_ASSERT( ops[2].getHint() == kRotateHint );
+        TESTING_ASSERT( a.getSchema().isOpStatic(2) );
+        TESTING_ASSERT( !ops[2].isXAnimated() );
+        TESTING_ASSERT( !ops[2].isYAnimated() );
+        TESTING_ASSERT( !ops[2].isZAnimated() );
+        TESTING_ASSERT( !ops[2].isAngleAnimated() );
 
-        TESTING_ASSERT(ops[3].getType() == kRotateOperation);
-        TESTING_ASSERT(ops[3].getHint() == kRotateHint);
-        TESTING_ASSERT(!ops[3].isXAnimated());
-        TESTING_ASSERT(!ops[3].isYAnimated());
-        TESTING_ASSERT(!ops[3].isZAnimated());
-        TESTING_ASSERT(ops[3].isAngleAnimated());
+        TESTING_ASSERT( ops[3].getType() == kRotateOperation );
+        TESTING_ASSERT( ops[3].getHint() == kRotateHint );
+        TESTING_ASSERT( !a.getSchema().isOpStatic(3) );
+        TESTING_ASSERT( !ops[3].isXAnimated() );
+        TESTING_ASSERT( !ops[3].isYAnimated() );
+        TESTING_ASSERT( !ops[3].isZAnimated() );
+        TESTING_ASSERT( ops[3].isAngleAnimated() );
 
-        TESTING_ASSERT(ops[4].getType() == kRotateOperation);
-        TESTING_ASSERT(ops[4].getHint() == kRotateOrientationHint);
-        TESTING_ASSERT(!ops[4].isXAnimated());
-        TESTING_ASSERT(!ops[4].isYAnimated());
-        TESTING_ASSERT(!ops[4].isZAnimated());
-        TESTING_ASSERT(ops[4].isAngleAnimated());
+        TESTING_ASSERT( ops[4].getType() == kRotateOperation);
+        TESTING_ASSERT( ops[4].getHint() == kRotateOrientationHint);
+        TESTING_ASSERT( !a.getSchema().isOpStatic(4) );
+        TESTING_ASSERT( !ops[4].isXAnimated() );
+        TESTING_ASSERT( !ops[4].isYAnimated() );
+        TESTING_ASSERT( !ops[4].isZAnimated() );
+        TESTING_ASSERT( ops[4].isAngleAnimated() );
 
-        TESTING_ASSERT(ops[5].getType() == kTranslateOperation);
-        TESTING_ASSERT(ops[5].getHint() == kRotatePivotPointHint);
-        TESTING_ASSERT(!ops[5].isXAnimated());
-        TESTING_ASSERT(ops[5].isYAnimated());
-        TESTING_ASSERT(ops[5].isZAnimated());
+        TESTING_ASSERT( ops[5].getType() == kTranslateOperation );
+        TESTING_ASSERT( ops[5].getHint() == kRotatePivotPointHint );
+        TESTING_ASSERT( !a.getSchema().isOpStatic(5) );
+        TESTING_ASSERT( !ops[5].isXAnimated() );
+        TESTING_ASSERT( ops[5].isYAnimated() );
+        TESTING_ASSERT( ops[5].isZAnimated() );
 
         Abc::DoubleArraySamplePtr s = a.getSchema().getStaticData();
         TESTING_ASSERT( s->size() == 26 );
