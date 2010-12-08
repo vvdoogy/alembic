@@ -187,6 +187,21 @@ Abc::M44d IXformSchema::getMatrix( const Abc::ISampleSelector &iSS )
 }
 
 //-*****************************************************************************
+bool IXformSchema::isOpStatic( size_t iIndex ) const
+{
+    if ( iIndex >= m_ops.size() )
+        return true;
+
+    const XformOp & op = m_ops[iIndex];
+    for ( uint8_t i = 0; i < op.getNumIndices(); ++i )
+    {
+        if (op.isIndexAnimated(i))
+            return false;
+    }
+    return true;
+}
+
+//-*****************************************************************************
 void IXformSchema::getSample( XformSampleVec & oVec,
     const Abc::ISampleSelector &iSS )
 {
