@@ -99,6 +99,7 @@ void xformIn()
     TESTING_ASSERT( ops.size() == a.getSchema().getNumOps() );
     TESTING_ASSERT( ops.size() == 1 );
     TESTING_ASSERT( a.getSchema().isOpStatic(0) == false );
+
     TESTING_ASSERT( a.getSchema().getNumAnimSamples() == 20 );
     TESTING_ASSERT( a.getSchema().inherits() );
     for ( index_t i = 0; i < 20; ++i )
@@ -258,7 +259,7 @@ void someOpsXform()
         XformOpVec ops = a.getSchema().getOps();
         TESTING_ASSERT( ops.size() == 6 );
         TESTING_ASSERT( a.getSchema().getNumOps() == 6 );
-
+        TESTING_ASSERT(ops.size() == 6);
         TESTING_ASSERT( ops[0].getType() == kScaleOperation );
         TESTING_ASSERT( ops[0].getHint() == kScaleHint );
         TESTING_ASSERT( ops[0].isXAnimated() );
@@ -302,8 +303,8 @@ void someOpsXform()
         TESTING_ASSERT( !ops[3].isZAnimated() );
         TESTING_ASSERT( ops[3].isAngleAnimated() );
 
-        TESTING_ASSERT( ops[4].getType() == kRotateOperation);
-        TESTING_ASSERT( ops[4].getHint() == kRotateOrientationHint);
+        TESTING_ASSERT( ops[4].getType() == kRotateOperation );
+        TESTING_ASSERT( ops[4].getHint() == kRotateOrientationHint );
         TESTING_ASSERT( !a.getSchema().isOpStatic(4) );
         TESTING_ASSERT( !ops[4].isXAnimated() );
         TESTING_ASSERT( !ops[4].isYAnimated() );
