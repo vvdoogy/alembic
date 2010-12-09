@@ -113,7 +113,9 @@ protected:
 
     // Data Types.
     hid_t m_fileDataType;
+    bool m_cleanFileDataType;
     hid_t m_nativeDataType;
+    bool m_cleanNativeDataType;
 
     // The number of samples that were written. This may be greater
     // than the number of samples that were stored, because on the tail
@@ -162,7 +164,9 @@ SimplePrImpl<ABSTRACT,IMPL,SAMPLE>::SimplePrImpl
   , m_parentGroup( iParentGroup )
   , m_header( iHeader )
   , m_fileDataType( -1 )
+  , m_cleanFileDataType( false )
   , m_nativeDataType( -1 )
+  , m_cleanNativeDataType( false )
   , m_timeSample0( 0.0 )
   , m_samplesIGroup( -1 )
 {
@@ -177,8 +181,10 @@ SimplePrImpl<ABSTRACT,IMPL,SAMPLE>::SimplePrImpl
     PlainOldDataType POD = m_header->getDataType().getPod();
     if ( POD != kStringPOD && POD != kWstringPOD )
     {
-        m_fileDataType = GetFileH5T( m_header->getDataType() );
-        m_nativeDataType = GetNativeH5T( m_header->getDataType() );
+        m_fileDataType = GetFileH5T( m_header->getDataType(),
+                                     m_cleanFileDataType );
+        m_nativeDataType = GetNativeH5T( m_header->getDataType(),
+                                         m_cleanNativeDataType );
     }
 
     // Get our name.
@@ -389,6 +395,17 @@ SimplePrImpl<ABSTRACT,IMPL,SAMPLE>::~SimplePrImpl()
         m_samplesIGroup = -1;
     }
 
+    if ( m_fileDataType >= 0 && m_cleanFileDataType )
+    {
+        H5Tclose( m_fileDataType );
+        m_fileDataType = -1;
+    }
+
+    if ( m_nativeDataType >= 0 && m_cleanNativeDataType )
+    {
+        H5Tclose( m_nativeDataType );
+        m_nativeDataType = -1;
+    }
 }
 
 } // End namespace AbcCoreHDF5
