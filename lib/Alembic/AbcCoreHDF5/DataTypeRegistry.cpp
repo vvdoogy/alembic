@@ -44,82 +44,54 @@ namespace AbcCoreHDF5 {
 using namespace AbcA;
 
 //-*****************************************************************************
-
-static void SetNativeBoolFields(hid_t typeHid)
-{
-    // set it up and then lock it, so we don't have to worry about cleaning
-    // it up. (since there aren't many new types)
-    H5Tset_size( typeHid, 1 );
-    H5Tset_precision( typeHid, 1 );
-    H5Tset_sign( typeHid, H5T_SGN_NONE );
-    H5Tset_offset( typeHid, 0 );
-    H5Tset_pad( typeHid, H5T_PAD_ZERO, H5T_PAD_ZERO );
-    H5Tlock( typeHid );
-
-}
-
-//-*****************************************************************************
 static hid_t GetNativeBoolH5T()
 {
-    static hid_t ret = -1;
-    if (ret == -1)
-    {
-        ret = H5Tcopy( H5T_NATIVE_UINT8 );
-        SetNativeBoolFields( ret );
-    }
+    hid_t ret = H5Tcopy( H5T_NATIVE_UINT8 );
+    H5Tset_size( ret, 1 );
+    H5Tset_precision( ret, 1 );
+    H5Tset_sign( ret, H5T_SGN_NONE );
+    H5Tset_offset( ret, 0 );
+    H5Tset_pad( ret, H5T_PAD_ZERO, H5T_PAD_ZERO );
     return ret;
 }
 
 //-*****************************************************************************
 static hid_t GetFileBoolH5T()
 {
-    static hid_t ret = -1;
-    if (ret == -1)
-    {
-        ret = H5Tcopy( H5T_STD_U8LE );
-        SetNativeBoolFields( ret );
-    }
+    hid_t ret = H5Tcopy( H5T_STD_U8LE );
+    H5Tset_size( ret, 1 );
+    H5Tset_precision( ret, 1 );
+    H5Tset_sign( ret, H5T_SGN_NONE );
+    H5Tset_offset( ret, 0 );
+    H5Tset_pad( ret, H5T_PAD_ZERO, H5T_PAD_ZERO );
     return ret;
-}
-
-//-*****************************************************************************
-
-static void SetNativeHalfFields(hid_t typeHid)
-{
-    // set up the half floatand then lock it, so we don't have to worry about 
-    // cleaning it up. (since there aren't many new types)
-    H5Tset_fields( typeHid,
-                   15,   // sign bit position
-                   10,   // exponent lsb position
-                   5,    // exponent size
-                   0,    // mantissa lsb position
-                   10 ); // mantissa size
-    H5Tset_size( typeHid, 2 );
-    H5Tlock( typeHid );
-
 }
 
 //-*****************************************************************************
 static hid_t GetNativeHalfH5T()
 {
-    static hid_t ret = -1;
-    if (ret == -1)
-    {
-        ret = H5Tcopy( H5T_NATIVE_FLOAT );
-        SetNativeHalfFields( ret );
-    }
+    hid_t ret = H5Tcopy( H5T_NATIVE_FLOAT );
+    H5Tset_fields( ret,
+                   15,   // sign bit position
+                   10,   // exponent lsb position
+                   5,    // exponent size
+                   0,    // mantissa lsb position
+                   10 ); // mantissa size
+    H5Tset_size( ret, 2 );
     return ret;
 }
 
 //-*****************************************************************************
 static hid_t GetFileHalfH5T()
 {
-    static hid_t ret = -1;
-    if (ret == -1)
-    {
-        ret = H5Tcopy( H5T_IEEE_F32LE );
-        SetNativeHalfFields( ret );
-    }
+    hid_t ret = H5Tcopy( H5T_IEEE_F32LE );
+    H5Tset_fields( ret,
+                   15,   // sign bit position
+                   10,   // exponent lsb position
+                   5,    // exponent size
+                   0,    // mantissa lsb position
+                   10 ); // mantissa size
+    H5Tset_size( ret, 2 );
     return ret;
 }
 
@@ -137,12 +109,15 @@ static hid_t GetFileHalfH5T()
 //
 // So - we need some sort of structure which allows you to take an
 // AlembicAsset::DataType and come up with an H5::Datatype for it.
-hid_t GetNativeH5T( const AbcA::DataType &adt )
+hid_t GetNativeH5T( const AbcA::DataType &adt, bool &oCleanUp )
 {
+    oCleanUp = false;
+
     hid_t baseDtype = -1;
     switch ( adt.getPod() )
     {
     case kBooleanPOD:
+        oCleanUp = true;
         baseDtype = GetNativeBoolH5T();
         break;
     case kUint8POD:     baseDtype = H5T_NATIVE_UINT8; break;
@@ -154,6 +129,7 @@ hid_t GetNativeH5T( const AbcA::DataType &adt )
     case kUint64POD:    baseDtype = H5T_NATIVE_UINT64; break;
     case kInt64POD:     baseDtype = H5T_NATIVE_INT64; break;
     case kFloat16POD:
+        oCleanUp = true;
         baseDtype = GetNativeHalfH5T();
         break;
     case kFloat32POD:   baseDtype = H5T_NATIVE_FLOAT; break;
@@ -180,7 +156,11 @@ hid_t GetNativeH5T( const AbcA::DataType &adt )
         HDimensions hdims( dims );
         hid_t ret = H5Tarray_create2( baseDtype, hdims.rank(),
                                       hdims.rootPtr() );
-
+        if ( oCleanUp )
+        {
+            H5Tclose( baseDtype );
+        }
+        oCleanUp = true;
         ABCA_ASSERT( ret >= 0, "Bad array datatype id" );
         return ret;
     }
@@ -189,12 +169,14 @@ hid_t GetNativeH5T( const AbcA::DataType &adt )
 //-*****************************************************************************
 // Same as above, only this time for the files.
 // Alembic uses LittleEndian by default.
-hid_t GetFileH5T( const AbcA::DataType &adt )
+hid_t GetFileH5T( const AbcA::DataType &adt, bool &oCleanUp )
 {
+    oCleanUp = false;
     hid_t baseDtype = -1;
     switch ( adt.getPod() )
     {
     case kBooleanPOD:
+        oCleanUp = true;
         baseDtype = GetFileBoolH5T(); break;
     case kUint8POD:     baseDtype = H5T_STD_U8LE; break;
     case kInt8POD:      baseDtype = H5T_STD_I8LE; break;
@@ -205,6 +187,7 @@ hid_t GetFileH5T( const AbcA::DataType &adt )
     case kUint64POD:    baseDtype = H5T_STD_U64LE; break;
     case kInt64POD:     baseDtype = H5T_STD_I64LE; break;
     case kFloat16POD:
+        oCleanUp = true;
         baseDtype = GetFileHalfH5T(); break;
     case kFloat32POD:   baseDtype = H5T_IEEE_F32LE; break;
     case kFloat64POD:   baseDtype = H5T_IEEE_F64LE; break;
@@ -229,7 +212,11 @@ hid_t GetFileH5T( const AbcA::DataType &adt )
         HDimensions hdims( dims );
         hid_t ret = H5Tarray_create2( baseDtype, hdims.rank(),
                                       hdims.rootPtr() );
-
+        if ( oCleanUp )
+        {
+            H5Tclose( baseDtype );
+        }
+        oCleanUp = true;
         ABCA_ASSERT( ret >= 0, "Bad array datatype id" );
         return ret;
     }

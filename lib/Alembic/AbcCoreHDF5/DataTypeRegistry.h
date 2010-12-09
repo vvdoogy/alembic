@@ -45,9 +45,8 @@ namespace AbcCoreHDF5 {
 //-*****************************************************************************
 // You should never need to call these directly, use the tuple below.
 // Still, they're kinda handy.
-hid_t GetNativeH5T( const AbcA::DataType &adt );
-hid_t GetFileH5T( const AbcA::DataType &adt );
-
+hid_t GetNativeH5T( const AbcA::DataType &adt, bool &oCleanUp );
+hid_t GetFileH5T( const AbcA::DataType &adt, bool &oCleanUp );
 AbcA::DataType InterpretH5T( hid_t iDataType );
 
 } // End namespace AbcCoreHDF5

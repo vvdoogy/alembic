@@ -116,7 +116,9 @@ protected:
 
     // The DataTypes for this property.
     hid_t m_fileDataType;
+    bool m_cleanFileDataType;
     hid_t m_nativeDataType;
+    bool m_cleanNativeDataType;
 
     // The group corresponding to this property.
     // It may never be created or written.
@@ -158,7 +160,9 @@ SimplePwImpl<ABSTRACT,IMPL,SAMPLE,KEY>::SimplePwImpl
   , m_parentGroup( iParentGrp )
   , m_header( iHeader )
   , m_fileDataType( -1 )
+  , m_cleanFileDataType( false )
   , m_nativeDataType( -1 )
+  , m_cleanNativeDataType( false )
   , m_sampleIGroup( -1 )
   , m_nextSampleIndex( 0 )
   , m_numUniqueSamples( 0 )
@@ -172,8 +176,10 @@ SimplePwImpl<ABSTRACT,IMPL,SAMPLE,KEY>::SimplePwImpl
     PlainOldDataType POD = m_header->getDataType().getPod();
     if ( POD != kStringPOD && POD != kWstringPOD )
     {
-        m_fileDataType = GetFileH5T( m_header->getDataType() );
-        m_nativeDataType = GetNativeH5T( m_header->getDataType() );
+        m_fileDataType = GetFileH5T( m_header->getDataType(),
+                                     m_cleanFileDataType );
+        m_nativeDataType = GetNativeH5T( m_header->getDataType(),
+                                         m_cleanNativeDataType );
         
         ABCA_ASSERT( m_fileDataType >= 0, "Couldn't get file datatype" );
         ABCA_ASSERT( m_nativeDataType >= 0, "Couldn't get native datatype" );
@@ -430,6 +436,11 @@ SimplePwImpl<ABSTRACT,IMPL,SAMPLE,KEY>::~SimplePwImpl()
     // exceptions from being thrown out of a destructor.
     try
     {
+        if ( m_fileDataType >= 0 && m_cleanFileDataType )
+        { H5Tclose( m_fileDataType ); }
+        if ( m_nativeDataType >= 0 && m_cleanNativeDataType )
+        { H5Tclose( m_nativeDataType ); }
+        
         const std::string &myName = m_header->getName();
         
         // Check validity of the group.
