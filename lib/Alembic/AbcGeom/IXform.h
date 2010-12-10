@@ -40,6 +40,7 @@
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
 #include <Alembic/AbcGeom/XformOp.h>
+#include <Alembic/AbcGeom/XformSample.h>
 
 namespace Alembic {
 namespace AbcGeom {
@@ -170,7 +171,7 @@ public:
     //! Returns true if a particular op has no animated components.
     bool isOpStatic( size_t iIndex ) const;
 
-    void getSample(XformSampleVec & oVec,
+    void getSample(XformSample & oVec,
         const Abc::ISampleSelector &iSS = Abc::ISampleSelector());
 
     //-*************************************************************************

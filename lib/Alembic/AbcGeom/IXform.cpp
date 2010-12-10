@@ -202,7 +202,7 @@ bool IXformSchema::isOpStatic( size_t iIndex ) const
 }
 
 //-*****************************************************************************
-void IXformSchema::getSample( XformSampleVec & oVec,
+void IXformSchema::getSample( XformSample & oSamp,
     const Abc::ISampleSelector &iSS )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IXformTrait::getSample()" );
@@ -215,6 +215,7 @@ void IXformSchema::getSample( XformSampleVec & oVec,
     size_t animIndex = 0;
 
     size_t numOps = m_ops.size();
+    oSamp.clear();
     for (size_t i = 0; i < numOps; ++i)
     {
         XformOperationType type = m_ops[i].getType();
@@ -237,8 +238,8 @@ void IXformSchema::getSample( XformSampleVec & oVec,
                     }
                 }
             }
-            XformSamplePtr p(new MatrixSample(m));
-            oVec.push_back( p );
+            XformDataPtr p(new MatrixData(m));
+            oSamp.push( p );
         }
         else
         {
@@ -278,13 +279,13 @@ void IXformSchema::getSample( XformSampleVec & oVec,
 
             if (type == kScaleOperation)
             {
-                XformSamplePtr p( new ScaleSample(V3d(x,y,z)) );
-                oVec.push_back( p );
+                XformDataPtr p( new ScaleData(V3d(x,y,z)) );
+                oSamp.push( p );
             }
             else if (type == kTranslateOperation)
             {
-                XformSamplePtr p( new TranslateSample(V3d(x,y,z)) );
-                oVec.push_back( p );
+                XformDataPtr p( new TranslateData(V3d(x,y,z)) );
+                oSamp.push( p );
             }
             else if (type == kRotateOperation)
             {
@@ -300,8 +301,8 @@ void IXformSchema::getSample( XformSampleVec & oVec,
                     staticIndex ++;
                 }
 
-                XformSamplePtr p( new RotateSample(V3d(x,y,z), angle) );
-                oVec.push_back( p );
+                XformDataPtr p( new RotateData(V3d(x,y,z), angle) );
+                oSamp.push( p );
             }
         }
 
