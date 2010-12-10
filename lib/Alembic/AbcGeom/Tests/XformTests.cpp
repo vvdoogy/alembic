@@ -105,7 +105,7 @@ void xformIn()
     for ( index_t i = 0; i < 20; ++i )
     {
         XformSample xs;
-        a.getSchema().getSample(xs, Abc::ISampleSelector(i));
+        a.getSchema().get(xs, Abc::ISampleSelector(i));
         TESTING_ASSERT(xs.getNum() == 1);
         TESTING_ASSERT( xs.get(0)->getType() == kTranslateOperation );
         TranslateData t( xs.get(0) );
@@ -122,14 +122,14 @@ void xformIn()
     XformSample xs;
 
     IXform b( a, "b" );
-    b.getSchema().getSample(xs);
+    b.getSchema().get(xs);
     TESTING_ASSERT( xs.getNum() == 0 );
     TESTING_ASSERT( b.getSchema().getOps().size() == 0 );
     TESTING_ASSERT( b.getSchema().getNumOps() == 0 );
     TESTING_ASSERT( b.getSchema().getMatrix() == identity );
 
     IXform c( b, "c" );
-    c.getSchema().getSample(xs);
+    xs = c.getSchema().getValue();
     TESTING_ASSERT( xs.getNum() == 0 );
     TESTING_ASSERT( c.getSchema().getOps().size() == 0 );
     TESTING_ASSERT( c.getSchema().getNumOps() == 0 );
@@ -137,7 +137,7 @@ void xformIn()
     TESTING_ASSERT( c.getSchema().inherits() );
 
     IXform d( c, "d" );
-    d.getSchema().getSample(xs);
+    xs = d.getSchema().getValue();
     TESTING_ASSERT( xs.getNum() == 1 );
     TESTING_ASSERT( d.getSchema().getNumOps() == 1 );
     TESTING_ASSERT( xs.get(0)->getType() == kScaleOperation );
@@ -361,7 +361,7 @@ void someOpsXform()
             TESTING_ASSERT( (*anim)[7] == 4.0 * i );
 
             XformSample xs;
-            a.getSchema().getSample(xs, Abc::ISampleSelector(i));
+            a.getSchema().get(xs, Abc::ISampleSelector(i));
             TESTING_ASSERT( xs.getNum() == 6 );
 
             XformDataPtr xp = xs.get(0);
