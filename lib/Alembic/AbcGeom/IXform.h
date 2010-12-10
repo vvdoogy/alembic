@@ -171,8 +171,16 @@ public:
     //! Returns true if a particular op has no animated components.
     bool isOpStatic( size_t iIndex ) const;
 
-    void getSample(XformSample & oVec,
+    void get(XformSample & oVec,
         const Abc::ISampleSelector &iSS = Abc::ISampleSelector());
+
+    XformSample getValue( 
+        const Abc::ISampleSelector &iSS = Abc::ISampleSelector() )
+    {
+        XformSample smp;
+        get( smp, iSS );
+        return smp;
+    }
 
     //-*************************************************************************
     // ABC BASE MECHANISMS

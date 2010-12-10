@@ -202,7 +202,7 @@ bool IXformSchema::isOpStatic( size_t iIndex ) const
 }
 
 //-*****************************************************************************
-void IXformSchema::getSample( XformSample & oSamp,
+void IXformSchema::get( XformSample & oSamp,
     const Abc::ISampleSelector &iSS )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IXformTrait::getSample()" );
