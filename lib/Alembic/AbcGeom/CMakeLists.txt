@@ -50,6 +50,11 @@ SET( CXX_FILES
   OSimpleXform.cpp
   ISimpleXform.cpp
 
+  XformOp.cpp
+  XformSample.cpp
+  IXform.cpp
+  OXform.cpp
+
   OPoints.cpp
   IPoints.cpp
 )
@@ -77,11 +82,9 @@ SET( H_FILES
   ISimpleXform.h
 
   XformOp.h
-  XformOp.cpp
+  XformSample.h
   IXform.h
-  IXform.cpp
   OXform.h
-  OXform.cpp
 
   OPoints.h
   IPoints.h

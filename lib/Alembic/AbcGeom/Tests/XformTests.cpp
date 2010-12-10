@@ -104,11 +104,11 @@ void xformIn()
     TESTING_ASSERT( a.getSchema().inherits() );
     for ( index_t i = 0; i < 20; ++i )
     {
-        XformSampleVec xs;
+        XformSample xs;
         a.getSchema().getSample(xs, Abc::ISampleSelector(i));
-        TESTING_ASSERT(xs.size() == 1);
-        TESTING_ASSERT( xs[0]->getType() == kTranslateOperation );
-        TranslateSample t(xs[0]);
+        TESTING_ASSERT(xs.getNum() == 1);
+        TESTING_ASSERT( xs.get(0)->getType() == kTranslateOperation );
+        TranslateData t( xs.get(0) );
         TESTING_ASSERT( t.get() == V3d(12.0, i+42.0, 20.0) );
         TESTING_ASSERT( t.getMatrix() ==
             Abc::M44d().setTranslation( V3d(12.0, i+42.0, 20.0)) );
@@ -119,18 +119,18 @@ void xformIn()
 
     Abc::M44d identity;
 
-    XformSampleVec xs;
+    XformSample xs;
 
     IXform b( a, "b" );
     b.getSchema().getSample(xs);
-    TESTING_ASSERT( xs.size() == 0 );
+    TESTING_ASSERT( xs.getNum() == 0 );
     TESTING_ASSERT( b.getSchema().getOps().size() == 0 );
     TESTING_ASSERT( b.getSchema().getNumOps() == 0 );
     TESTING_ASSERT( b.getSchema().getMatrix() == identity );
 
     IXform c( b, "c" );
     c.getSchema().getSample(xs);
-    TESTING_ASSERT( xs.size() == 0 );
+    TESTING_ASSERT( xs.getNum() == 0 );
     TESTING_ASSERT( c.getSchema().getOps().size() == 0 );
     TESTING_ASSERT( c.getSchema().getNumOps() == 0 );
     TESTING_ASSERT( c.getSchema().getMatrix() == identity );
@@ -138,11 +138,11 @@ void xformIn()
 
     IXform d( c, "d" );
     d.getSchema().getSample(xs);
-    TESTING_ASSERT( xs.size() == 1 );
+    TESTING_ASSERT( xs.getNum() == 1 );
     TESTING_ASSERT( d.getSchema().getNumOps() == 1 );
-    TESTING_ASSERT( xs[0]->getType() == kScaleOperation );
+    TESTING_ASSERT( xs.get(0)->getType() == kScaleOperation );
     TESTING_ASSERT( d.getSchema().isOpStatic(0) );
-    ScaleSample s(xs[0]);
+    ScaleData s( xs.get(0) );
     TESTING_ASSERT( s.get() == V3d(3.0, 6.0, 9.0) );
     TESTING_ASSERT( s.getMatrix() ==
         Abc::M44d().setScale( V3d(3.0, 6.0, 9.0)) );
@@ -259,7 +259,6 @@ void someOpsXform()
         XformOpVec ops = a.getSchema().getOps();
         TESTING_ASSERT( ops.size() == 6 );
         TESTING_ASSERT( a.getSchema().getNumOps() == 6 );
-        TESTING_ASSERT(ops.size() == 6);
         TESTING_ASSERT( ops[0].getType() == kScaleOperation );
         TESTING_ASSERT( ops[0].getHint() == kScaleHint );
         TESTING_ASSERT( ops[0].isXAnimated() );
@@ -361,39 +360,45 @@ void someOpsXform()
             TESTING_ASSERT( (*anim)[6] == 3.0 * i );
             TESTING_ASSERT( (*anim)[7] == 4.0 * i );
 
-            XformSampleVec xs;
+            XformSample xs;
             a.getSchema().getSample(xs, Abc::ISampleSelector(i));
-            TESTING_ASSERT( xs.size() == 6 );
+            TESTING_ASSERT( xs.getNum() == 6 );
 
-            TESTING_ASSERT( xs[0]->getType() == kScaleOperation );
-            ScaleSample s(xs[0]);
+            XformDataPtr xp = xs.get(0);
+            TESTING_ASSERT( xp->getType() == kScaleOperation );
+            ScaleData s( xp );
             TESTING_ASSERT( s.get() == Abc::V3d(2.0 * (i+1), 1.0, 2.0) );
 
-            TESTING_ASSERT( xs[1]->getType() == kMatrixOperation );
-            MatrixSample m(xs[1]);
+            xp = xs.get(1);
+            TESTING_ASSERT( xp->getType() == kMatrixOperation );
+            MatrixData m( xp );
             TESTING_ASSERT( m.get() == Abc::M44d(
                 1.0, 0.0, 0.0, 0.0,
                   i, 1.0, 0.0, 0.0,
                  -i, 0.0, 1.0, 0.0,
                 0.0, 0.0, 0.0, 1.0) );
 
-            TESTING_ASSERT( xs[2]->getType() == kRotateOperation );
-            RotateSample rx(xs[2]);
+            xp = xs.get(2);
+            TESTING_ASSERT( xp->getType() == kRotateOperation );
+            RotateData rx( xp );
             TESTING_ASSERT( rx.getAxis() == Abc::V3d(1.0, 0.0, 0.0) );
             TESTING_ASSERT( rx.getAngle() == 1.57 );
 
-            TESTING_ASSERT( xs[3]->getType() == kRotateOperation );
-            RotateSample ry(xs[3]);
+            xp = xs.get(3);
+            TESTING_ASSERT( xp->getType() == kRotateOperation );
+            RotateData ry(xp);
             TESTING_ASSERT( ry.getAxis() == Abc::V3d(0.0, 1.0, 0.0) );
             TESTING_ASSERT( ry.getAngle() == 0.125 * (i+1) );
 
-            TESTING_ASSERT( xs[4]->getType() == kRotateOperation );
-            RotateSample rz(xs[4]);
+            xp = xs.get(4);
+            TESTING_ASSERT( xp->getType() == kRotateOperation );
+            RotateData rz( xp );
             TESTING_ASSERT( rz.getAxis() == Abc::V3d(0.0, 0.0, 1.0) );
             TESTING_ASSERT( rz.getAngle() == 0.1 * (i+1) );
 
-            TESTING_ASSERT( xs[5]->getType() == kTranslateOperation );
-            TranslateSample t(xs[5]);
+            xp = xs.get(5);
+            TESTING_ASSERT( xp->getType() == kTranslateOperation );
+            TranslateData t( xp );
             TESTING_ASSERT( t.get() == Abc::V3d(0.0, 3.0 * i, 4.0 * i) );
         }
     }
