@@ -1,3 +1,8 @@
+2010-12-13, Alembic 0.9.1:
+
+Just a minor update to enable Alembic on 32-bit systems, along with
+getting the code in examples/bin/AbcEcho reasonably working.
+
 2010-12-08, Alembic 0.9.1:
 
 The main things in this release are the addition of a Renderman procedural
@@ -50,6 +55,7 @@ http://code.google.com/p/alembic/issues/detail?id=102
 This is an arbitrary transform "stack" type, roughly equivalent to Renderman's
 transformation model.  It has per-operation hints that allow it to be
 recognized as a transform and mapped directly to another application's
-transformation model.
+transformation model.  It can also be read and written as a regular 4x4
+matrix.
 
 ##-*****************************************************************************
