@@ -136,10 +136,21 @@ void xformIn()
 
     IXform b( a, "b" );
     b.getSchema().get(xs);
+    TESTING_ASSERT( b.getSchema().getTimeSamplingType().isIdentity() );
+    TESTING_ASSERT( b.getSchema().getTimeSampling().isStatic() );
+    TESTING_ASSERT( b.getSchema().getInheritsTimeSamplingType().isIdentity() );
+    TESTING_ASSERT( !b.getSchema().getInheritsTimeSampling().isStatic() );
     TESTING_ASSERT( xs.getNum() == 0 );
+    TESTING_ASSERT( b.getSchema().getNumInheritsSamples() == 20 );
+    TESTING_ASSERT( b.getSchema().getNumAnimSamples() == 0 );
     TESTING_ASSERT( b.getSchema().getOps().size() == 0 );
     TESTING_ASSERT( b.getSchema().getNumOps() == 0 );
     TESTING_ASSERT( b.getSchema().getMatrix() == identity );
+    for (size_t i = 0; i < 20; ++i)
+    {
+        AbcA::index_t j = i;
+        TESTING_ASSERT( b.getSchema().inherits(ISampleSelector( j )) == (i&1) );
+    }
 
     IXform c( b, "c" );
     xs = c.getSchema().getValue();
