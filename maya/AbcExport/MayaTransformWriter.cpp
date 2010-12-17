@@ -188,6 +188,11 @@ void addRotate(const MFnDependencyNode & iTrans,
         // the sampled case
         if (samp != 0)
         {
+            // push the rotation axis first
+            oStatic.push_back(rotVecs[index][0]);
+            oStatic.push_back(rotVecs[index][1]);
+            oStatic.push_back(rotVecs[index][2]);
+
             op.setAngleAnimated(true);
             oAnim.push_back(plugVal);
             oSampledList.push_back(std::pair< MPlug, bool >(plug, false));
@@ -195,17 +200,18 @@ void addRotate(const MFnDependencyNode & iTrans,
         // the non XYZ axis or nonzero angle case
         else if (!isXYZ || plugVal != 0.0)
         {
+
+            // push the rotation axis first
+            oStatic.push_back(rotVecs[index][0]);
+            oStatic.push_back(rotVecs[index][1]);
+            oStatic.push_back(rotVecs[index][2]);
+
             oStatic.push_back(plugVal);
         }
 
         // non sampled, XYZ axis and the angle is 0, do not add to the stack
         else
             continue;
-
-        // push the rotation axis
-        oStatic.push_back(rotVecs[index][0]);
-        oStatic.push_back(rotVecs[index][1]);
-        oStatic.push_back(rotVecs[index][2]);
 
         oOpVec.push_back(op);
     }
