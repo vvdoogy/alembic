@@ -132,8 +132,8 @@ void ProcessXform( IXform &xform, ProcArgs &args )
             {
                 RotateData rotateSample( sample );
                 V3d axis = rotateSample.getAxis();
-                RiRotate( rotateSample.getAngle(),
-                          axis.x, axis.y, axis.z );
+                float degrees = 180.0 * rotateSample.getAngle() / M_PI;
+                RiRotate( degrees, axis.x, axis.y, axis.z );
                 break;
             }
             case kMatrixOperation:
