@@ -1,0 +1,75 @@
+# ZLIB try-compile CMakeLists.txt
+
+# If you know the zlib root and there aren't any default versions of zlib in
+# the default system paths use:
+# cmake '-UZLIB_*' -DZLIB_ROOT:STRING=<path/to/zlib> .
+
+# If you are still having trouble, use explit include paths:
+# cmake '-UZLIB_*' -DZLIB_INCLUDEDIR:STRING=<path/to/zlib_include_dir> .
+
+# If the libraries are in a separate location to the include files, use:
+# cmake '-UZLIB_*' -DZLIB_INCLUDEDIR:STRING=<path/to/zlib_include_dir> -DZLIB_LIBRARYDIR:STRING=<path/to/zlib_library_dir> .
+
+# '-UZLIB_*' removes any ZLIB_* entries from the cache so it can be run
+# multiple times without breaking the rest of the cached entries
+
+# -------------------------------------------------------------------------------------
+
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+
+PROJECT(ZLIB_TRYCOMPILE)
+
+SET(CMAKE_VERBOSE_MAKEFILE TRUE)
+
+SET( ZLIB_FOUND TRUE )
+
+IF(DEFINED ZLIB_INCLUDE_DIR)
+    MESSAGE(STATUS "Using ZLIB_INCLUDE_DIR: ${ZLIB_INCLUDE_DIR}" )
+    SET( ZLIB_FOUND FALSE )
+ENDIF()
+ 
+IF(DEFINED ZLIB_LIBRARY)
+    MESSAGE(STATUS "Using ZLIB_LIBRARY: ${ZLIB_LIBRARY}" )
+ELSE()
+    SET( ZLIB_FOUND FALSE )
+ENDIF()
+
+IF( NOT ZLIB_FOUND )
+    FIND_PACKAGE(ZLIB REQUIRED)  
+ENDIF()    
+
+IF (ZLIB_FOUND)
+  MESSAGE( STATUS "ZLIB FOUND: ${ZLIB_FOUND}" )
+  MESSAGE( STATUS "ZLIB INCLUDE DIRS: ${ZLIB_INCLUDE_DIRS}")
+  MESSAGE( STATUS "ZLIB LIBRARIES: ${ZLIB_LIBRARIES}")
+
+  INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
+
+  # TODO: TAILOR FOR CROSS-COMPILING CASES, see: http://www.cmake.org/cmake/help/cmake-2-8-docs.html
+  MESSAGE( STATUS "COMPILING ZLIB TRY COMPILE EXECUTABLE IN ${PROJECT_BINARY_DIR}. WITH ${ZLIB_LIBRARIES}")
+
+  SET(USING_THESE_LIBS "-DLINK_LIBRARIES:STRING=${ZLIB_LIBRARIES}")
+  TRY_RUN(ZLIB_RUN_RESULT ZLIB_COMPILE_RESULT
+          ${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/zlib_trycompile.cpp 
+          COMPILE_DEFINITIONS "-I${ZLIB_INCLUDE_DIRS}"
+          CMAKE_FLAGS ${USING_THESE_LIBS}
+          COMPILE_OUTPUT_VARIABLE ZLIB_COMPILE_OUTPUT
+          RUN_OUTPUT_VARIABLE ZLIB_RUN_OUTPUT
+          )
+
+  IF(NOT ZLIB_COMPILE_RESULT)
+    MESSAGE( FATAL_ERROR "FAILED TO COMPILE A WORKING ZLIB TRY COMPILE EXECUTABLE.\nCOMPILE LOG:\n${ZLIB_COMPILE_OUTPUT}")
+  ELSE()
+    MESSAGE( STATUS "COMPILED A WORKING ZLIB TRY COMPILE EXECUTABLE.\nCOMPILE LOG:\n${ZLIB_COMPILE_OUTPUT}")
+  ENDIF()
+
+  IF(ZLIB_RUN_RESULT STREQUAL "FAILED_TO_RUN")
+    MESSAGE( FATAL_ERROR "FAILED TO RUN A WORKING ZLIB TRY COMPILE EXECUTABLE.\nERROR LOG:\n${ZLIB_RUN_OUTPUT}")
+  ELSE()
+    MESSAGE( STATUS "SUCCESSFULY RAN A WORKING ZLIB TRY COMPILE EXECUTABLE.\nLOG:\n${ZLIB_RUN_OUTPUT}")
+  ENDIF()
+   
+ELSE()
+  MESSAGE(SEND_ERROR "ZLIB not correctly specified")
+ENDIF()
+
