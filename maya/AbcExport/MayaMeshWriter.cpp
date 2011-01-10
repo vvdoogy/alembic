@@ -125,15 +125,20 @@ MayaMeshWriter::MayaMeshWriter(
             std::vector<int32_t> indices;
             getUVs(uvs, indices);
 
-            Alembic::AbcCoreAbstract::v1::MetaData uvsMeta;
-            SetGeometryScope( uvsMeta, Alembic::AbcGeom::kFacevaryingScope );
-            Alembic::AbcGeom::OV2fArrayProperty stProp( mSubDSchema,
-                "st.value", uvsMeta );
-            stProp.set( Alembic::AbcGeom::V2fArraySample(
-                (const Imath::V2f *) &uvs.front(), uvs.size()) );
+            if (!uvs.empty())
+            {
+                Alembic::AbcCoreAbstract::v1::MetaData uvsMeta;
+                SetGeometryScope( uvsMeta,
+                    Alembic::AbcGeom::kFacevaryingScope );
+                Alembic::AbcGeom::OV2fArrayProperty stProp( mSubDSchema,
+                    "st.value", uvsMeta );
+                stProp.set( Alembic::AbcGeom::V2fArraySample(
+                    (const Imath::V2f *) &uvs.front(), uvs.size() / 2) );
 
-            Alembic::Abc::OInt32ArrayProperty stIndex( mSubDSchema, "st.index");
-            stIndex.set( Alembic::Abc::Int32ArraySample(indices) );
+                Alembic::Abc::OInt32ArrayProperty stIndex( mSubDSchema,
+                    "st.index");
+                stIndex.set( Alembic::Abc::Int32ArraySample(indices) );
+            }
         }
 
         mAttrs = AttributesWriterPtr(new AttributesWriter(
