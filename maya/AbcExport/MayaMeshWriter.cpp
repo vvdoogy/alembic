@@ -127,17 +127,22 @@ MayaMeshWriter::MayaMeshWriter(
 
             if (!uvs.empty())
             {
+                // for now unpack the UVs, until they are part of the schema
+                size_t numIndices = indices.size();
+                std::vector<float> st(numIndices * 2);
+                for (size_t i = 0; i < numIndices; ++i)
+                {
+                    st[2*i] = uvs[2 * indices[i]];
+                    st[2*i + 1] = uvs[2 * indices[i] + 1];
+                }
+
                 Alembic::AbcCoreAbstract::v1::MetaData uvsMeta;
                 SetGeometryScope( uvsMeta,
                     Alembic::AbcGeom::kFacevaryingScope );
                 Alembic::AbcGeom::OV2fArrayProperty stProp( mSubDSchema,
-                    "st.value", uvsMeta );
+                    "st", uvsMeta );
                 stProp.set( Alembic::AbcGeom::V2fArraySample(
-                    (const Imath::V2f *) &uvs.front(), uvs.size() / 2) );
-
-                Alembic::Abc::OInt32ArrayProperty stIndex( mSubDSchema,
-                    "st.index");
-                stIndex.set( Alembic::Abc::Int32ArraySample(indices) );
+                    (const Imath::V2f *) &st.front(), st.size() / 2) );
             }
         }
 
@@ -158,15 +163,25 @@ MayaMeshWriter::MayaMeshWriter(
             std::vector<int32_t> indices;
             getUVs(uvs, indices);
 
-            Alembic::AbcCoreAbstract::v1::MetaData uvsMeta;
-            SetGeometryScope( uvsMeta, Alembic::AbcGeom::kFacevaryingScope );
-            Alembic::AbcGeom::OV2fArrayProperty stProp( mPolySchema,
-                "st.value", uvsMeta );
-            stProp.set( Alembic::AbcGeom::V2fArraySample(
-                (const Imath::V2f *) &uvs.front(), uvs.size()) );
+            if (!uvs.empty())
+            {
+                // for now unpack the UVs, until they are part of the schema
+                size_t numIndices = indices.size();
+                std::vector<float> st(numIndices * 2);
+                for (size_t i = 0; i < numIndices; ++i)
+                {
+                    st[2*i] = uvs[2 * indices[i]];
+                    st[2*i + 1] = uvs[2 * indices[i] + 1];
+                }
 
-            Alembic::Abc::OInt32ArrayProperty stIndex( mSubDSchema, "st.index");
-            stIndex.set( Alembic::Abc::Int32ArraySample(indices) );
+                Alembic::AbcCoreAbstract::v1::MetaData uvsMeta;
+                SetGeometryScope( uvsMeta,
+                    Alembic::AbcGeom::kFacevaryingScope );
+                Alembic::AbcGeom::OV2fArrayProperty stProp( mSubDSchema,
+                    "st", uvsMeta );
+                stProp.set( Alembic::AbcGeom::V2fArraySample(
+                    (const Imath::V2f *) &st.front(), st.size() / 2) );
+            }
         }
 
         // set the rest of the props and write to the writer node
