@@ -233,7 +233,7 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
 
     if (numChildren == 0) return status;
 
-    if (!mConnect)  // simply scene creation mode
+    if (!mConnect)  // simple scene creation mode
     {
         for (size_t i = 0; i < numChildren; i++)
         {
@@ -567,10 +567,9 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
         size_t numChildren = iNode.getNumChildren();
         if ( !mConnect )
         {
-            for (size_t childIndex = 0;
-                childIndex < numChildren; childIndex++)
+            for (size_t i = 0; i < numChildren; ++i)
             {
-                Alembic::Abc::IObject child = iNode.getChild(childIndex);
+                Alembic::Abc::IObject child = iNode.getChild(i);
                 this->visit(child);
             }
         }
@@ -581,10 +580,9 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
             std::set<std::string> childNodesInFile;
             MObject saveParent = transObj;
             MDagPath saveDag = mCurrentDagNode;
-            for (size_t childIndex = 0;
-                childIndex < numChildren; childIndex++)
+            for (size_t i = 0; i < numChildren; ++i)
             {
-                Alembic::Abc::IObject child = iNode.getChild(childIndex);
+                Alembic::Abc::IObject child = iNode.getChild(i);
                 mParent = saveParent;
                 std::string childName = child.getName();
                 MString name = saveDag.fullPathName();
@@ -713,6 +711,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
             printError(theError);
         }
     }
+
     if ( !mConnect || mCurrentConnectAction == CREATE )
     {
         // create transform node
@@ -752,9 +751,10 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
 
         size_t numChildren = iNode.getNumChildren();
         MObject saveParent = transObj;
-        for (size_t childIndex = 0; childIndex < numChildren; childIndex++)
+
+        for (size_t i = 0; i < numChildren; ++i)
         {
-            Alembic::Abc::IObject child = iNode.getChild(childIndex);
+            Alembic::Abc::IObject child = iNode.getChild(i);
             mParent = saveParent;
             this->visit(child);
         }

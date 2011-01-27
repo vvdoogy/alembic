@@ -55,7 +55,6 @@
 
 namespace
 {
-    const std::string STSTR("st");
 
     MStatus setMeshUVs(MFnMesh & ioMesh,
         const MFloatArray & uArray, const MFloatArray & vArray,
@@ -87,9 +86,9 @@ namespace
     {
         // this will need to change once UVs are part of the schema
         Alembic::Abc::IV3fArrayProperty stValProp(iParent.getProperties(),
-            "st");
+            "st", Alembic::Abc::ErrorHandler::kQuietNoopPolicy);
         Alembic::Abc::IInt32ArrayProperty stIndexProp(iParent.getProperties(),
-            "st.index");
+            "st.index", Alembic::Abc::ErrorHandler::kQuietNoopPolicy);
 
         if (!stValProp.valid())
             return;
