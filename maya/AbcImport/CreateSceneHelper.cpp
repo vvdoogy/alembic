@@ -555,7 +555,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
 
     if (mNotCreate == 1)
     {
-        if (iNode.getSchema().getNumAnimSamples())
+        if (iNode.getSchema().getNumAnimSamples() > 0)
         {
             mData.mXformList.push_back(iNode);
             mData.mIsComplexXform.push_back(isComplex(iNode));
@@ -601,17 +601,17 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
         transObj = mCurrentDagNode.node();
         if (transObj.hasFn(MFn::kTransform))
         {
-            std::vector<std::string> mTransopNameList;
+            std::vector<std::string> transopNameList;
             std::vector<std::string> propNameList;
             bool isComplex = false;
             create(mFrame, iNode, mParent, transObj, propNameList,
-                mTransopNameList, isComplex, true);
+                transopNameList, isComplex, true);
 
-            unsigned int size = mTransopNameList.size();
+            unsigned int size = transopNameList.size();
             for (unsigned int i = 0; i < size; i++)
             {
-                if (mTransopNameList[i].find("rotate") != std::string::npos
-                    && mTransopNameList[i].find("rotatePivot")
+                if (transopNameList[i].find("rotate") != std::string::npos
+                    && transopNameList[i].find("rotatePivot")
                         == std::string::npos)
                     mData.mIsSampledXformOpAngle.push_back(true);
                 else
@@ -620,7 +620,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
 
             if (iNode.getSchema().getNumAnimSamples() > 0)
             {
-                SampledPair mSampledPair(transObj, mTransopNameList);
+                SampledPair mSampledPair(transObj, transopNameList);
                 mData.mXformOpList.push_back(mSampledPair);
                 mData.mXformList.push_back(iNode);
                 mData.mIsComplexXform.push_back(isComplex);
@@ -715,18 +715,18 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
     if ( !mConnect || mCurrentConnectAction == CREATE )
     {
         // create transform node
-        std::vector<std::string> mTransopNameList;
+        std::vector<std::string> transopNameList;
         std::vector<std::string> propNameList;
 
         bool isComplex = false;
         status = create(mFrame, iNode, mParent, transObj,
-              propNameList, mTransopNameList, isComplex);
+              propNameList, transopNameList, isComplex);
 
-        unsigned int size = mTransopNameList.size();
+        unsigned int size = transopNameList.size();
         for (unsigned int i = 0; i < size; i++)
         {
-            if (mTransopNameList[i].find("rotate") != std::string::npos &&
-               mTransopNameList[i].find("rotatePivot") == std::string::npos)
+            if (transopNameList[i].find("rotate") != std::string::npos &&
+               transopNameList[i].find("rotatePivot") == std::string::npos)
                 mData.mIsSampledXformOpAngle.push_back(true);
             else
                 mData.mIsSampledXformOpAngle.push_back(false);
@@ -734,7 +734,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
 
         if (iNode.getSchema().getNumAnimSamples() > 0)
         {
-            SampledPair mSampledPair(transObj, mTransopNameList);
+            SampledPair mSampledPair(transObj, transopNameList);
             mData.mXformOpList.push_back(mSampledPair);
             mData.mXformList.push_back(iNode);
             mData.mIsComplexXform.push_back(isComplex);

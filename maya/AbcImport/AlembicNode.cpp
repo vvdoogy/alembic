@@ -305,22 +305,6 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
         mSubDInitialized = false;
         mPolyInitialized = false;
 
-        // getting the arrays so there's no need to repeat the tedious work
-        dataHandle = dataBlock.inputValue(mIsSampledTransOpAngleAttr, &status);
-        if (status == MS::kSuccess)
-        {
-            MObject intArrayObj = dataHandle.data();
-            MFnIntArrayData intArray(intArrayObj, &status);
-            if (status == MS::kSuccess)
-            {
-                unsigned int length = intArray.length();
-                mData.mIsSampledXformOpAngle.clear();
-                mData.mIsSampledXformOpAngle.reserve(length);
-                for (unsigned int i = 0; i < length; i++)
-                    mData.mIsSampledXformOpAngle.push_back(intArray[i]);
-            }
-        }
-
         /*
         dataHandle =
             dataBlock.inputValue(mSampledNurbsCurveNumCurveAttr, &status);
@@ -355,7 +339,23 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
             // information retrieved from the hierarchy traversal
             // and given to AlembicNode to provide update
             visitor.getData(mData);
-         }
+        }
+
+        // getting the arrays so there's no need to repeat the tedious work
+        dataHandle = dataBlock.inputValue(mIsSampledTransOpAngleAttr, &status);
+        if (status == MS::kSuccess)
+        {
+            MObject intArrayObj = dataHandle.data();
+            MFnIntArrayData intArray(intArrayObj, &status);
+            if (status == MS::kSuccess)
+            {
+                unsigned int length = intArray.length();
+                mData.mIsSampledXformOpAngle.clear();
+                mData.mIsSampledXformOpAngle.reserve(length);
+                for (unsigned int i = 0; i < length; i++)
+                    mData.mIsSampledXformOpAngle.push_back(intArray[i]);
+            }
+        }
     }
 
     // update the frame number to be imported
@@ -404,7 +404,7 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
 
         mOutRead[1] = true;
 
-        unsigned int xformSize = mData.mXformOpList.size();
+        unsigned int xformSize = mData.mXformList.size();
 
         if (xformSize > 0)
         {
