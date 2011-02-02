@@ -61,49 +61,31 @@
 
 namespace
 {
-    void removeDagNode(bool removeIfNotUpdate, MDagPath & dagPath)
+    void removeDagNode(MDagPath & dagPath)
     {
-        if (removeIfNotUpdate)
+
+        MStatus status = deleteDagNode(dagPath);
+        if ( status != MS::kSuccess )
         {
-            MStatus status = deleteDagNode(dagPath);
-            if ( status != MS::kSuccess )
-            {
-                MString theError = dagPath.partialPathName();
-                theError += MString(" removal not successful");
-                printError(theError);
-            }
+            MString theError = dagPath.partialPathName();
+            theError += MString(" removal not successful");
+            printError(theError);
         }
-    }  // removeDagNode
+    }
 
 }
 
 
 CreateSceneVisitor::CreateSceneVisitor(double iFrame,
-    const MObject & iParent, bool iNotCreate) :
-    mFrame(iFrame), mParent(iParent), mNotCreate(iNotCreate)
+        const MObject & iParent, Action iAction,
+        MString iRootNodes) :
+    mFrame(iFrame), mParent(iParent), mAction(iAction)
 {
-}
-
-CreateSceneVisitor::~CreateSceneVisitor()
-{
-}
-
-void CreateSceneVisitor::setConnectArgs(
-    bool iConnect, MString iConnectRootNodes,
-    bool iCreateIfNotFound, bool iRemoveIfNoUpdate)
-{
-    mConnect = iConnect;
-    mCreateIfNotFound = iCreateIfNotFound;
-    mRemoveIfNoUpdate = iRemoveIfNoUpdate;
-    mCurrentConnectAction = NONE;
-    mConnectRootNodes.clear();
-    mConnectUpdateNodes.clear();
-
     // parse the input string to extract the nodes that need (re)connection
-    if ( iConnectRootNodes != MString("/") )
+    if ( iRootNodes != MString("/") )
     {
         MStringArray theArray;
-        if (iConnectRootNodes.split(' ', theArray) == MS::kSuccess)
+        if (iRootNodes.split(' ', theArray) == MS::kSuccess)
         {
             unsigned int len = theArray.length();
             for (unsigned int i = 0; i < len; i++)
@@ -116,10 +98,14 @@ void CreateSceneVisitor::setConnectArgs(
                     name = dagPath.partialPathName();
                 }
 
-                mConnectRootNodes.insert(name.asChar());
+                mRootNodes.insert(name.asChar());
             }
         }
     }
+}
+
+CreateSceneVisitor::~CreateSceneVisitor()
+{
 }
 
 void CreateSceneVisitor::getData(WriterData & oData)
@@ -233,7 +219,7 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
 
     if (numChildren == 0) return status;
 
-    if (!mConnect)  // simple scene creation mode
+    if (mAction == NONE)  // simple scene creation mode
     {
         for (size_t i = 0; i < numChildren; i++)
         {
@@ -241,108 +227,92 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
             this->visit(child);
             mParent = saveParent;
         }
+        return status;
     }
-    else  // connect flag set
+
+    // doing connections
+    std::set<std::string> connectUpdateNodes;
+    if (mAction == CREATE || mAction == CREATE_REMOVE)
     {
-        if (!mNotCreate)
+        std::set<std::string> connectCurNodesInFile;
+
+        bool connectWorld = (mRootNodes.size() == 0);
+        std::set<std::string>::iterator fileEnd =
+            connectCurNodesInFile.end();
+        for (size_t i = 0; i < numChildren; i++)
         {
-            std::set<std::string> connectCurNodesInFile;
-            std::set<std::string> connectCurNodesInBoth;
-            std::set<std::string> connectCurNodesToBeCreated;
+            Alembic::Abc::IObject obj = top.getChild(i);
+            std::string name = obj.getName();
+            connectCurNodesInFile.insert(name);
 
-            bool connectWorld = (mConnectRootNodes.size() == 0);
-            std::set<std::string>::iterator fileEnd =
-                connectCurNodesInFile.end();
-            for (size_t i = 0; i < numChildren; i++)
+            // see if this name is part of the input to AlembicNode 
+            if (connectWorld || (!connectWorld &&
+              mRootNodes.find(name) != mRootNodes.end()))
             {
-                Alembic::Abc::IObject obj = top.getChild(i);
-                std::string name = obj.getName();
-                connectCurNodesInFile.insert(name);
-
-                // see if this name is part of the input to AlembicNode 
-                if (connectWorld || (!connectWorld &&
-                  mConnectRootNodes.find(name) != mConnectRootNodes.end()))
-                {
-                    // Find out if this node exists in the current scene
-                    MDagPath dagPath;
-
-                    if (getDagPathByName(MString(name.c_str()), dagPath) ==
-                        MS::kSuccess)
-                    {
-                        connectCurNodesInBoth.insert(name);
-                        mConnectUpdateNodes.insert(name);
-                        mCurrentDagNode = dagPath;
-                        mCurrentConnectAction = CONNECT;
-                        name = dagPath.partialPathName().asChar();
-                        this->visit(obj);
-                        mParent = saveParent;
-                    }
-                    else
-                    {
-                        connectCurNodesToBeCreated.insert(name);
-                        if ( mCreateIfNotFound )
-                        {
-                            mConnectUpdateNodes.insert(name);
-                            mCurrentConnectAction = CREATE;
-                            this->visit(obj);
-                            mParent = saveParent;
-                        }
-                        else
-                        {
-                            MString warn(
-                                "-createIfNotFound flag not set, skipping: ");
-                            warn += name.c_str();
-                            printWarning(warn);
-                        }
-                    }
-                }
-            }  // for-loop
-
-            if ( connectWorld )
-            {
-                mConnectRootNodes = connectCurNodesInFile;
-            }
-            else if (mConnectRootNodes.size() >
-                (connectCurNodesInBoth.size()
-                + connectCurNodesToBeCreated.size()))
-            {
-                std::set<std::string>::iterator iter =
-                    mConnectRootNodes.begin();
-                const std::set<std::string>::iterator fileEndIter =
-                    connectCurNodesInFile.end();
+                // Find out if this node exists in the current scene
                 MDagPath dagPath;
-                for ( ; iter != mConnectRootNodes.end(); iter++)
+
+                if (getDagPathByName(MString(name.c_str()), dagPath) ==
+                    MS::kSuccess)
                 {
-                    std::string name = *iter;
-                    bool existInFile =
-                        (connectCurNodesInFile.find(name) != fileEndIter);
-                    bool existInScene =
-                        (getDagPathByName(MString(name.c_str()), dagPath)
-                            == MS::kSuccess);
-                    if ( existInScene && !existInFile )
-                        removeDagNode(mRemoveIfNoUpdate, dagPath);
-                    else if (!existInScene && !existInFile)
-                    {
-                        MString theWarning(name.c_str());
-                        theWarning += 
-                            " exists neither in file nor in the scene";
-                        printWarning(theWarning);
-                    }
+                    connectUpdateNodes.insert(name);
+                    mCurrentDagNode = dagPath;
+                    name = dagPath.partialPathName().asChar();
+                    this->visit(obj);
+                    mParent = saveParent;
+                }
+                else
+                {
+                    connectUpdateNodes.insert(name);
+                    this->visit(obj);
+                    mParent = saveParent;
+
+                }
+            }
+        }  // for-loop
+
+        if ( connectWorld )
+        {
+            mRootNodes = connectCurNodesInFile;
+        }
+        else if (mRootNodes.size() > connectUpdateNodes.size())
+        {
+            std::set<std::string>::iterator iter =
+                mRootNodes.begin();
+            const std::set<std::string>::iterator fileEndIter =
+                connectCurNodesInFile.end();
+            MDagPath dagPath;
+            for ( ; iter != mRootNodes.end(); iter++)
+            {
+                std::string name = *iter;
+                bool existInFile =
+                    (connectCurNodesInFile.find(name) != fileEndIter);
+                bool existInScene =
+                    (getDagPathByName(MString(name.c_str()), dagPath)
+                        == MS::kSuccess);
+                if ( existInScene && !existInFile )
+                    removeDagNode(dagPath);
+                else if (!existInScene && !existInFile)
+                {
+                    MString theWarning(name.c_str());
+                    theWarning += 
+                        " exists neither in file nor in the scene";
+                    printWarning(theWarning);
                 }
             }
         }
-        else  // mNotCreate == 1
+    }
+    else  // mAction == CONNECT
+    {
+        for (size_t i = 0; i < numChildren; i++)
         {
-            for (size_t i = 0; i < numChildren; i++)
+            Alembic::Abc::IObject child = top.getChild(i);
+            std::string name = child.getName();
+            if ( connectUpdateNodes.find( name )
+                != connectUpdateNodes.end() )
             {
-                Alembic::Abc::IObject child = top.getChild(i);
-                std::string name = child.getName();
-                if ( mConnectUpdateNodes.find( name )
-                    != mConnectUpdateNodes.end() )
-                {
-                    getDagPathByName(name.c_str(), mCurrentDagNode);
-                    this->visit(child);
-                }
+                getDagPathByName(name.c_str(), mCurrentDagNode);
+                this->visit(child);
             }
         }
     }
@@ -355,29 +325,26 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPoints& iNode)
     MStatus status = MS::kSuccess;
     MObject particleObj = MObject::kNullObj;
 
-    if (mNotCreate == 1)
-    {
-        if (iNode.getSchema().getNumSamples() > 1)
-            mData.mPointsList.push_back(iNode);
-
-        // review other arbitrary attributes and add it to the lists
-
-        return status;
-    }
-
-    std::vector<std::string> propNameList;
-    status = create(mFrame, iNode, mParent, particleObj, propNameList);
     if (iNode.getSchema().getNumSamples() > 1)
-    {
-        mData.mPointsObjList.push_back(particleObj);
         mData.mPointsList.push_back(iNode);
-    }
 
-    if (propNameList.size() > 0)
+    // review other arbitrary attributes and add it to the lists
+
+    if (mAction == CREATE || mAction == CREATE_REMOVE)
     {
-        SampledPair mSampledPair(particleObj, propNameList);
-        //mData.mPropList.push_back(mSampledPair);
-        //mData.mPropNodePtrList.push_back(iNode);
+        std::vector<std::string> propNameList;
+        status = create(mFrame, iNode, mParent, particleObj, propNameList);
+        if (iNode.getSchema().getNumSamples() > 1)
+        {
+            mData.mPointsObjList.push_back(particleObj);
+        }
+
+        if (propNameList.size() > 0)
+        {
+            SampledPair mSampledPair(particleObj, propNameList);
+            //mData.mPropList.push_back(mSampledPair);
+            //mData.mPropNodePtrList.push_back(iNode);
+        }
     }
 
     return status;
@@ -388,162 +355,128 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ISubD& iNode)
     MStatus status = MS::kSuccess;
     MObject subDObj = MObject::kNullObj;
 
-    if (mNotCreate == 1)
+    size_t numSamples = iNode.getSchema().getNumSamples();
+
+    // add animated SubDs to the list
+    if (numSamples > 1)
     {
-        if (iNode.getSchema().getNumSamples() > 1)
-            mData.mSubDList.push_back(iNode);
-
-        // review other arbitrary attributes and add it to the lists
-        return status;
-    }
-
-    if ( mConnect == true && mCurrentConnectAction == CONNECT )
-    {
-        subDObj = mCurrentDagNode.node();
-        MFnMesh mFn(subDObj, &status);
-
-        // check that the data types are compatible
-        if ( status == MS::kSuccess )
-        {
-            std::vector<std::string> propNameList;
-            mParent = mCurrentDagNode.transform(&status);
-
-            connectToSubD(mFrame, iNode, mParent, propNameList, subDObj);
-            if (iNode.getSchema().getNumSamples() > 1)
-            {
-                mData.mSubDObjList.push_back(subDObj);
-                mData.mSubDList.push_back(iNode);
-            }
-            else
-            {
-                createSubD(mFrame, iNode, mParent, propNameList);
-            }
-
-            /*
-            if (iNode.hasPropertyFrames())
-            {
-                SampledPair mSampledPair(subDObj, propNameList);
-                mData.mPropList.push_back(mSampledPair);
-                mData.mPropNodePtrList.push_back(iNode);
-            }
-            */
-
-            checkShaderSelection(mFn, mCurrentDagNode.instanceNumber());
-        }
-        else
-        {
-            MString theError("No connection done for node '");
-            theError += MString(iNode.getName().c_str());
-            theError += MString("' with ");
-            theError += mCurrentDagNode.fullPathName();
-            printError(theError);
-            return status;
-        }
-        return status;
-    }
-
-    std::vector<std::string> propNameList;
-
-    if (iNode.getSchema().getNumSamples() > 0)
-    {
-        subDObj = createSubD(mFrame, iNode, mParent, propNameList);
-        mData.mSubDObjList.push_back(subDObj);
         mData.mSubDList.push_back(iNode);
     }
-    else
+
+    // review other arbitrary attributes and add it to the lists
+
+    std::vector<std::string> propNameList;
+    if (mAction == CREATE || mAction == CREATE_REMOVE)
     {
         subDObj = createSubD(mFrame, iNode, mParent, propNameList);
+        MFnDagNode(subDObj).getPath(mCurrentDagNode);
+        if (numSamples > 1)
+        {
+            mData.mSubDObjList.push_back(subDObj);
+        }
+
+        /*
+        if (iNode.hasPropertyFrames())
+        {
+            SampledPair mSampledPair(subDObj, propNameList);
+            mData.mPropList.push_back(mSampledPair);
+            mData.mPropNodePtrList.push_back(iNode);
+        }
+        */
+
     }
 
-    /*
-    if (iNode.hasPropertyFrames())
+    if ( mAction >= CONNECT )
     {
-        SampledPair mSampledPair(subDObj, propNameList);
-        mData.mPropList.push_back(mSampledPair);
-        mData.mPropNodePtrList.push_back(iNode);
+        if (subDObj ==  MObject::kNullObj)
+        {
+            subDObj = mCurrentDagNode.node();
+            MFnMesh fn(subDObj, &status);
+
+            // check that the data types are compatible, they might not be
+            // if we have a weird hierarchy, where the node in the scene
+            // differs from the node on disk
+            if ( status != MS::kSuccess )
+            {
+                MString theError("No connection done for node '");
+                theError += MString(iNode.getName().c_str());
+                theError += MString("' with ");
+                theError += mCurrentDagNode.fullPathName();
+                printError(theError);
+                return status;
+            }
+
+            checkShaderSelection(fn, mCurrentDagNode.instanceNumber());
+        }
+
+        connectToSubD(mFrame, iNode, propNameList, subDObj);
+
     }
-    */
 
     return status;
 }
 
-MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPolyMesh & iNode)
+MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPolyMesh& iNode)
 {
     MStatus status = MS::kSuccess;
     MObject polyObj = MObject::kNullObj;
 
-    if (mNotCreate == 1)
+    size_t numSamples = iNode.getSchema().getNumSamples();
+
+    // add animated SubDs to the list
+    if (numSamples > 1)
+        mData.mPolyMeshList.push_back(iNode);
+
+    // review other arbitrary attributes and add it to the lists
+
+    std::vector<std::string> propNameList;
+    if (mAction == CREATE || mAction == CREATE_REMOVE)
     {
-        if (iNode.getSchema().getNumSamples() > 0)
-            mData.mPolyMeshList.push_back(iNode);
+        polyObj = createPoly(mFrame, iNode, mParent, propNameList);
+        MFnDagNode(polyObj).getPath(mCurrentDagNode);
+        if (numSamples > 1)
+        {
+            mData.mPolyMeshObjList.push_back(polyObj);
+        }
 
         /*
         if (iNode.hasPropertyFrames())
+        {
+            SampledPair mSampledPair(subDObj, propNameList);
+            mData.mPropList.push_back(mSampledPair);
             mData.mPropNodePtrList.push_back(iNode);
+        }
         */
 
-        return status;
     }
 
-    if ( mConnect == true && mCurrentConnectAction == CONNECT )
+
+    if ( mAction >= CONNECT )
     {
-        polyObj = mCurrentDagNode.node();
-        MFnMesh mFn(polyObj, &status);
-
-        // check that the data types are compatible
-        if ( status == MS::kSuccess )
+        if (polyObj == MObject::kNullObj)
         {
-            std::vector<std::string> propNameList;
-            mParent = mCurrentDagNode.transform(&status);
+            polyObj = mCurrentDagNode.node();
+            MFnMesh fn(polyObj, &status);
 
-            connectToPoly(mFrame, iNode, mParent, propNameList, polyObj);
-
-            if (iNode.getSchema().getNumSamples() > 0)
+            // check that the data types are compatible, they might not be
+            // if we have a weird hierarchy, where the node in the scene
+            // differs from the node on disk
+            if ( status != MS::kSuccess )
             {
-                mData.mPolyMeshObjList.push_back(polyObj);
-                mData.mPolyMeshList.push_back(iNode);
+                MString theError("No connection done for node '");
+                theError += MString(iNode.getName().c_str());
+                theError += MString("' with ");
+                theError += mCurrentDagNode.fullPathName();
+                printError(theError);
+                return status;
             }
 
-            /*
-            if (iNode.hasPropertyFrames())
-            {
-                SampledPair mSampledPair(polyObj, propNameList);
-                mData.mPropList.push_back(mSampledPair);
-                mData.mPropNodePtrList.push_back(iNode);
-            }
-            */
-
-            checkShaderSelection(mFn, mCurrentDagNode.instanceNumber());
+            checkShaderSelection(fn, mCurrentDagNode.instanceNumber());
         }
-        else
-        {
-            MString theError("No connection done for node '");
-            theError += MString(iNode.getName().c_str());
-            theError += MString("' with ");
-            theError += mCurrentDagNode.fullPathName();
-            printError(theError);
-            return status;
-        }
-        return status;
-    }
 
-    std::vector<std::string> propNameList;
+        connectToPoly(mFrame, iNode, propNameList, polyObj);
 
-    polyObj = createPoly(mFrame, iNode, mParent, propNameList);
-    if (iNode.getSchema().getNumSamples() > 0)
-    {
-        mData.mPolyMeshObjList.push_back(polyObj);
-        mData.mPolyMeshList.push_back(iNode);
     }
-
-    /*
-    if (iNode.hasPropertyFrames())
-    {
-        SampledPair mSampledPair(polyObj, propNameList);
-        mData.mPropList.push_back(mSampledPair);
-        mData.mPropNodePtrList.push_back(iNode);
-    }
-    */
 
     return status;
 }
@@ -553,59 +486,106 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
     MStatus status = MS::kSuccess;
     MObject transObj;
 
-    if (mNotCreate == 1)
+    size_t numChildren = iNode.getNumChildren();
+    size_t numSamples = iNode.getSchema().getNumAnimSamples();
+
+    if (numSamples > 1)
     {
-        if (iNode.getSchema().getNumAnimSamples() > 0)
-        {
-            mData.mXformList.push_back(iNode);
-            mData.mIsComplexXform.push_back(isComplex(iNode));
-        }
-
-        //if (iNode.hasPropertyFrames())
-        //    mData.mPropNodePtrList.push_back(iNode);
-
-        size_t numChildren = iNode.getNumChildren();
-        if ( !mConnect )
-        {
-            for (size_t i = 0; i < numChildren; ++i)
-            {
-                Alembic::Abc::IObject child = iNode.getChild(i);
-                this->visit(child);
-            }
-        }
-        else
-        // if mConnect is on, selectively traverse the hierarchy
-        // (possibly for a second time)
-        {
-            std::set<std::string> childNodesInFile;
-            MObject saveParent = transObj;
-            MDagPath saveDag = mCurrentDagNode;
-            for (size_t i = 0; i < numChildren; ++i)
-            {
-                Alembic::Abc::IObject child = iNode.getChild(i);
-                mParent = saveParent;
-                std::string childName = child.getName();
-                MString name = saveDag.fullPathName();
-                name += "|";
-                name += childName.c_str();
-                if (getDagPathByName(name, mCurrentDagNode) == MS::kSuccess)
-                    this->visit(child);
-            }
-        }
-
-        return status;
+        mData.mXformList.push_back(iNode);
+        mData.mIsComplexXform.push_back(isComplex(iNode));
     }
 
-    if ( mConnect == 1 && mCurrentConnectAction == CONNECT )
+    // There might be children under the current DAG node that
+    // don't exist in the file.
+    // Remove them if the -removeIfNoUpdate flag is set
+    if (mAction == REMOVE || mAction == CREATE_REMOVE)
     {
-        transObj = mCurrentDagNode.node();
+        unsigned int numDags = mCurrentDagNode.childCount();
+        std::vector<MDagPath> dagToBeRemoved;
+
+        // get names of immediate children so we can compare with
+        // the hierarchy in teh scene
+        std::set< std::string > childNodesInFile;
+        for (size_t j = 0; j < numChildren; ++j)
+        {
+            Alembic::Abc::IObject child = iNode.getChild(j);
+            childNodesInFile.insert(child.getName());
+        }
+
+        for ( unsigned int i = 0; i < numDags; i++ )
+        {
+            MObject child = mCurrentDagNode.child(i);
+            MFnDagNode fn(child, &status);
+            if ( status == MS::kSuccess )
+            {
+                std::string childName = fn.fullPathName().asChar();
+                size_t found = childName.rfind("|");
+ 
+                if (found != std::string::npos)
+                {
+                    childName = childName.substr(
+                        found+1, childName.length() - found);
+                    if (childNodesInFile.find(childName)
+                        == childNodesInFile.end())
+                    {
+                        MDagPath dagPath;
+                        getDagPathByName(
+                            fn.fullPathName(), dagPath);
+                        dagToBeRemoved.push_back(dagPath);
+                    }
+                }
+            }
+        }
+        if (dagToBeRemoved.size() > 0)
+        {
+            unsigned int dagSize = dagToBeRemoved.size();
+            for ( unsigned int i = 0; i < dagSize; i++ )
+                removeDagNode(dagToBeRemoved[i]);
+        }
+    }
+
+    // just create the node
+    if ( mAction == CREATE || mAction == CREATE_REMOVE )
+    {
+        MFnTransform trans;
+        MString name(iNode.getName().c_str());
+        transObj = trans.create(mParent, &status);
+        trans.getPath(mCurrentDagNode);
+
+        if (status != MS::kSuccess)
+        {
+            MString theError("Failed to create transform node ");
+            theError += name;
+            printError(theError);
+            return status;
+        }
+
+        trans.setName(name);
+
+        MPlug dstPlug;
+        dstPlug = trans.findPlug("inheritsTransform");
+        if (!dstPlug.isNull())
+        {
+            dstPlug.setBool( iNode.getSchema().inherits(
+                Alembic::Abc::ISampleSelector(mFrame,
+                    Alembic::Abc::ISampleSelector::kNearIndex)) );
+        }
+
+        //addProperties(mFrame, iNode, transObj, iSampledPropNameList);
+    }
+
+    if ( mAction >= CONNECT )
+    {
+        if (transObj ==  MObject::kNullObj)
+            transObj = mCurrentDagNode.node();
+
         if (transObj.hasFn(MFn::kTransform))
         {
             std::vector<std::string> transopNameList;
             std::vector<std::string> propNameList;
             bool isComplex = false;
-            create(mFrame, iNode, mParent, transObj, propNameList,
-                transopNameList, isComplex, true);
+            connectToXform(mFrame, iNode, transObj, propNameList,
+                transopNameList);
 
             unsigned int size = transopNameList.size();
             for (unsigned int i = 0; i < size; i++)
@@ -634,74 +614,6 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
                 mData.mPropNodePtrList.push_back(iNode);
             }
             */
-
-            // go down the current DAG's children and current
-            // AlembicNode's  children
-            size_t numChildren = iNode.getNumChildren();
-            std::set<std::string> childNodesInFile;
-            MObject saveParent = transObj;
-            MDagPath saveDag = mCurrentDagNode;
-            for (size_t childIndex = 0; childIndex < numChildren; ++childIndex)
-            {
-                Alembic::Abc::IObject child = iNode.getChild(childIndex);
-                mParent = saveParent;
-                std::string childName = child.getName();
-                childNodesInFile.insert(childName);
-                MString name = saveDag.fullPathName();
-                name += "|";
-                name += childName.c_str();
-                MDagPath dagPath;
-                if (getDagPathByName(name, dagPath) == MS::kSuccess)
-                {
-                    mCurrentDagNode = dagPath;
-                    this->visit(child);
-                    mCurrentDagNode = saveDag;
-                }
-                else if (mCreateIfNotFound)  // create if necessary
-                {
-                    mCurrentConnectAction = CREATE;
-                    this->visit(child);
-                    mCurrentConnectAction = CONNECT;
-                }
-            }
-
-            // There might be children under the current DAG node that
-            // don't exist in the file.
-            // remove if the -removeIfNoUpdate flag is set
-            if ( mRemoveIfNoUpdate )
-            {
-                unsigned int numChild = mCurrentDagNode.childCount();
-                std::vector<MDagPath> dagToBeRemoved;
-                for ( unsigned int i = 0; i < numChild; i++ )
-                {
-                    MObject child = mCurrentDagNode.child(i);
-                    MFnTransform fn(child, &status);
-                    if ( status == MS::kSuccess )
-                    {
-                        std::string childName = fn.fullPathName().asChar();
-                        size_t found = childName.rfind("|");
-                        if (found != std::string::npos)
-                        {
-                            childName = childName.substr(
-                                found+1, childName.length() - found);
-                            if (childNodesInFile.find(childName)
-                                == childNodesInFile.end())
-                            {
-                                MDagPath dagPath;
-                                getDagPathByName(
-                                    fn.fullPathName(), dagPath);
-                                dagToBeRemoved.push_back(dagPath);
-                            }
-                        }
-                    }
-                }
-                if (dagToBeRemoved.size() > 0)
-                {
-                    unsigned int dagSize = dagToBeRemoved.size();
-                    for ( unsigned int i = 0; i < dagSize; i++ )
-                        removeDagNode(mRemoveIfNoUpdate, dagToBeRemoved[i]);
-                }
-            }
         }
         else
         {
@@ -712,53 +624,23 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
         }
     }
 
-    if ( !mConnect || mCurrentConnectAction == CREATE )
+    /*
+    for (size_t i = 0; i < numChildren; ++i)
     {
-        // create transform node
-        std::vector<std::string> transopNameList;
-        std::vector<std::string> propNameList;
+        Alembic::Abc::IObject child = iNode.getChild(i);
+        this->visit(child);
+    }
+    */
 
-        bool isComplex = false;
-        status = create(mFrame, iNode, mParent, transObj,
-              propNameList, transopNameList, isComplex);
+    MObject saveParent = transObj;
+    MDagPath saveDag = mCurrentDagNode;
+    for (size_t i = 0; i < numChildren; ++i)
+    {
+        Alembic::Abc::IObject child = iNode.getChild(i);
+        mParent = saveParent;
 
-        unsigned int size = transopNameList.size();
-        for (unsigned int i = 0; i < size; i++)
-        {
-            if (transopNameList[i].find("rotate") != std::string::npos &&
-               transopNameList[i].find("rotatePivot") == std::string::npos)
-                mData.mIsSampledXformOpAngle.push_back(true);
-            else
-                mData.mIsSampledXformOpAngle.push_back(false);
-        }
-
-        if (iNode.getSchema().getNumAnimSamples() > 0)
-        {
-            SampledPair mSampledPair(transObj, transopNameList);
-            mData.mXformOpList.push_back(mSampledPair);
-            mData.mXformList.push_back(iNode);
-            mData.mIsComplexXform.push_back(isComplex);
-        }
-
-        /*
-        if (iNode->hasPropertyFrames())
-        {
-            SampledPair mSampledPair(transObj, propNameList);
-            mData.mPropList.push_back(mSampledPair);
-            mData.mPropNodePtrList.push_back(iNode);
-        }
-        */
-
-        size_t numChildren = iNode.getNumChildren();
-        MObject saveParent = transObj;
-
-        for (size_t i = 0; i < numChildren; ++i)
-        {
-            Alembic::Abc::IObject child = iNode.getChild(i);
-            mParent = saveParent;
-            this->visit(child);
-        }
-   }
+        this->visit(child);
+    }
 
     return status;
 }

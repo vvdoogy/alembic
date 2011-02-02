@@ -393,208 +393,173 @@ bool isComplex(Alembic::AbcGeom::IXform & iNode)
     return scPivot || roPivot;
 }
 
-MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
-    MObject & iParent, MObject & ioObject,
-    std::vector<std::string> & iSampledPropNameList,
-    std::vector<std::string> & iSampledTransOpNameList,
-    bool & oIsComplex, bool iSwap)
+MStatus connectToXform(double iFrame, Alembic::AbcGeom::IXform & iNode,
+    MObject & iObject,
+    std::vector<std::string> & oSampledPropNameList,
+    std::vector<std::string> & oSampledTransOpNameList)
 {
     MStatus status = MS::kSuccess;
-    MString name(iNode.getName().c_str());
 
     MFnTransform trans;
+    trans.setObject(iObject);
 
-    if (iSwap)
+    // disconnect and reset all the native attributes
+
+    const MVector   vec(0, 0, 0);
+    const MPoint    point(0, 0, 0);
+    const double    zero[3] = {0, 0, 0};
+
+    MPlug dstPlug;
+
+    dstPlug = trans.findPlug("translateX");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("translateY");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("translateZ");
+    disconnectAllPlugsTo(dstPlug);
+    trans.setTranslation(vec, gSpace);
+
+    dstPlug = trans.findPlug("scaleX");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("scaleY");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("scaleZ");
+    disconnectAllPlugsTo(dstPlug);
+    const double scale[3] = {1, 1, 1};
+    trans.setScale(scale);
+
+    dstPlug = trans.findPlug("shearXY");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("shearXZ");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("shearYZ");
+    disconnectAllPlugsTo(dstPlug);
+    trans.setShear(zero);
+
+    dstPlug = trans.findPlug("rotateX");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("rotateY");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("rotateZ");
+    disconnectAllPlugsTo(dstPlug);
+    MTransformationMatrix::RotationOrder order =
+        MTransformationMatrix::kXYZ;
+    trans.setRotation(zero, order);
+
+    dstPlug = trans.findPlug("scalePivotX");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("scalePivotY");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("scalePivotZ");
+    disconnectAllPlugsTo(dstPlug);
+    trans.setScalePivot(point, gSpace, gBalance);
+
+    dstPlug = trans.findPlug("scalePivotTranslateX");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("scalePivotTranslateY");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("scalePivotTranslateZ");
+    disconnectAllPlugsTo(dstPlug);
+    trans.setScalePivotTranslation(vec, gSpace);
+
+    dstPlug = trans.findPlug("rotatePivotX");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("rotatePivotY");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("rotatePivotZ");
+    disconnectAllPlugsTo(dstPlug);
+    trans.setScalePivot(point, gSpace, gBalance);
+
+    dstPlug = trans.findPlug("rotatePivotTranslateX");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("rotatePivotTranslateY");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("rotatePivotTranslateZ");
+    disconnectAllPlugsTo(dstPlug);
+    trans.setScalePivotTranslation(vec, gSpace);
+
+    dstPlug = trans.findPlug("rotateAxisX");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("rotateAxisY");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug = trans.findPlug("rotateAxisZ");
+    disconnectAllPlugsTo(dstPlug);
+    const MQuaternion quat;
+    trans.setRotateOrientation(quat, gSpace, gBalance);
+
+    dstPlug = trans.findPlug("rotateOrder");
+    disconnectAllPlugsTo(dstPlug);
+    bool reorder = true;
+    trans.setRotationOrder(order, reorder);
+
+    dstPlug = trans.findPlug("inheritsTransform");
+    disconnectAllPlugsTo(dstPlug);
+    dstPlug.setBool(true);
+
+    // disconnect connections to animated props
+    /*
+    loop over properties
     {
-        trans.setObject(ioObject);
-
-        // disconnect and reset all the native attributes
-
-        const MVector   vec(0, 0, 0);
-        const MPoint    point(0, 0, 0);
-        const double    zero[3] = {0, 0, 0};
-
-        MPlug dstPlug;
-
-        dstPlug = trans.findPlug("translateX");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("translateY");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("translateZ");
-        disconnectAllPlugsTo(dstPlug);
-        trans.setTranslation(vec, gSpace);
-
-        dstPlug = trans.findPlug("scaleX");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("scaleY");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("scaleZ");
-        disconnectAllPlugsTo(dstPlug);
-        const double scale[3] = {1, 1, 1};
-        trans.setScale(scale);
-
-        dstPlug = trans.findPlug("shearXY");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("shearXZ");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("shearYZ");
-        disconnectAllPlugsTo(dstPlug);
-        trans.setShear(zero);
-
-        dstPlug = trans.findPlug("rotateX");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("rotateY");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("rotateZ");
-        disconnectAllPlugsTo(dstPlug);
-        MTransformationMatrix::RotationOrder order =
-            MTransformationMatrix::kXYZ;
-        trans.setRotation(zero, order);
-
-        dstPlug = trans.findPlug("scalePivotX");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("scalePivotY");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("scalePivotZ");
-        disconnectAllPlugsTo(dstPlug);
-        trans.setScalePivot(point, gSpace, gBalance);
-
-        dstPlug = trans.findPlug("scalePivotTranslateX");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("scalePivotTranslateY");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("scalePivotTranslateZ");
-        disconnectAllPlugsTo(dstPlug);
-        trans.setScalePivotTranslation(vec, gSpace);
-
-        dstPlug = trans.findPlug("rotatePivotX");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("rotatePivotY");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("rotatePivotZ");
-        disconnectAllPlugsTo(dstPlug);
-        trans.setScalePivot(point, gSpace, gBalance);
-
-        dstPlug = trans.findPlug("rotatePivotTranslateX");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("rotatePivotTranslateY");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("rotatePivotTranslateZ");
-        disconnectAllPlugsTo(dstPlug);
-        trans.setScalePivotTranslation(vec, gSpace);
-
-        dstPlug = trans.findPlug("rotateAxisX");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("rotateAxisY");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug = trans.findPlug("rotateAxisZ");
-        disconnectAllPlugsTo(dstPlug);
-        const MQuaternion quat;
-        trans.setRotateOrientation(quat, gSpace, gBalance);
-
-        dstPlug = trans.findPlug("rotateOrder");
-        disconnectAllPlugsTo(dstPlug);
-        bool reorder = true;
-        trans.setRotationOrder(order, reorder);
-
-        dstPlug = trans.findPlug("inheritsTransform");
-        disconnectAllPlugsTo(dstPlug);
-        dstPlug.setBool(true);
-
-        // disconnect connections to animated props
-        /*
-        loop over properties
+        std::string propName = propIter->first;
+        // SPT_xxColor is special
+        if ( propName.find("SPT_") != std::string::npos
+            && propName.find("Color") != std::string::npos )
         {
-            std::string propName = propIter->first;
-            // SPT_xxColor is special
-            if ( propName.find("SPT_") != std::string::npos
-                && propName.find("Color") != std::string::npos )
-            {
-                std::string colorR = propName+std::string("R");
-                dstPlug = trans.findPlug(colorR.c_str());
-                disconnectAllPlugsTo(dstPlug);
-                std::string colorG = propName+std::string("G");
-                dstPlug = trans.findPlug(colorG.c_str());
-                disconnectAllPlugsTo(dstPlug);
-                std::string colorB = propName+std::string("B");
-                dstPlug = trans.findPlug(colorB.c_str());
-                disconnectAllPlugsTo(dstPlug);
-            }
-            else
-            {
-                dstPlug = trans.findPlug(propIter->first.c_str());
-                disconnectAllPlugsTo(dstPlug);
-            }
-            propIter++;
+            std::string colorR = propName+std::string("R");
+            dstPlug = trans.findPlug(colorR.c_str());
+            disconnectAllPlugsTo(dstPlug);
+            std::string colorG = propName+std::string("G");
+            dstPlug = trans.findPlug(colorG.c_str());
+            disconnectAllPlugsTo(dstPlug);
+            std::string colorB = propName+std::string("B");
+            dstPlug = trans.findPlug(colorB.c_str());
+            disconnectAllPlugsTo(dstPlug);
         }
-        addProperties(iFrame, *iNode, ioObject, iSampledPropNameList);
-        */
+        else
+        {
+            dstPlug = trans.findPlug(propIter->first.c_str());
+            disconnectAllPlugsTo(dstPlug);
+        }
+        propIter++;
     }
-    else
-    {
-        ioObject = trans.create(iParent, &status);
-        if (status != MS::kSuccess)
-        {
-            MString theError("Failed to create transform node ");
-            theError += name;
-            printError(theError);
-            oIsComplex = false;
-            ioObject = MObject::kNullObj;
-            return status;
-        }
-
-        trans.setName(name);
-
-        MPlug dstPlug;
-        dstPlug = trans.findPlug("inheritsTransform");
-        if (!dstPlug.isNull())
-        {
-            dstPlug.setBool( iNode.getSchema().inherits(
-                Alembic::Abc::ISampleSelector(iFrame,
-                    Alembic::Abc::ISampleSelector::kNearIndex)) );
-        }
-
-        //addProperties(iFrame, iNode, ioObject, iSampledPropNameList);
-    }
-
-    oIsComplex = isComplex(iNode);
+    addProperties(iFrame, *iNode, ioObject, oSampledPropNameList);
+    */
 
     int64_t index, ceilIndex;
     double alpha = getWeightAndIndex(iFrame,
         iNode.getSchema().getTimeSampling(), index, ceilIndex);
 
-    if (oIsComplex)
+    if (isComplex(iNode))
     {
-
         if (iNode.getSchema().getNumAnimSamples() > 0)
         {
-            iSampledTransOpNameList.push_back("translateX");
-            iSampledTransOpNameList.push_back("translateY");
-            iSampledTransOpNameList.push_back("translateZ");
-            iSampledTransOpNameList.push_back("rotatePivotTranslateX");
-            iSampledTransOpNameList.push_back("rotatePivotTranslateY");
-            iSampledTransOpNameList.push_back("rotatePivotTranslateZ");
-            iSampledTransOpNameList.push_back("rotatePivotX");
-            iSampledTransOpNameList.push_back("rotatePivotY");
-            iSampledTransOpNameList.push_back("rotatePivotZ");
-            iSampledTransOpNameList.push_back("rotateX");
-            iSampledTransOpNameList.push_back("rotateY");
-            iSampledTransOpNameList.push_back("rotateZ");
-            iSampledTransOpNameList.push_back("rotateAxisX");
-            iSampledTransOpNameList.push_back("rotateAxisY");
-            iSampledTransOpNameList.push_back("rotateAxisZ");
-            iSampledTransOpNameList.push_back("scalePivotTranslateX");
-            iSampledTransOpNameList.push_back("scalePivotTranslateY");
-            iSampledTransOpNameList.push_back("scalePivotTranslateZ");
-            iSampledTransOpNameList.push_back("scalePivotX");
-            iSampledTransOpNameList.push_back("scalePivotY");
-            iSampledTransOpNameList.push_back("scalePivotZ");
-            iSampledTransOpNameList.push_back("shearXY");
-            iSampledTransOpNameList.push_back("shearXZ");
-            iSampledTransOpNameList.push_back("shearYZ");
-            iSampledTransOpNameList.push_back("scaleX");
-            iSampledTransOpNameList.push_back("scaleY");
-            iSampledTransOpNameList.push_back("scaleZ");
+            oSampledTransOpNameList.push_back("translateX");
+            oSampledTransOpNameList.push_back("translateY");
+            oSampledTransOpNameList.push_back("translateZ");
+            oSampledTransOpNameList.push_back("rotatePivotTranslateX");
+            oSampledTransOpNameList.push_back("rotatePivotTranslateY");
+            oSampledTransOpNameList.push_back("rotatePivotTranslateZ");
+            oSampledTransOpNameList.push_back("rotatePivotX");
+            oSampledTransOpNameList.push_back("rotatePivotY");
+            oSampledTransOpNameList.push_back("rotatePivotZ");
+            oSampledTransOpNameList.push_back("rotateX");
+            oSampledTransOpNameList.push_back("rotateY");
+            oSampledTransOpNameList.push_back("rotateZ");
+            oSampledTransOpNameList.push_back("rotateAxisX");
+            oSampledTransOpNameList.push_back("rotateAxisY");
+            oSampledTransOpNameList.push_back("rotateAxisZ");
+            oSampledTransOpNameList.push_back("scalePivotTranslateX");
+            oSampledTransOpNameList.push_back("scalePivotTranslateY");
+            oSampledTransOpNameList.push_back("scalePivotTranslateZ");
+            oSampledTransOpNameList.push_back("scalePivotX");
+            oSampledTransOpNameList.push_back("scalePivotY");
+            oSampledTransOpNameList.push_back("scalePivotZ");
+            oSampledTransOpNameList.push_back("shearXY");
+            oSampledTransOpNameList.push_back("shearXZ");
+            oSampledTransOpNameList.push_back("shearYZ");
+            oSampledTransOpNameList.push_back("scaleX");
+            oSampledTransOpNameList.push_back("scaleY");
+            oSampledTransOpNameList.push_back("scaleZ");
         }
 
         Alembic::Abc::M44d m; 
@@ -679,7 +644,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                 if (op->isXAnimated())
                 {
-                    iSampledTransOpNameList.push_back("scaleX");
+                    oSampledTransOpNameList.push_back("scaleX");
                     scale[0] = animValue[animPos++];
                 }
                 else
@@ -689,7 +654,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                 if (op->isYAnimated())
                 {
-                    iSampledTransOpNameList.push_back("scaleY");
+                    oSampledTransOpNameList.push_back("scaleY");
                     scale[1] = animValue[animPos++];
                 }
                 else
@@ -699,7 +664,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                 if (op->isZAnimated())
                 {
-                    iSampledTransOpNameList.push_back("scaleZ");
+                    oSampledTransOpNameList.push_back("scaleZ");
                     scale[2] = animValue[animPos++];
                 }
                 else
@@ -723,7 +688,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                     {
                         if (op->isAngleAnimated())
                         {
-                            iSampledTransOpNameList.push_back("rotateX");
+                            oSampledTransOpNameList.push_back("rotateX");
                             angle = animValue[animPos++];
                         }
                         else
@@ -755,7 +720,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isAngleAnimated())
                         {
-                            iSampledTransOpNameList.push_back("rotateY");
+                            oSampledTransOpNameList.push_back("rotateY");
                             angle = animValue[animPos++];
                         }
                         else
@@ -786,7 +751,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                     {
                         if (op->isAngleAnimated())
                         {
-                            iSampledTransOpNameList.push_back("rotateZ");
+                            oSampledTransOpNameList.push_back("rotateZ");
                             angle = animValue[animPos++];
                         }
                         else
@@ -827,7 +792,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                     {
                         if (op->isAngleAnimated())
                         {
-                            iSampledTransOpNameList.push_back("rotateAxisX");
+                            oSampledTransOpNameList.push_back("rotateAxisX");
                             angle = animValue[animPos++];
                         }
                         else
@@ -842,7 +807,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                     {
                         if (op->isAngleAnimated())
                         {
-                            iSampledTransOpNameList.push_back("rotateAxisY");
+                            oSampledTransOpNameList.push_back("rotateAxisY");
                             angle = animValue[animPos++];
                         }
                         else
@@ -855,7 +820,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                     {
                         if (op->isAngleAnimated())
                         {
-                            iSampledTransOpNameList.push_back("rotateAxisZ");
+                            oSampledTransOpNameList.push_back("rotateAxisZ");
                             angle = animValue[animPos++];
                         }
                         else
@@ -891,7 +856,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                 if (op->isIndexAnimated(4))
                 {
-                    iSampledTransOpNameList.push_back("shearXY");
+                    oSampledTransOpNameList.push_back("shearXY");
                     shear[0] = animValue[animPos++];
                 }
                 else
@@ -901,7 +866,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                 if (op->isIndexAnimated(8))
                 {
-                    iSampledTransOpNameList.push_back("shearXZ");
+                    oSampledTransOpNameList.push_back("shearXZ");
                     shear[1] = animValue[animPos++];
                 }
                 else
@@ -911,7 +876,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                 if (op->isIndexAnimated(9))
                 {
-                    iSampledTransOpNameList.push_back("shearYZ");
+                    oSampledTransOpNameList.push_back("shearYZ");
                     shear[2] = animValue[animPos++];
                 }
                 else
@@ -934,7 +899,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isXAnimated())
                         {
-                            iSampledTransOpNameList.push_back("translateX");
+                            oSampledTransOpNameList.push_back("translateX");
                             vec.x = animValue[animPos++];
                         }
                         else
@@ -944,7 +909,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isYAnimated())
                         {
-                            iSampledTransOpNameList.push_back("translateY");
+                            oSampledTransOpNameList.push_back("translateY");
                             vec.y = animValue[animPos++];
                         }
                         else
@@ -954,7 +919,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isZAnimated())
                         {
-                            iSampledTransOpNameList.push_back("translateZ");
+                            oSampledTransOpNameList.push_back("translateZ");
                             vec.z = animValue[animPos++];
                         }
                         else
@@ -975,12 +940,12 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                             point.x = animValue[animPos++];
                             if (!scPivot)
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "scalePivotX");
                             }
                             else
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "scalePivotXInv");
                             }
                         }
@@ -994,12 +959,12 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                             point.y = animValue[animPos++];
                             if (!scPivot)
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "scalePivotY");
                             }
                             else
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "scalePivotYInv");
                             }
                         }
@@ -1013,12 +978,12 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                             point.z = animValue[animPos++];
                             if (!scPivot)
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "scalePivotZ");
                             }
                             else
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "scalePivotZInv");
                             }
                         }
@@ -1044,7 +1009,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isXAnimated())
                         {
-                            iSampledTransOpNameList.push_back(
+                            oSampledTransOpNameList.push_back(
                                 "scalePivotTranslateX");
                             vec.x = animValue[animPos++];
                         }
@@ -1055,7 +1020,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isYAnimated())
                         {
-                            iSampledTransOpNameList.push_back(
+                            oSampledTransOpNameList.push_back(
                                 "scalePivotTranslateY");
                             vec.y = animValue[animPos++];
                         }
@@ -1066,7 +1031,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isZAnimated())
                         {
-                            iSampledTransOpNameList.push_back(
+                            oSampledTransOpNameList.push_back(
                                 "scalePivotTranslateZ");
                             vec.z = animValue[animPos++];
                         }
@@ -1088,12 +1053,12 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                             point.x = animValue[animPos++];
                             if (!roPivot)
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "rotatePivotX");
                             }
                             else
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "rotatePivotXInv");
                             }
                         }
@@ -1107,12 +1072,12 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                             point.y = animValue[animPos++];
                             if (!roPivot)
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "rotatePivotY");
                             }
                             else
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "rotatePivotYInv");
                             }
                         }
@@ -1126,12 +1091,12 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
                             point.z = animValue[animPos++];
                             if (!roPivot)
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "rotatePivotZ");
                             }
                             else
                             {
-                                iSampledTransOpNameList.push_back(
+                                oSampledTransOpNameList.push_back(
                                     "rotatePivotZInv");
                             }
                         }
@@ -1155,7 +1120,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isXAnimated())
                         {
-                            iSampledTransOpNameList.push_back(
+                            oSampledTransOpNameList.push_back(
                                 "rotatePivotTranslateX");
                             vec.x = animValue[animPos++];
                         }
@@ -1166,7 +1131,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isYAnimated())
                         {
-                            iSampledTransOpNameList.push_back(
+                            oSampledTransOpNameList.push_back(
                                 "rotatePivotTranslateY");
                             vec.y = animValue[animPos++];
                         }
@@ -1177,7 +1142,7 @@ MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
 
                         if (op->isZAnimated())
                         {
-                            iSampledTransOpNameList.push_back(
+                            oSampledTransOpNameList.push_back(
                                 "rotatePivotTranslateZ");
                             vec.z = animValue[animPos++];
                         }

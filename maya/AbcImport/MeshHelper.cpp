@@ -418,8 +418,7 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 }
 
 void connectToPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
-    MObject & iParent, std::vector<std::string> & oSampledPropNameList,
-    MObject & iMeshObject)
+    std::vector<std::string> & oSampledPropNameList, MObject & iMeshObject)
 {
     Alembic::AbcGeom::IPolyMeshSchema schema = iNode.getSchema();
     MString name(iNode.getName().c_str());
@@ -561,8 +560,7 @@ MObject createPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
 }
 
 void connectToSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
-    MObject & iParent, std::vector<std::string> & oSampledPropNameList,
-    MObject & iMeshObject)
+    std::vector<std::string> & oSampledPropNameList, MObject & iMeshObject)
 {
     Alembic::AbcGeom::ISubDSchema schema = iNode.getSchema();
 
