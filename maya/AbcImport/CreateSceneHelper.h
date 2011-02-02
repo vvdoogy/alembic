@@ -68,24 +68,18 @@ class CreateSceneVisitor
 {
 public:
 
-    // iFrame:  the frame to be read in order to fill the newly created object
-    // iFlag:   true - create new maya object as part of the process of setting
-    //          up the maya hierarchy; also push the animated objects into the
-    //          corresponding list used to set up the connections;
-    //          the visitor with iFlag set to true is used in createScene()
-    //          false - the maya hierarchy is already set up, but this time
-    //          traverse the hdf file to initialize all the reader pointers;
-    //          the visitor with iFlag set to false is used in AlembicNode
-    //
-    // **
-    // Using the flag means we are going through the hierarchy twice.
-    // Doing this is because otherwise we will need to pass the IObject
-    // as an input to the AlembicNode.
-    // Also it will make reloading maya scene file containing AlembicNode
-    // easier.
-    //
+    enum Action
+    {
+        NONE = 0,
+        CONNECT = 1,
+        CREATE = 2,
+        REMOVE = 3,
+        CREATE_REMOVE = 4
+    };
+
     CreateSceneVisitor(double iFrame = 0,
-        const MObject & iParent = MObject::kNullObj, bool iNotCreate = 0);
+        const MObject & iParent = MObject::kNullObj,
+        Action iAction = CREATE, MString iRootNodes = MString());
 
     ~CreateSceneVisitor();
 
@@ -98,9 +92,6 @@ public:
     MStatus operator()(Alembic::AbcGeom::IPolyMesh & iNode);
     MStatus operator()(Alembic::AbcGeom::ISubD & iNode);
     MStatus operator()(Alembic::AbcGeom::IXform & iNode);
-
-    void setConnectArgs(bool iConnect, MString iConnectRootNodes,
-        bool iCreateIfNotFound = false, bool iRemoveIfNoUpdate = false);
 
     bool hasSampledData();
 
@@ -120,18 +111,14 @@ private:
 
     double mFrame;
     MObject mParent;
-    bool mNotCreate;
 
-    // member variables related to flags -connect,
+    // member variable related to flags -connect,
     // -createIfNotFound and -removeIfNoUpdate
-    std::set<std::string> mConnectRootNodes;
-    std::set<MDagPath> mConnectCurNodesInBoth;
+    std::set<std::string> mRootNodes;
+
     MDagPath mCurrentDagNode;
-    enum { NONE, CONNECT, CREATE } mCurrentConnectAction;
-    bool mConnect;
-    bool mCreateIfNotFound;
-    bool mRemoveIfNoUpdate;
-    std::set<std::string>   mConnectUpdateNodes;
+
+    Action mAction;
 
     WriterData  mData;
 

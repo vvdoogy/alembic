@@ -323,9 +323,8 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
         }
         */
 
-        CreateSceneVisitor visitor(mSequenceStartFrame, MObject::kNullObj, 1);
-        visitor.setConnectArgs(mConnect, mConnectRootNodes,
-            mCreateIfNotFound, mRemoveIfNoUpdate);
+        CreateSceneVisitor visitor(mSequenceStartFrame, MObject::kNullObj, 
+            CreateSceneVisitor::NONE, "");
 
         visitor.walk(archive);
 

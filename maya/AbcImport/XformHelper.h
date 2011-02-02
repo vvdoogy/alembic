@@ -45,11 +45,9 @@
 
 #include <Alembic/AbcGeom/IXform.h>
 
-MStatus create(double iFrame, Alembic::AbcGeom::IXform & iNode,
-    MObject & iParent, MObject & ioObject,
-    std::vector<std::string> & iSampledPropNameList,
-    std::vector<std::string> & iSampledTransOpNameList,
-    bool & oIsComplex,  bool iSwap = false);
+MStatus connectToXform(double iFrame, Alembic::AbcGeom::IXform & iNode,
+    MObject & iObject, std::vector<std::string> & oSampledPropNameList,
+    std::vector<std::string> & oSampledTransOpNameList);
 
 void readComplex(double iFrame, Alembic::AbcGeom::IXform & iNode,
     std::vector<double> & oSampleList);

@@ -54,12 +54,10 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     Alembic::AbcGeom::ISubD & iNode, bool iInitialized);
 
 void connectToPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
-    MObject & iParent, std::vector<std::string> & oSampledPropNameList,
-    MObject & iMeshObject);
+    std::vector<std::string> & oSampledPropNameList, MObject & iMeshObject);
 
 void connectToSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
-    MObject & iParent, std::vector<std::string> & oSampledPropNameList,
-    MObject & iMeshObject);
+    std::vector<std::string> & oSampledPropNameList, MObject & iMeshObject);
 
 MObject createPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
     MObject & iParent, std::vector<std::string> & oSampledPropNameList);

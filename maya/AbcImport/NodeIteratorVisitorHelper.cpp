@@ -1151,14 +1151,21 @@ MString createScene(ArgData & iArgData)
         iArgData.mFileName.asChar(),
         Alembic::AbcCoreAbstract::v1::ReadArraySampleCachePtr());
 
+    CreateSceneVisitor::Action action = CreateSceneVisitor::CREATE;
+    if (iArgData.mRemoveIfNoUpdate && iArgData.mCreateIfNotFound)
+        action = CreateSceneVisitor::CREATE_REMOVE;
+    else if (iArgData.mRemoveIfNoUpdate)
+        action = CreateSceneVisitor::REMOVE;
+    else if (iArgData.mCreateIfNotFound)
+        action = CreateSceneVisitor::CREATE;
+    else if (iArgData.mConnect)
+        action = CreateSceneVisitor::CONNECT;
+
     getFrameRange(archive, iArgData.mSequenceStartFrame,
         iArgData.mSequenceEndFrame);
 
     CreateSceneVisitor visitor(iArgData.mSequenceStartFrame,
-        iArgData.mReparentObj);
-
-    visitor.setConnectArgs(iArgData.mConnect, iArgData.mConnectRootNodes,
-        iArgData.mCreateIfNotFound, iArgData.mRemoveIfNoUpdate);
+        iArgData.mReparentObj, action, iArgData.mConnectRootNodes);
 
     visitor.walk(archive);
 
