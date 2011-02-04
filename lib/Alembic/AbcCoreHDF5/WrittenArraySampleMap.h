@@ -37,8 +37,10 @@
 #ifndef _Alembic_AbcCoreHDF5_WrittenArraySampleMap_h_
 #define _Alembic_AbcCoreHDF5_WrittenArraySampleMap_h_
 
+#include <Alembic/AbcCoreAbstract/ArraySampleKey.h>
 #include <Alembic/AbcCoreHDF5/Foundation.h>
 #include <Alembic/AbcCoreHDF5/HDF5Util.h>
+
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
@@ -111,7 +113,7 @@ public:
     }
 
 protected:
-    typedef UnorderedMapUtil<WrittenArraySampleIDPtr>::umap_type Map;
+    typedef AbcA::UnorderedMapUtil<WrittenArraySampleIDPtr>::umap_type Map;
     
     Map m_map;
 };

@@ -129,7 +129,7 @@ WriteKey( hid_t iHashDset,
                      H5T_STD_U8LE,
                      H5T_NATIVE_UINT8,
                      16,
-                     ( const void * )&iKey );
+                     ( const void * )&iKey.digest );
 }
 
 //-*****************************************************************************
