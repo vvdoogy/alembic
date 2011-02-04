@@ -81,6 +81,12 @@ protected:
                      AbcA::ArraySamplePtr& oSamplePtr );
 
     //-*************************************************************************
+    // This function is called by SimplePrImpl to provide the actual key reading
+    bool readKey( hid_t iGroup,
+                     const std::string &iSampleName,
+                     AbcA::ArraySampleKey & oSamplePtr );
+
+    //-*************************************************************************
     // The most recently read sample, cached for ease. This might be really
     // super dumb.
     AbcA::ArraySamplePtr m_mostRecentSample;
