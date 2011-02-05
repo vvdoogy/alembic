@@ -47,7 +47,7 @@ namespace v1 {
 struct ArraySampleKey : public boost::totally_ordered<ArraySampleKey>
 {
     //! total number of bytes of the sample as originally stored
-    size_t numBytes;
+    uint64_t numBytes;
 
     //! Original POD as stored
     PlainOldDataType origPOD;
@@ -95,20 +95,20 @@ struct ArraySampleKeyEqualTo :
 
 //-*****************************************************************************
 // Hash function
-inline std::size_t StdHash( ArraySampleKey const &a )
+inline uint64_t StdHash( ArraySampleKey const &a )
 {
     // Theoretically, the bits of an MD5 Hash are uniformly
     // randomly distributed, so it doesn't matter which of the 128
     // bits we use to generate the 64 bits that we return as the hash
     // key. So, I'll just do the simple thing.
-    return *(( const std::size_t * )&a.digest);
+    return *(( const uint64_t * )&a.digest);
 }
 
 //-*****************************************************************************
 struct ArraySampleKeyStdHash :
-        public std::unary_function<ArraySampleKey,std::size_t>
+        public std::unary_function<ArraySampleKey,uint64_t>
 {
-    std::size_t operator()( ArraySampleKey const &a ) const
+    uint64_t operator()( ArraySampleKey const &a ) const
     {
         return StdHash( a );
     }
