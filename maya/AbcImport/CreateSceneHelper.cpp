@@ -489,7 +489,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
     size_t numChildren = iNode.getNumChildren();
     size_t numSamples = iNode.getSchema().getNumAnimSamples();
 
-    if (numSamples > 1)
+    if (numSamples > 0)
     {
         mData.mXformList.push_back(iNode);
         mData.mIsComplexXform.push_back(isComplex(iNode));
@@ -602,8 +602,6 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
             {
                 SampledPair mSampledPair(transObj, transopNameList);
                 mData.mXformOpList.push_back(mSampledPair);
-                mData.mXformList.push_back(iNode);
-                mData.mIsComplexXform.push_back(isComplex);
             }
 
             /*

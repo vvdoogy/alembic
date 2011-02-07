@@ -133,7 +133,6 @@ void readComplex(double iFrame, Alembic::AbcGeom::IXform & iNode,
     oSampleList.push_back(vec.y);
     oSampleList.push_back(vec.z);
 
-    mmat.scalePivot(tSpace);
     double shear[3];
     mmat.getShear(shear, tSpace);
     oSampleList.push_back(shear[0]);
