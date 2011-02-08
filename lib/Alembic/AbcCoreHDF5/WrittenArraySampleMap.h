@@ -48,8 +48,7 @@ namespace AbcCoreHDF5 {
 //-*****************************************************************************
 // A Written Array Sample ID is a receipt that contains information that
 // refers to the exact location in an HDF5 file that an array sample was written
-// to. It also contains the Key of the array sample and the DataType, so
-// it may be verified.
+// to. It also contains the Key of the array sample, so it may be verified.
 //
 // This object is used to "reuse" an already written array sample by linking
 // it from the previous usage.
@@ -58,20 +57,28 @@ class WrittenArraySampleID
 {
 public:
     WrittenArraySampleID()
-      : m_sampleKey(),
-        m_objectLocationID( 0 ) {}
+      : m_sampleKey() {}
 
-    WrittenArraySampleID( const AbcA::ArraySample::Key &iKey,
-                          hid_t iObjLocID)
-      : m_sampleKey( iKey ),
-        m_objectLocationID( iObjLocID ) {}
+    WrittenArraySampleID( const AbcA::ArraySample::Key &iKey, hid_t iObjLocID )
+      : m_sampleKey( iKey )
+    {
+        int strLen =  H5Iget_name( iObjLocID, NULL, 0  );
+        ABCA_ASSERT( strLen > 0, "WrittenSampleID() passed in bad iObjLocID" );
+
+        // add 1 to account for the NULL seperator
+        strLen ++;
+
+        m_objectLocation.resize( strLen );
+        H5Iget_name( iObjLocID, &(m_objectLocation[0]), strLen );
+    }
 
     const AbcA::ArraySample::Key &getKey() const { return m_sampleKey; }
-    hid_t getObjectLocationID() const { return m_objectLocationID.m_id; }
+
+    std::string getObjectLocation() const { return m_objectLocation; }
 
 private:
     AbcA::ArraySample::Key m_sampleKey;
-    DsetCloser m_objectLocationID;
+    std::string m_objectLocation;
 };
 
 //-*****************************************************************************
@@ -83,10 +90,11 @@ class WrittenArraySampleMap
 {
 protected:
     friend class AwImpl;
-    
+
     WrittenArraySampleMap() {}
 
 public:
+
     // Returns 0 if it can't find it
     WrittenArraySampleIDPtr find( const AbcA::ArraySample::Key &key ) const
     {
@@ -108,13 +116,12 @@ public:
         {
             ABCA_THROW( "Invalid WrittenArraySampleIDPtr" );
         }
-        
+
         m_map[r->getKey()] = r;
     }
 
 protected:
     typedef AbcA::UnorderedMapUtil<WrittenArraySampleIDPtr>::umap_type Map;
-    
     Map m_map;
 };
 
