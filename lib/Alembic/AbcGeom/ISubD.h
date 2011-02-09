@@ -268,6 +268,15 @@ public:
         return smp;
     }
 
+    Abc::V3fArraySamplePtr getPositions(
+        const Abc::ISampleSelector &iSS = Abc::ISampleSelector() )
+    {
+        Abc::V3fArraySamplePtr pos;
+        if (m_positions.valid())
+            pos = m_positions.getValue( iSS );
+        return pos;
+    }
+
     //-*************************************************************************
     // ABC BASE MECHANISMS
     // These functions are used by Abc to deal with errors, rewrapping,
