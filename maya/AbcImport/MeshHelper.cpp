@@ -348,12 +348,12 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     if (ttype != Alembic::AbcGeom::kHeterogenousTopology && iInitialized)
     {
 
-        Alembic::Abc::V3fArraySamplePtr points = schema.getPositions(
+        Alembic::Abc::V3fArraySamplePtr points = schema.getPositions().getValue(
             Alembic::Abc::ISampleSelector(index) );
 
         if (alpha != 0.0)
         {
-            ceilPoints = schema.getPositions(
+            ceilPoints = schema.getPositions().getValue(
                 Alembic::Abc::ISampleSelector(ceilIndex) );
         }
 
@@ -368,7 +368,7 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 
     if (alpha != 0.0 && ttype != Alembic::AbcGeom::kHeterogenousTopology)
     {
-        ceilPoints = schema.getPositions(
+        ceilPoints = schema.getPositions().getValue(
             Alembic::Abc::ISampleSelector(ceilIndex) );
     }
 
@@ -396,12 +396,12 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     if (ttype != Alembic::AbcGeom::kHeterogenousTopology && iInitialized)
     {
 
-        Alembic::Abc::V3fArraySamplePtr points = schema.getPositions(
+        Alembic::Abc::V3fArraySamplePtr points = schema.getPositions().getValue(
             Alembic::Abc::ISampleSelector(index) );
 
         if (alpha != 0.0)
         {
-            ceilPoints = schema.getPositions(
+            ceilPoints = schema.getPositions().getValue(
                 Alembic::Abc::ISampleSelector(ceilIndex) );
         }
 
@@ -416,7 +416,7 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 
     if (alpha != 0.0 && ttype != Alembic::AbcGeom::kHeterogenousTopology)
     {
-        ceilPoints = schema.getPositions(
+        ceilPoints = schema.getPositions().getValue(
             Alembic::Abc::ISampleSelector(ceilIndex) );
     }
 
