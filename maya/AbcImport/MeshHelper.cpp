@@ -340,38 +340,43 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     int64_t index, ceilIndex;
     double alpha = getWeightAndIndex(iFrame,
         schema.getTimeSampling(), index, ceilIndex);
+
+    MFloatPointArray pointArray;
+    Alembic::Abc::V3fArraySamplePtr ceilPoints;
+
+    // we can just read the points
+    if (ttype != Alembic::AbcGeom::kHeterogenousTopology && iInitialized)
+    {
+
+        Alembic::Abc::V3fArraySamplePtr points = schema.getPositions(
+            Alembic::Abc::ISampleSelector(index) );
+
+        if (alpha != 0.0)
+        {
+            ceilPoints = schema.getPositions(
+                Alembic::Abc::ISampleSelector(ceilIndex) );
+        }
+
+        fillPoints(pointArray, points, ceilPoints, alpha);
+        ioMesh.setPoints(pointArray, MSpace::kObject);
+        return;
+    }
+
+    // we need to read the topology
     Alembic::AbcGeom::IPolyMeshSchema::Sample samp;
     schema.get(samp, Alembic::Abc::ISampleSelector(index));
 
     if (alpha != 0.0 && ttype != Alembic::AbcGeom::kHeterogenousTopology)
     {
-        // need a way to get JUST the points so we don't accidentally read
-        // the topology again (since caching will most likely be off)
-        Alembic::AbcGeom::IPolyMeshSchema::Sample ceilSamp;
-        schema.get(ceilSamp, Alembic::Abc::ISampleSelector(ceilIndex));
-
-        MFloatPointArray pointArray;
-        fillPoints(pointArray, samp.getPositions(), ceilSamp.getPositions(),
-            alpha);
-        if (iInitialized == false)
-        {
-            ioMesh.setPoints(pointArray, MSpace::kObject);
-        }
-        else
-        {
-            fillTopology(ioMesh, iParent, iNode.getName(), pointArray,
-                samp.getIndices(), samp.getCounts());
-        }
+        ceilPoints = schema.getPositions(
+            Alembic::Abc::ISampleSelector(ceilIndex) );
     }
-    else
-    {
-        MFloatPointArray pointArray;
-        Alembic::Abc::V3fArraySamplePtr emptyPtr;
-        fillPoints(pointArray, samp.getPositions(), emptyPtr, 0.0);
 
-        fillTopology(ioMesh, iParent, iNode.getName(), pointArray,
-                samp.getIndices(), samp.getCounts());
-    }
+    fillPoints(pointArray, samp.getPositions(), ceilPoints, alpha);
+
+    fillTopology(ioMesh, iParent, iNode.getName(), pointArray,
+        samp.getIndices(), samp.getCounts());
+
 }
 
 void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
@@ -381,40 +386,45 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     Alembic::AbcGeom::MeshTopologyVariance ttype = schema.getTopologyVariance();
 
     int64_t index, ceilIndex;
-    double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(), index,
-        ceilIndex);
+    double alpha = getWeightAndIndex(iFrame,
+        schema.getTimeSampling(), index, ceilIndex);
+
+    MFloatPointArray pointArray;
+    Alembic::Abc::V3fArraySamplePtr ceilPoints;
+
+    // we can just read the points
+    if (ttype != Alembic::AbcGeom::kHeterogenousTopology && iInitialized)
+    {
+
+        Alembic::Abc::V3fArraySamplePtr points = schema.getPositions(
+            Alembic::Abc::ISampleSelector(index) );
+
+        if (alpha != 0.0)
+        {
+            ceilPoints = schema.getPositions(
+                Alembic::Abc::ISampleSelector(ceilIndex) );
+        }
+
+        fillPoints(pointArray, points, ceilPoints, alpha);
+        ioMesh.setPoints(pointArray, MSpace::kObject);
+        return;
+    }
+
+    // we need to read the topology
     Alembic::AbcGeom::ISubDSchema::Sample samp;
     schema.get(samp, Alembic::Abc::ISampleSelector(index));
 
     if (alpha != 0.0 && ttype != Alembic::AbcGeom::kHeterogenousTopology)
     {
-        // need a way to get JUST the points so we don't accidentally read
-        // the topology again (since caching will most likely be off)
-        Alembic::AbcGeom::ISubDSchema::Sample ceilSamp;
-        schema.get(ceilSamp, Alembic::Abc::ISampleSelector(ceilIndex));
-
-        MFloatPointArray pointArray;
-        fillPoints(pointArray, samp.getPositions(), ceilSamp.getPositions(),
-            alpha);
-        if (iInitialized == false)
-        {
-            ioMesh.setPoints(pointArray, MSpace::kObject);
-        }
-        else
-        {
-            fillTopology(ioMesh, iParent, iNode.getName(), pointArray,
-                samp.getFaceIndices(), samp.getFaceCounts());
-        }
+        ceilPoints = schema.getPositions(
+            Alembic::Abc::ISampleSelector(ceilIndex) );
     }
-    else
-    {
-        MFloatPointArray pointArray;
-        Alembic::Abc::V3fArraySamplePtr emptyPtr;
-        fillPoints(pointArray, samp.getPositions(), emptyPtr, 0.0);
 
-        fillTopology(ioMesh, iParent, iNode.getName(), pointArray,
-                samp.getFaceIndices(), samp.getFaceCounts());
-    }
+    fillPoints(pointArray, samp.getPositions(), ceilPoints, alpha);
+
+    fillTopology(ioMesh, iParent, iNode.getName(), pointArray,
+        samp.getFaceIndices(), samp.getFaceCounts());
+
 }
 
 void connectToPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
