@@ -52,13 +52,6 @@ void AprImpl::readSample( hid_t iGroup,
                           AbcA::ArraySamplePtr& oSamplePtr )
 {
     assert( iGroup >= 0 );
-    
-    // If we've got it, use it!
-    if ( m_mostRecentSampleIndex == iSampleIndex && m_mostRecentSample )
-    {
-        oSamplePtr = m_mostRecentSample;
-        return;
-    }
 
     // Check index integrity.
     assert( iSampleIndex >= 0 && iSampleIndex < m_numUniqueSamples );
@@ -70,9 +63,6 @@ void AprImpl::readSample( hid_t iGroup,
     oSamplePtr = ReadArray( cachePtr, iGroup, iSampleName, dataType,
                             m_fileDataType,
                             m_nativeDataType );
-    
-    m_mostRecentSample = oSamplePtr;
-    m_mostRecentSampleIndex = iSampleIndex;
 }
 
 //-*****************************************************************************
