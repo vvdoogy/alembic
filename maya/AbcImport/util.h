@@ -51,10 +51,6 @@
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/Abc/IArchive.h>
 
-// read the frame range of the input file
-void getFrameRange(const Alembic::Abc::IArchive & iArchive,
-    double & oSeqStartFrame, double & oSeqEndFrame);
-
 // replace one MObject with another, while keeping all the old hierarchy intact
 // The objects have to be a Dag object
 MStatus replaceDagObject(MObject & oldObject, MObject & newObject,
@@ -76,7 +72,7 @@ MStatus getPlugByName(const MString & objName,
     const MString & attrName, MPlug & plug);
 
 // set playback range for the current Maya session
-MStatus setPlayback(double min, double max, double cur);
+MStatus setPlayback(double min, double max);
 
 // grab the set "initialShadingGroup" and add the the dag path to it
 MStatus setInitialShadingGroup(const MString & dagNodeName);
@@ -108,7 +104,9 @@ void clamp(T & min, T & max, T & cur)
 template<typename T>
 T simpleLerp(double alpha, T val1, T val2)
 {
-    return (1 - alpha) * val1 + alpha * val2;
+    double ret = ( ( 1.0 - alpha ) * static_cast<double>( val1 ) ) +
+        ( alpha * static_cast<double>( val2 ) );
+    return static_cast<T>( ret );
 }
 
 template<typename T>
