@@ -34,29 +34,25 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcCoreAbstract_ArrayPropertyReader_h_
-#define _Alembic_AbcCoreAbstract_ArrayPropertyReader_h_
+#ifndef _Alembic_AbcCoreAbstract_DataPropertyReader_h_
+#define _Alembic_AbcCoreAbstract_DataPropertyReader_h_
 
 #include <Alembic/AbcCoreAbstract/Foundation.h>
 #include <Alembic/AbcCoreAbstract/BasePropertyReader.h>
-#include <Alembic/AbcCoreAbstract/ArraySample.h>
+#include <Alembic/AbcCoreAbstract/DataSample.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
 namespace v1 {
 
 //-*****************************************************************************
-//! An Array Property is a Rank N (usually 1-3) property which has a
-//! multidimensional array of identically typed values for each
-//! sample. This is distinguished from a Simple Property, which has a
-//! single element per sample, and requires less sophisticated
-//! resource management.
-class ArrayPropertyReader : public BasePropertyReader
+//! The Data Property holds the data.
+class DataPropertyReader : public BasePropertyReader
 {
 public:
     //! Virtual destructor
     //! ...
-    virtual ~ArrayPropertyReader();
+    virtual ~DataPropertyReader();
 
     //-*************************************************************************
     // NEW FUNCTIONS
@@ -83,18 +79,17 @@ public:
     //! unlocking access to cache or management code.
     //! It will throw an exception on an out-of-range access.
     //! Though it could technically return the pointer by value efficiently
-    //! enough, we return by reference so that the calling signature
-    //! mirrors the ScalarPropertyReader.
+    //! enough, we return by reference.
     //!
     //! For each DataType, the ( void * ) data buffer returned in the
     //! array sample points to one data element, which in the case of
     //! DataType( kStringPOD, 1 ) and DataType( kWstringPOD, 1 ) are
     //! arrays of std::string and std::wstring, respectively.
     virtual void getSample( index_t iSampleIndex,
-                            ArraySamplePtr &oSample ) = 0;
+                            DataSamplePtr &oSample ) = 0;
 
     //! Expose the key for apps that use their own custom cache management.
-    virtual bool getKey( index_t iSampleIndex, ArraySampleKey & oKey ) = 0;
+    virtual bool getKey( index_t iSampleIndex, DataSampleKey & oKey ) = 0;
 };
 
 } // End namespace v1

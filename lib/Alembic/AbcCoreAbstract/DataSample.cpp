@@ -34,14 +34,14 @@
 //
 //-*****************************************************************************
 
-#include <Alembic/AbcCoreAbstract/ArraySample.h>
+#include <Alembic/AbcCoreAbstract/DataSample.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
 namespace v1 {
 
 //-*****************************************************************************
-ArraySample::Key ArraySample::getKey() const
+DataSample::Key DataSample::computeKey() const
 {
     MD5 md5;
 
@@ -129,7 +129,7 @@ ArraySample::Key ArraySample::getKey() const
 
     }
 
-    ArraySample::Key k;
+    DataSample::Key k;
     k.digest = md5.digest();
     k.numBytes = numBytes;
     k.origPOD = m_dataType.getPod();
@@ -139,48 +139,48 @@ ArraySample::Key ArraySample::getKey() const
 }
 
 //-*****************************************************************************
-ArraySamplePtr AllocateArraySample( const DataType &iDtype,
+DataSamplePtr AllocateDataSample( const DataType &iDtype,
                                     const Dimensions &iDims )
 {
     switch ( iDtype.getPod() )
     {
     case kBooleanPOD:
-        return TAllocateArraySample<bool_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<bool_t>( iDtype.getExtent(), iDims );
 
     case kUint8POD:
-        return TAllocateArraySample<uint8_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<uint8_t>( iDtype.getExtent(), iDims );
     case kInt8POD:
-        return TAllocateArraySample<int8_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<int8_t>( iDtype.getExtent(), iDims );
 
     case kUint16POD:
-        return TAllocateArraySample<uint16_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<uint16_t>( iDtype.getExtent(), iDims );
     case kInt16POD:
-        return TAllocateArraySample<int16_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<int16_t>( iDtype.getExtent(), iDims );
 
     case kUint32POD:
-        return TAllocateArraySample<uint32_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<uint32_t>( iDtype.getExtent(), iDims );
     case kInt32POD:
-        return TAllocateArraySample<int32_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<int32_t>( iDtype.getExtent(), iDims );
 
     case kUint64POD:
-        return TAllocateArraySample<uint64_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<uint64_t>( iDtype.getExtent(), iDims );
     case kInt64POD:
-        return TAllocateArraySample<int64_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<int64_t>( iDtype.getExtent(), iDims );
 
     case kFloat16POD:
-        return TAllocateArraySample<float16_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<float16_t>( iDtype.getExtent(), iDims );
     case kFloat32POD:
-        return TAllocateArraySample<float32_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<float32_t>( iDtype.getExtent(), iDims );
     case kFloat64POD:
-        return TAllocateArraySample<float64_t>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<float64_t>( iDtype.getExtent(), iDims );
 
     case kStringPOD:
-        return TAllocateArraySample<string>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<string>( iDtype.getExtent(), iDims );
     case kWstringPOD:
-        return TAllocateArraySample<wstring>( iDtype.getExtent(), iDims );
+        return TAllocateDataSample<wstring>( iDtype.getExtent(), iDims );
 
     default:
-        return ArraySamplePtr();
+        return DataSamplePtr();
     }
 }
 

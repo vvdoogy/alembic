@@ -34,14 +34,14 @@
 //
 //-*****************************************************************************
 
-#include <Alembic/AbcCoreAbstract/ScalarPropertyWriter.h>
+#include <Alembic/AbcCoreAbstract/DataPropertyWriter.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
 namespace v1 {
 
 //-*****************************************************************************
-ScalarPropertyWriter::~ScalarPropertyWriter()
+DataPropertyWriter::~DataPropertyWriter()
 {
     // Nothing
 }

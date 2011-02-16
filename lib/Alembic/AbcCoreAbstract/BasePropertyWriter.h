@@ -77,17 +77,13 @@ public:
     const std::string &getName() const
     { return getHeader().getName(); }
 
-    //! There are three types of abstract properties.
-    //! They are Scalar, Array, and Compound properties. This function
+    //! There are two types of abstract properties.
+    //! They are Data, and Compound properties. This function
     //! returns an enum PropertyType which indicates which property
     //! type is returned. This is simply a convenience function which
     //! returns data from the PropertyHeader.
     PropertyType getPropertyType() const
     { return getHeader().getPropertyType(); }
-
-    //! Convenience to return whether the property is scalar.
-    //! Same as getPropertyType() == kScalarProperty
-    bool isScalar() const { return getPropertyType() == kScalarProperty; }
 
     //! Convenience to return whether the property is array.
     //! Same as getPropertyType() == kArrayProperty
