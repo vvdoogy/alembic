@@ -47,17 +47,10 @@ BasePropertyWriter::~BasePropertyWriter()
 }
 
 //-*****************************************************************************
-ScalarPropertyWriterPtr BasePropertyWriter::asScalarPtr()
+DataPropertyWriterPtr BasePropertyWriter::asDataPtr()
 {
     // An empty pointer.
-    return ScalarPropertyWriterPtr();
-}
-
-//-*****************************************************************************
-ArrayPropertyWriterPtr BasePropertyWriter::asArrayPtr()
-{
-    // An empty pointer.
-    return ArrayPropertyWriterPtr();
+    return DataPropertyWriterPtr();
 }
 
 //-*****************************************************************************

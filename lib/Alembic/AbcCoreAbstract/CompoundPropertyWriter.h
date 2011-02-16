@@ -91,19 +91,12 @@ public:
     //! if the property was added, but has been closed (deleted).
     virtual BasePropertyWriterPtr getProperty( const std::string & iName ) = 0;
 
-    //! Create and return the requested scalar property.
-    //! If a property already exists with the same name, throws
-    //! an exception. An exception will also be thrown if the header's
-    //! configuration does not correctly specify a ScalarProperty.
-    virtual ScalarPropertyWriterPtr
-    createScalarProperty( const PropertyHeader & iHeader ) = 0;
-    
-    //! Create and return the requested array property.
+    //! Create and return the requested data property.
     //! If a property already exists with the same name, throws.
     //! an exception. An exception will also be thrown if the header's
-    //! configuration does not correctly specify an ArrayProperty.
-    virtual ArrayPropertyWriterPtr
-    createArrayProperty( const PropertyHeader & iHeader ) = 0;
+    //! configuration does not correctly specify an DataProperty.
+    virtual DataPropertyWriterPtr
+    createDataProperty( const PropertyHeader & iHeader ) = 0;
     
     //! Create and return the requested compound property.
     //! If a property already exists with the same name, throws

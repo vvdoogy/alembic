@@ -48,7 +48,7 @@ namespace v1 {
 //! Helper types forward declared.
 //! ...
 class TimeSampling;
-class ArraySample;
+class DataSample;
 
 //-*****************************************************************************
 //! Writer types forward declared.
@@ -56,8 +56,7 @@ class ArraySample;
 class ArchiveWriter;
 class ObjectWriter;
 class CompoundPropertyWriter;
-class ArrayPropertyWriter;
-class ScalarPropertyWriter;
+class DataPropertyWriter;
 class BasePropertyWriter;
 
 //-*****************************************************************************
@@ -66,8 +65,7 @@ class BasePropertyWriter;
 class ArchiveReader;
 class ObjectReader;
 class CompoundPropertyReader;
-class ArrayPropertyReader;
-class ScalarPropertyReader;
+class DataPropertyReader;
 class BasePropertyReader;
 
 //-*****************************************************************************
@@ -76,7 +74,7 @@ class BasePropertyReader;
 //! class name precedes the Ptr suffix. We consider boost::shared_ptr to be
 //! a reliable and standard feature of C++, and worthy of inclusion in a
 //! standard.
-typedef boost::shared_ptr<ArraySample> ArraySamplePtr;
+typedef boost::shared_ptr<DataSample> DataSamplePtr;
 typedef boost::shared_ptr<TimeSampling> TimeSamplingPtr;
 
 //-*****************************************************************************
@@ -88,8 +86,7 @@ typedef boost::shared_ptr<TimeSampling> TimeSamplingPtr;
 typedef boost::shared_ptr<ArchiveWriter> ArchiveWriterPtr;
 typedef boost::shared_ptr<ObjectWriter> ObjectWriterPtr;
 typedef boost::shared_ptr<CompoundPropertyWriter> CompoundPropertyWriterPtr;
-typedef boost::shared_ptr<ArrayPropertyWriter> ArrayPropertyWriterPtr;
-typedef boost::shared_ptr<ScalarPropertyWriter> ScalarPropertyWriterPtr;
+typedef boost::shared_ptr<DataPropertyWriter> DataPropertyWriterPtr;
 typedef boost::shared_ptr<BasePropertyWriter> BasePropertyWriterPtr;
 
 //-*****************************************************************************
@@ -101,8 +98,7 @@ typedef boost::shared_ptr<BasePropertyWriter> BasePropertyWriterPtr;
 typedef boost::shared_ptr<ArchiveReader> ArchiveReaderPtr;
 typedef boost::shared_ptr<ObjectReader> ObjectReaderPtr;
 typedef boost::shared_ptr<CompoundPropertyReader> CompoundPropertyReaderPtr;
-typedef boost::shared_ptr<ArrayPropertyReader> ArrayPropertyReaderPtr;
-typedef boost::shared_ptr<ScalarPropertyReader> ScalarPropertyReaderPtr;
+typedef boost::shared_ptr<DataPropertyReader> DataPropertyReaderPtr;
 typedef boost::shared_ptr<BasePropertyReader> BasePropertyReaderPtr;
 
 } // End namespace v1

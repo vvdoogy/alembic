@@ -68,7 +68,7 @@ public:
     //! An exception will be thrown if the samples are written out of order,
     //! or if the sample times are inconsistent.
     //!
-    //! This takes a read-only ArraySample by const reference. The class
+    //! This takes a read-only DataSample by const reference. The class
     //! will make an internal copy (or the functional equivalent of ),
     //! and will not use that memory block outside the scope of this
     //! function call.

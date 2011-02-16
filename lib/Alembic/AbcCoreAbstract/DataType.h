@@ -45,7 +45,7 @@ namespace v1 {
 
 //-*****************************************************************************
 //! The DataType class is a description of how an element of a sample in a
-//! Scalar or an Array property is stored. It does not contain an interpretation
+//! Data property is stored. It does not contain an interpretation
 //! this is left to the metadata of the properties themselves.
 class DataType : boost::totally_ordered<DataType>
 {

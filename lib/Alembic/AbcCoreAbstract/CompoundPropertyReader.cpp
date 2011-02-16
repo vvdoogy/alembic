@@ -35,8 +35,7 @@
 //-*****************************************************************************
 
 #include <Alembic/AbcCoreAbstract/CompoundPropertyReader.h>
-#include <Alembic/AbcCoreAbstract/ScalarPropertyReader.h>
-#include <Alembic/AbcCoreAbstract/ArrayPropertyReader.h>
+#include <Alembic/AbcCoreAbstract/DataPropertyReader.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
@@ -62,47 +61,28 @@ CompoundPropertyReader::getProperty( const std::string &iName )
         switch ( header->getPropertyType() )
         {
         default:
-        case kScalarProperty:
-            return getScalarProperty( header->getName() );
-        case kArrayProperty:
-            return getArrayProperty( header->getName() );
+        case kDataProperty:
+            return getDataProperty( header->getName() );
         case kCompoundProperty:
             return getCompoundProperty( header->getName() );
         }
-    }        
-}
-
-//-*****************************************************************************
-ScalarPropertyReaderPtr
-CompoundPropertyReader::getScalarProperty( size_t i )
-{
-    // This will throw if bad index.
-    const PropertyHeader &header = getPropertyHeader( i );
-
-    if ( header.getPropertyType() != kScalarProperty )
-    {
-        return ScalarPropertyReaderPtr();
-    }
-    else
-    {
-        return getScalarProperty( header.getName() );
     }
 }
 
 //-*****************************************************************************
-ArrayPropertyReaderPtr
-CompoundPropertyReader::getArrayProperty( size_t i )
+DataPropertyReaderPtr
+CompoundPropertyReader::getDataProperty( size_t i )
 {
     // This will throw if bad index.
     const PropertyHeader &header = getPropertyHeader( i );
 
-    if ( header.getPropertyType() != kArrayProperty )
+    if ( header.getPropertyType() != kDataProperty )
     {
-        return ArrayPropertyReaderPtr();
+        return DataPropertyReaderPtr();
     }
     else
     {
-        return getArrayProperty( header.getName() );
+        return getDataProperty( header.getName() );
     }
 }
 
@@ -133,10 +113,8 @@ CompoundPropertyReader::getProperty( size_t i )
     switch ( header.getPropertyType() )
     {
     default:
-    case kScalarProperty:
-        return getScalarProperty( header.getName() );
-    case kArrayProperty:
-        return getArrayProperty( header.getName() );
+    case kDataProperty:
+        return getDataProperty( header.getName() );
     case kCompoundProperty:
         return getCompoundProperty( header.getName() );
     }

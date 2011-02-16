@@ -35,8 +35,7 @@
 //-*****************************************************************************
 
 #include <Alembic/AbcCoreAbstract/CompoundPropertyWriter.h>
-#include <Alembic/AbcCoreAbstract/ScalarPropertyWriter.h>
-#include <Alembic/AbcCoreAbstract/ArrayPropertyWriter.h>
+#include <Alembic/AbcCoreAbstract/DataPropertyWriter.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
@@ -63,10 +62,8 @@ CompoundPropertyWriter::createProperty( const PropertyHeader & iHeader )
     switch ( iHeader.getPropertyType() )
     {
     default:
-    case kScalarProperty:
-        return createScalarProperty( iHeader );
-    case kArrayProperty:
-        return createArrayProperty( iHeader );
+    case kDataProperty:
+        return createDataProperty( iHeader );
     case kCompoundProperty:
         return createCompoundProperty( iHeader );
     }
