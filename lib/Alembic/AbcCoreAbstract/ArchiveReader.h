@@ -39,7 +39,7 @@
 
 #include <Alembic/AbcCoreAbstract/Foundation.h>
 #include <Alembic/AbcCoreAbstract/ForwardDeclarations.h>
-#include <Alembic/AbcCoreAbstract/ReadArraySampleCache.h>
+#include <Alembic/AbcCoreAbstract/ReadSampleCache.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
@@ -64,7 +64,7 @@ struct ArchiveReaderConstructor
 
     // Use the explicitly supplied cache implementation.
     ArchiveReaderPtr operator()( const std::string &iFileName,
-                                 ReadArraySampleCachePtr iCachePtr );
+                                 ReadSampleCachePtr iCachePtr );
 };
 } // End namespace IllustrationOnly
 
@@ -95,15 +95,15 @@ public:
     //! corresponding to this archive.
     virtual ObjectReaderPtr getTop() = 0;
 
-    //! Get the read array sample cache. It may be a NULL pointer.
+    //! Get the read sample cache. It may be a NULL pointer.
     //! Caches can be shared amongst separate archives, and caching
     //! will is disabled if a NULL cache is returned here.
-    virtual ReadArraySampleCachePtr getReadArraySampleCachePtr() = 0;
+    virtual ReadSampleCachePtr getReadSampleCachePtr() = 0;
 
-    //! Set the read array sample cache. It may also be a NULL pointer.
+    //! Set the read sample cache. It may also be a NULL pointer.
     //! Caches can be shared amongst separate archives, and caching
     //! will be disabled if a NULL cache is passed here.
-    virtual void setReadArraySampleCachePtr( ReadArraySampleCachePtr iPtr ) = 0;
+    virtual void setReadSampleCachePtr( ReadSampleCachePtr iPtr ) = 0;
     
     //! Return self
     //! ...
