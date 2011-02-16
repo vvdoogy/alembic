@@ -47,17 +47,10 @@ BasePropertyReader::~BasePropertyReader()
 }
 
 //-*****************************************************************************
-ScalarPropertyReaderPtr BasePropertyReader::asScalarPtr()
+DataPropertyReaderPtr BasePropertyReader::asDataPtr()
 {
     // An empty pointer.
-    return ScalarPropertyReaderPtr();
-}
-
-//-*****************************************************************************
-ArrayPropertyReaderPtr BasePropertyReader::asArrayPtr()
-{
-    // An empty pointer.
-    return ArrayPropertyReaderPtr();
+    return DataPropertyReaderPtr();
 }
 
 //-*****************************************************************************

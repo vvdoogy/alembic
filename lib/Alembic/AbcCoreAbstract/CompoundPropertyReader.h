@@ -73,17 +73,11 @@ public:
     virtual const PropertyHeader *
     getPropertyHeader( const std::string &iName ) = 0;
 
-    //! Get a Scalar Property by name..
-    //! It will return an empty pointer if the property is not scalar or
+    //! Get a Data Property by name..
+    //! It will return an empty pointer if the property is not data or
     //! is not found.
-    virtual ScalarPropertyReaderPtr
-    getScalarProperty( const std::string &iName ) = 0;
-    
-    //! Get a Array Property by name..
-    //! It will return an empty pointer if the property is not array or
-    //! is not found.
-    virtual ArrayPropertyReaderPtr
-    getArrayProperty( const std::string &iName ) = 0;
+    virtual DataPropertyReaderPtr
+    getDataProperty( const std::string &iName ) = 0;
     
     //! Get a Compound Property by name..
     //! It will return an empty pointer if the property is not compound or
@@ -97,21 +91,13 @@ public:
     //! the various named "get" functions here.
     BasePropertyReaderPtr getProperty( const std::string &iName );
 
-    //! Get a Scalar Property by index.
-    //! It will return an empty pointer if the property is not scalar or
+    //! Get a Data Property by index.
+    //! It will return an empty pointer if the property is not data or
     //! is not found.
     //! This is convenience function that uses the above functions
     //! to get the answer.
-    ScalarPropertyReaderPtr
-    getScalarProperty( size_t i );
-    
-    //! Get a Array Property by index.
-    //! It will return an empty pointer if the property is not array or
-    //! is not found.
-    //! This is convenience function that uses the above functions
-    //! to get the answer.
-    ArrayPropertyReaderPtr
-    getArrayProperty( size_t i );
+    DataPropertyReaderPtr
+    getDataProperty( size_t i );
     
     //! Get a Compound Property by index.
     //! It will return an empty pointer if the property is not compound or

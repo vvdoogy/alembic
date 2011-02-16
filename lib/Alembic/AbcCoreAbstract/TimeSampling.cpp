@@ -60,7 +60,7 @@ static const chrono_t kCHRONO_TOLERANCE = kCHRONO_EPSILON * 32.0;
 //-*****************************************************************************
 // For properties that use acyclic time sampling, the array of
 // times at which samples were taken will be stored as an
-// ArraySample <chrono_t>, and will get the benefit provided by
+// DataSample <chrono_t>, and will get the benefit provided by
 // the default HDF5 data caching.
 // After profiling real applications we may change Properties
 // to store shared_ptrs to these and/or make use of singletons
@@ -71,7 +71,7 @@ static const chrono_t kCHRONO_TOLERANCE = kCHRONO_EPSILON * 32.0;
 //-*****************************************************************************
 TimeSampling::TimeSampling( const TimeSamplingType &iTimeSamplingType,
                             size_t iNumSamples,
-                            ArraySamplePtr iSampleTimes )
+                            DataSamplePtr iSampleTimes )
   : m_timeSamplingType( iTimeSamplingType )
   , m_numSamples( iNumSamples )
   , m_sampleTimes( iSampleTimes )
@@ -98,7 +98,7 @@ TimeSampling::TimeSampling( const TimeSamplingType &iTimeSamplingType,
 
     ABCA_ASSERT( m_sampleTimes->getDimensions().rank() == 1
                  && m_sampleTimes->getDataType().getPod() == kChrono_TPOD,
-                 "Invalid sampleTimes ArraySample, must be rank 1 and "
+                 "Invalid sampleTimes DataSample, must be rank 1 and "
                  << "type chrono_t" );
 }
 
@@ -109,7 +109,7 @@ TimeSampling::TimeSampling()
 {
     Dimensions dims;
     dims.setRank( 1 );
-    m_sampleTimes = ArraySamplePtr( new ArraySample( (const void *)NULL,
+    m_sampleTimes = DataSamplePtr( new DataSample( (const void *)NULL,
                                                      kChrono_TDataType,
                                                      dims ) );
 }
@@ -127,8 +127,8 @@ TimeSampling::TimeSampling( const TimeSampling & copy)
 const chrono_t *TimeSampling::_getTimeSamplesAsChrono_tPtr() const
 {
     const chrono_t *rawMemory;
-    //! FYI This is reaching into the array_sample ptr and it is _NOT_
-    //! incrementing the reference count of ArraySample pointer.
+    //! FYI This is reaching into the data_sample ptr and it is _NOT_
+    //! incrementing the reference count of DataSample pointer.
     //! This is ok though, because all the while that we ourselves are
     //! in memory the memory of m_sampleTimes will always be valid
     //! because we are holding m_sampleTimes (and that means ref count will

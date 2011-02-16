@@ -66,6 +66,10 @@ public:
     //! regardless of the time sampling.
     virtual bool isConstant() = 0;
 
+    //! Ask if we're scalar - each sample has exactly one thing
+    //! (rank 1 dimension 1) in it.
+    virtual bool isScalar() = 0;
+
     //! Time information.
     //! This will always be valid, even for static, constant, or
     //! identity time sampling types.

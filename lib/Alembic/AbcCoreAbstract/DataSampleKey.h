@@ -95,20 +95,20 @@ struct DataSampleKeyEqualTo :
 
 //-*****************************************************************************
 // Hash function
-inline uint64_t StdHash( DataSampleKey const &a )
+inline std::size_t StdHash( DataSampleKey const &a )
 {
     // Theoretically, the bits of an MD5 Hash are uniformly
     // randomly distributed, so it doesn't matter which of the 128
     // bits we use to generate the 64 bits that we return as the hash
     // key. So, I'll just do the simple thing.
-    return *(( const uint64_t * )&a.digest);
+    return *(( const std::size_t * )&a.digest);
 }
 
 //-*****************************************************************************
 struct DataSampleKeyStdHash :
-        public std::unary_function<DataSampleKey,uint64_t>
+        public std::unary_function<DataSampleKey, std::size_t>
 {
-    uint64_t operator()( DataSampleKey const &a ) const
+    std::size_t operator()( DataSampleKey const &a ) const
     {
         return StdHash( a );
     }

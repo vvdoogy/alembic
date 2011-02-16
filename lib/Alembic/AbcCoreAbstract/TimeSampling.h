@@ -39,7 +39,7 @@
 
 #include <Alembic/AbcCoreAbstract/Foundation.h>
 #include <Alembic/AbcCoreAbstract/TimeSamplingType.h>
-#include <Alembic/AbcCoreAbstract/ArraySample.h>
+#include <Alembic/AbcCoreAbstract/DataSample.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
@@ -78,7 +78,7 @@ public:
 
                   //! Float64 (chrono_t) with rank 1 - the actual times
                   //! when samples were recorded for this property.
-                  ArraySamplePtr iSampleTimes );
+                  DataSamplePtr iSampleTimes );
 
     TimeSampling( const TimeSampling &copy );
 
@@ -146,7 +146,7 @@ protected:
     //! only be numSamplesPerCycle time samples below.
     size_t m_numSamples;
 
-    ArraySamplePtr  m_sampleTimes;
+    DataSamplePtr  m_sampleTimes;
 
     //! Convenience, internal utility to access the array of
     //! choron_t values held in m_sampleTimes as a simple array.

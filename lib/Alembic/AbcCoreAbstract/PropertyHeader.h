@@ -52,22 +52,17 @@ namespace v1 {
 //! of these three types of properties, identified here by an enum.
 //! "Simple" properties are simply "non-compound" properties -
 //! the SimpleProperty classes are simply common base classes for
-//! Scalar and Array Properties.
+//! Data Properties.
 enum PropertyType
 {
-    //! Scalar Properties represent Rank-0 properties, which contain a
-    //! single element value for any given time sample.
-    kScalarProperty = 0,
 
-    //! Array Properties represent Rank-N properties, which contain an
-    //! array of values for any given time sample. Array properties may have
-    //! any rank of 1 or higher, but will most often be ranks 1, 2, 3.
-    kArrayProperty = 1,
+    //! Data Properties contain the data
+    kDataProperty = 0,
 
-    //! Compund Properties are groups of other properties, with their own
+    //! Compound Properties are groups of other properties, with their own
     //! unique name and set of MetaData. All objects have a single root
     //! compound property as the base of their property description.
-    kCompoundProperty = 2
+    kCompoundProperty = 1
 };
 
 //-*****************************************************************************
@@ -78,11 +73,11 @@ class PropertyHeader
 {
 public:
     //! Default constructor creates an invalid property.
-    //! The propertyType is set to Scalar, but the dataType will be set
+    //! The propertyType is set to Data, but the dataType will be set
     //! to its default value of kUnknownPOD[1]
     PropertyHeader()
       : m_name(),
-        m_propertyType( kScalarProperty ),
+        m_propertyType( kDataProperty ),
         m_metaData(),
         m_dataType(),
         m_timeSamplingType() {}
@@ -98,7 +93,7 @@ public:
         m_timeSamplingType() {}
 
     //! Construct a simple property header.
-    //! Use this for array or scalar properties.
+    //! Use this for data properties.
     PropertyHeader( const std::string &iName,
                     PropertyType iPropType,
                     const MetaData &iMetaData,
@@ -143,13 +138,9 @@ public:
     
     void setPropertyType( PropertyType iPtyp ) { m_propertyType = iPtyp; }
 
-    //! Convenience to return whether the property is scalar.
-    //! Same as getPropertyType() == kScalarProperty
-    bool isScalar() const { return m_propertyType == kScalarProperty; }
-
-    //! Convenience to return whether the property is array.
-    //! Same as getPropertyType() == kArrayProperty
-    bool isArray() const { return m_propertyType == kArrayProperty; }
+    //! Convenience to return whether the property is data.
+    //! Same as getPropertyType() == kDataProperty
+    bool isData() const { return m_propertyType == kDataProperty; }
 
     //! Convenience to return whether the property is compound.
     //! Same as getPropertyType() == kCompoundProperty
