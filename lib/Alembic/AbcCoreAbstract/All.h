@@ -39,10 +39,10 @@
 
 #include <Alembic/AbcCoreAbstract/ArchiveReader.h>
 #include <Alembic/AbcCoreAbstract/ArchiveWriter.h>
-#include <Alembic/AbcCoreAbstract/ArrayPropertyReader.h>
-#include <Alembic/AbcCoreAbstract/ArrayPropertyWriter.h>
-#include <Alembic/AbcCoreAbstract/ArraySample.h>
-#include <Alembic/AbcCoreAbstract/ArraySampleKey.h>
+#include <Alembic/AbcCoreAbstract/DataPropertyReader.h>
+#include <Alembic/AbcCoreAbstract/DataPropertyWriter.h>
+#include <Alembic/AbcCoreAbstract/DataSample.h>
+#include <Alembic/AbcCoreAbstract/DataSampleKey.h>
 #include <Alembic/AbcCoreAbstract/BasePropertyReader.h>
 #include <Alembic/AbcCoreAbstract/BasePropertyWriter.h>
 #include <Alembic/AbcCoreAbstract/CompoundPropertyReader.h>
@@ -55,9 +55,6 @@
 #include <Alembic/AbcCoreAbstract/ObjectReader.h>
 #include <Alembic/AbcCoreAbstract/ObjectWriter.h>
 #include <Alembic/AbcCoreAbstract/PropertyHeader.h>
-#include <Alembic/AbcCoreAbstract/ScalarPropertyReader.h>
-#include <Alembic/AbcCoreAbstract/ScalarPropertyWriter.h>
-#include <Alembic/AbcCoreAbstract/ScalarSample.h>
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcCoreAbstract/TimeSamplingType.h>
 
