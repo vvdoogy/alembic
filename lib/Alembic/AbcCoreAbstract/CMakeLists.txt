@@ -37,20 +37,17 @@ SET( CXX_FILES
      TimeSampling.cpp
      TimeSamplingType.cpp
 
-     ArraySample.cpp
-     ReadArraySampleCache.cpp
-     ScalarSample.cpp
+     DataSample.cpp
+     ReadSampleCache.cpp
 
      BasePropertyWriter.cpp
-     ScalarPropertyWriter.cpp
-     ArrayPropertyWriter.cpp
+     DataPropertyWriter.cpp
      CompoundPropertyWriter.cpp
      ObjectWriter.cpp 
      ArchiveWriter.cpp 
 
      BasePropertyReader.cpp
-     ScalarPropertyReader.cpp
-     ArrayPropertyReader.cpp
+     DataPropertyReader.cpp
      CompoundPropertyReader.cpp
      ObjectReader.cpp 
      ArchiveReader.cpp 
@@ -60,9 +57,9 @@ SET( H_FILES
      All.h
      ForwardDeclarations.h
 
-     ArraySample.h
-     ArraySampleKey.h
-     ReadArraySampleCache.h
+     DataSample.h
+     DataSampleKey.h
+     ReadSampleCache.h
      ScalarSample.h
 
      DataType.h
@@ -74,15 +71,13 @@ SET( H_FILES
      TimeSamplingType.h 
 
      BasePropertyWriter.h
-     ScalarPropertyWriter.h
-     ArrayPropertyWriter.h
+     DataPropertyWriter.h
      CompoundPropertyWriter.h
      ObjectWriter.h 
      ArchiveWriter.h 
 
      BasePropertyReader.h
-     ScalarPropertyReader.h
-     ArrayPropertyReader.h
+     DataPropertyReader.h
      CompoundPropertyReader.h
      ObjectReader.h 
      ArchiveReader.h 

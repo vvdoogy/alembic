@@ -34,11 +34,11 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcCoreAbstract_ArraySample_h_
-#define _Alembic_AbcCoreAbstract_ArraySample_h_
+#ifndef _Alembic_AbcCoreAbstract_DataSample_h_
+#define _Alembic_AbcCoreAbstract_DataSample_h_
 
 #include <Alembic/AbcCoreAbstract/Foundation.h>
-#include <Alembic/AbcCoreAbstract/ArraySampleKey.h>
+#include <Alembic/AbcCoreAbstract/DataSampleKey.h>
 #include <Alembic/AbcCoreAbstract/DataType.h>
 
 namespace Alembic {
@@ -46,32 +46,32 @@ namespace AbcCoreAbstract {
 namespace v1 {
 
 //-*****************************************************************************
-//! The ArraySample class is a reference to a block of memory corresponding
-//! to an array of instances of DataTypes. The array may be multi-rank, with
+//! The DataSample class is a reference to a block of memory corresponding
+//! to an array of instances of DataTypes. The Data may be multi-rank, with
 //! different sizes in each dimension, but with its data ultimately stored
 //! contiguously. The class is basically just a bundle of a memory address,
 //! stored as a void*, a DataType, and a Dimension.
 //!
-//! The ArraySample itself does not pretend to own the data referred to
+//! The DataSample itself does not pretend to own the data referred to
 //! memory address "data". It is just a reference. For data retention mgmt,
-//! see the note on \ref ArraySamplePtr below.
-class ArraySample
+//! see the note on \ref DataSamplePtr below.
+class DataSample
 {
 public:
-    typedef ArraySample this_type;
-    typedef ArraySampleKey Key;
+    typedef DataSample this_type;
+    typedef DataSampleKey Key;
     typedef Key key_type;
 
     //! Default constructor creates NULL bytes with degenerate dimensions.
     //! ...
-    ArraySample()
+    DataSample()
       : m_data( NULL )
       , m_dataType()
       , m_dimensions() {}
 
     //! Explicit constructor takes bytes and dims by reference
     //! and creates its own reference to them.
-    ArraySample( const void * iData,
+    DataSample( const void * iData,
                  const DataType &iDataType,
                  const Dimensions & iDims )
       : m_data( iData )
@@ -99,11 +99,11 @@ public:
 
     //! Compute the Key.
     //! This is a calculation.
-    Key getKey() const;
+    Key computeKey() const;
 
     //! Return if it is valid.
-    //! An empty ArraySample is valid.
-    //! however, an ArraySample that is empty and has a scalar
+    //! An empty DataSample is valid.
+    //! however, an DataSample that is empty and has a scalar
     //! dimension is invalid. This is how we discriminate between
     //! setting a sample of length zero (useful in particle systems)
     //! vs. indicating an invalid sample (NULL).
@@ -113,8 +113,8 @@ public:
             !( m_data == NULL && m_dimensions.rank() < 1 );
     }
 
-    //! Reset the array sample to an empty, invalid state.
-    //! Basically the same as calling *this = ArraySample();
+    //! Reset the Data sample to an empty, invalid state.
+    //! Basically the same as calling *this = DataSample();
     void reset()
     {
         m_data = NULL;
@@ -129,22 +129,22 @@ private:
 };
 
 //-*****************************************************************************
-//! The ArraySamplePtr can be used not only to share this ArraySample, but
+//! The DataSamplePtr can be used not only to share this DataSample, but
 //! also to manage the data referred to by the memory address in the pointer,
-//! by way of a custom deleter. In this manner, ArraySample and ArraySamplePtr
+//! by way of a custom deleter. In this manner, DataSample and DataSamplePtr
 //! can be used both as a reference to data and as an explicit ownership of
 //! data. This greatly reduces the redundancy of this library's code.
-typedef boost::shared_ptr<ArraySample> ArraySamplePtr;
+typedef boost::shared_ptr<DataSample> DataSamplePtr;
 
 //-*****************************************************************************
-//! When creating an actual buffer for reading an array sample into,
+//! When creating an actual buffer for reading a data sample into,
 //! we need to allocate an array of some number of bytes, and then delete
-//! it with a special deleter. This function will return an array sample
+//! it with a special deleter. This function will return a data sample
 //! that is managed in this way.
 //! Dimensions tells us how many instances of the DataType to create
 //! DataType tells us what the instance is - and this works for
 //! pretty much every case, including std::string and std::wstring.
-ArraySamplePtr AllocateArraySample( const DataType &iDtype,
+DataSamplePtr AllocateDataSample( const DataType &iDtype,
                                     const Dimensions &iDims );
 
 //-*****************************************************************************
@@ -157,11 +157,11 @@ ArraySamplePtr AllocateArraySample( const DataType &iDtype,
 
 //-*****************************************************************************
 template <class T>
-struct TArrayDeleter
+struct TDataDeleter
 {
     void operator()( void *memory ) const
     {
-        ArraySample *arraySample = static_cast<ArraySample*>( memory );
+        DataSample *arraySample = static_cast<DataSample*>( memory );
         if ( arraySample )
         {
             T *data = reinterpret_cast<T*>(
@@ -176,7 +176,7 @@ struct TArrayDeleter
 
 //-*****************************************************************************
 template <class T>
-ArraySamplePtr TAllocateArraySample( size_t iDataTypeExtent,
+DataSamplePtr TAllocateDataSample( size_t iDataTypeExtent,
                                      const Dimensions &iDims )
 {
     DataType dtype( PODTraitsFromType<T>::pod_enum, iDataTypeExtent );
@@ -184,16 +184,16 @@ ArraySamplePtr TAllocateArraySample( size_t iDataTypeExtent,
     if ( numPODs > 0 )
     {
         T *data = new T[numPODs];
-        ArraySamplePtr ret(
-            new ArraySample( reinterpret_cast<const void *>( data ),
+        DataSamplePtr ret(
+            new DataSample( reinterpret_cast<const void *>( data ),
                              dtype, iDims ),
-            TArrayDeleter<T>() );
+            TDataDeleter<T>() );
         return ret;
     }
     else
     {
-        ArraySamplePtr ret(
-            new ArraySample( ( const void * )NULL,
+        DataSamplePtr ret(
+            new DataSample( ( const void * )NULL,
                              dtype, iDims ) );
         return ret;
     }

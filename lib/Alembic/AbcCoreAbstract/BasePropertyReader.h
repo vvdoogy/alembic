@@ -73,28 +73,20 @@ public:
     { return getHeader().getName(); }
 
     //! There are three types of abstract properties.
-    //! They are Scalar, Array, and Compound properties. This function
+    //! They are Data and Compound properties. This function
     //! returns an enum PropertyType which indicates which property
     //! type is returned. This is simply a convenience function which
     //! returns data from the PropertyHeader.
     PropertyType getPropertyType() const
     { return getHeader().getPropertyType(); }
 
-    //! Convenience to return whether the property is scalar.
-    //! Same as getPropertyType() == kScalarProperty
-    bool isScalar() const { return getPropertyType() == kScalarProperty; }
-
-    //! Convenience to return whether the property is array.
-    //! Same as getPropertyType() == kArrayProperty
-    bool isArray() const { return getPropertyType() == kArrayProperty; }
+    //! Convenience to return whether the property is a data property.
+    //! Same as getPropertyType() == kDataProperty
+    bool isData() const { return getPropertyType() == kDataProperty; }
 
     //! Convenience to return whether the property is compound.
     //! Same as getPropertyType() == kCompoundProperty
     bool isCompound() const { return getPropertyType() == kCompoundProperty; }
-
-    //! Convenience to return whether the property is simple (non-compound)
-    //! Same as getPropertyType() != kCompoundProperty
-    bool isSimple() const { return !isCompound(); }
 
     //! All properties have MetaData. This just returns the
     //! MetaData portion of the header that was used in creation.
@@ -125,20 +117,13 @@ public:
     //! This returns a pointer to the parent compound property.
     virtual CompoundPropertyReaderPtr getParent() = 0;
 
-    //! Up-cast this base property to a ScalarProperty, if such an
-    //! upcast is valid. This can be checked with the \ref isScalar()
+    //! Up-cast this base property to a DataProperty, if such an
+    //! upcast is valid. This can be checked with the \ref isData()
     //! function. If the upcast is not valid, an empty pointer will
     //! be returned. This default implementation returns an empty
     //! pointer.
-    virtual ScalarPropertyReaderPtr asScalarPtr();
-    
-    //! Up-cast this base property to an ArrayProperty, if such an
-    //! upcast is valid. This can be checked with the \ref isArray()
-    //! function. If the upcast is not valid, an empty pointer will
-    //! be returned. This default implementation returns an empty
-    //! pointer.
-    virtual ArrayPropertyReaderPtr asArrayPtr();
-    
+    virtual DataPropertyReaderPtr asDataPtr();
+
     //! Up-cast this base property to a CompoundProperty, if such an
     //! upcast is valid. This can be checked with the \ref isCompound()
     //! function. If the upcast is not valid, an empty pointer will

@@ -34,33 +34,33 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcCoreAbstract_ReadArraySampleCache_h_
-#define _Alembic_AbcCoreAbstract_ReadArraySampleCache_h_
+#ifndef _Alembic_AbcCoreAbstract_ReadSampleCache_h_
+#define _Alembic_AbcCoreAbstract_ReadSampleCache_h_
 
 #include <Alembic/AbcCoreAbstract/Foundation.h>
-#include <Alembic/AbcCoreAbstract/ArraySample.h>
+#include <Alembic/AbcCoreAbstract/DataSample.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
 namespace v1 {
 
 //-*****************************************************************************
-//! A ReadArraySampleID is a bundle that contains a pointer to the
-//! \ref ArraySample itself, along with the sample's key.
-class ReadArraySampleID
+//! A ReadSampleID is a bundle that contains a pointer to the
+//! \ref DataSample itself, along with the sample's key.
+class ReadSampleID
 {
 public:
     //! By convention, we define the typedef this_type. This
     //! is used by the unspecified-bool-type cast below.
-    typedef ReadArraySampleID this_type;
+    typedef ReadSampleID this_type;
     
     //! Default constructor creates empty ID
     //! ...
-    ReadArraySampleID() {}
+    ReadSampleID() {}
 
     //! Explicit constructor creates ID with key and sample
-    ReadArraySampleID( const ArraySample::Key &iSampleKey,
-                       ArraySamplePtr iSample )
+    ReadSampleID( const DataSample::Key &iSampleKey,
+                       DataSamplePtr iSample )
       : m_sampleKey( iSampleKey ),
         m_sample( iSample ) {}
 
@@ -69,12 +69,12 @@ public:
 
     //! Return the sample key
     //! ...
-    const ArraySample::Key &getKey() const
+    const DataSample::Key &getKey() const
     { return m_sampleKey; }
 
     //! Return the sample itself.
     //! ...
-    ArraySamplePtr getSample() const
+    DataSamplePtr getSample() const
     { return m_sample; }
 
     //! Return whether or not this read sample is valid
@@ -89,52 +89,52 @@ public:
     ALEMBIC_OPERATOR_BOOL( valid() );
 
 private:
-    ArraySample::Key m_sampleKey;
-    ArraySamplePtr m_sample;
+    DataSample::Key m_sampleKey;
+    DataSamplePtr m_sample;
 };
 
 
 //-*****************************************************************************
 //-*****************************************************************************
 //-*****************************************************************************
-// READ ARRAY SAMPLE CACHE
+// READ SAMPLE CACHE
 //-*****************************************************************************
 //-*****************************************************************************
 //-*****************************************************************************
 
 //-*****************************************************************************
-//! Alembic caches array samples based on an MD5 checksum key.
+//! Alembic caches array samples based on a checksum key.
 //! This is an abstract interface to these caches, which can be implemented
 //! in any number of ways.
-class ReadArraySampleCache
+class ReadSampleCache
     : private boost::noncopyable
-    , public boost::enable_shared_from_this<ReadArraySampleCache>
+    , public boost::enable_shared_from_this<ReadSampleCache>
 {
 public:
     //! Virtual destructor
     //! ...
-    virtual ~ReadArraySampleCache();
+    virtual ~ReadSampleCache();
 
     //! If it finds the entry, return a valid pointer to it which
     //! is expected to lock the entry in the cache until the pointer
     //! is dereferenced.
-    virtual ReadArraySampleID find( const ArraySample::Key &iKey ) = 0;
+    virtual ReadSampleID find( const DataSample::Key &iKey ) = 0;
 
     //! Store an entry given an explicit set of storage.
     //! The magnificent flexibility of the shared_ptr class makes
-    //! it possible for an ArraySamplePtr to contain its own destructor
-    //! as a custom deleter, and thus we can use ArraySamplePtrs for
+    //! it possible for an DataSamplePtr to contain its own destructor
+    //! as a custom deleter, and thus we can use DataSamplePtrs for
     //! both reference and ownership, depending on the deleter.
     //! In this case, it is assumed that iSamp represents
     //! "owned" data, rather than a reference.  The data will not
     //! be copied, but rather this sample will be stored directly
     //! using the passed shared_ptr.
-    virtual ReadArraySampleID store( const ArraySample::Key &iKey,
-                                     ArraySamplePtr iSamp ) = 0;
+    virtual ReadSampleID store( const DataSample::Key &iKey,
+                                     DataSamplePtr iSamp ) = 0;
 };
 
 //-*****************************************************************************
-typedef boost::shared_ptr<ReadArraySampleCache> ReadArraySampleCachePtr;
+typedef boost::shared_ptr<ReadSampleCache> ReadSampleCachePtr;
 
 } // End namespace v1
 } // End namespace AbcCoreAbstract

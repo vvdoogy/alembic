@@ -34,8 +34,8 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcCoreAbstract_ArraySampleKey_h_
-#define _Alembic_AbcCoreAbstract_ArraySampleKey_h_
+#ifndef _Alembic_AbcCoreAbstract_DataSampleKey_h_
+#define _Alembic_AbcCoreAbstract_DataSampleKey_h_
 
 #include <Alembic/AbcCoreAbstract/Foundation.h>
 #include <Alembic/AbcCoreAbstract/DataType.h>
@@ -44,7 +44,7 @@ namespace Alembic {
 namespace AbcCoreAbstract {
 namespace v1 {
 
-struct ArraySampleKey : public boost::totally_ordered<ArraySampleKey>
+struct DataSampleKey : public boost::totally_ordered<DataSampleKey>
 {
     //! total number of bytes of the sample as originally stored
     uint64_t numBytes;
@@ -57,7 +57,7 @@ struct ArraySampleKey : public boost::totally_ordered<ArraySampleKey>
 
     MD5Digest digest;
 
-    bool operator==( const ArraySampleKey &iRhs ) const
+    bool operator==( const DataSampleKey &iRhs ) const
     {
         return ( ( numBytes == iRhs.numBytes ) &&
                  ( origPOD  == iRhs.origPOD  ) &&
@@ -65,7 +65,7 @@ struct ArraySampleKey : public boost::totally_ordered<ArraySampleKey>
                  ( digest ==   iRhs.digest ) );
     };
 
-    bool operator<( const ArraySampleKey &iRhs ) const
+    bool operator<( const DataSampleKey &iRhs ) const
     {
         return ( numBytes < iRhs.numBytes ? true :
                  ( numBytes > iRhs.numBytes ? false :
@@ -83,11 +83,11 @@ struct ArraySampleKey : public boost::totally_ordered<ArraySampleKey>
 
 //-*****************************************************************************
 // Equality operator.
-struct ArraySampleKeyEqualTo :
-        public std::binary_function<ArraySampleKey,ArraySampleKey,bool>
+struct DataSampleKeyEqualTo :
+        public std::binary_function<DataSampleKey,DataSampleKey,bool>
 {
-    bool operator()( ArraySampleKey const &a,
-                     ArraySampleKey const &b ) const
+    bool operator()( DataSampleKey const &a,
+                     DataSampleKey const &b ) const
     {
         return a == b;
     }
@@ -95,7 +95,7 @@ struct ArraySampleKeyEqualTo :
 
 //-*****************************************************************************
 // Hash function
-inline uint64_t StdHash( ArraySampleKey const &a )
+inline uint64_t StdHash( DataSampleKey const &a )
 {
     // Theoretically, the bits of an MD5 Hash are uniformly
     // randomly distributed, so it doesn't matter which of the 128
@@ -105,10 +105,10 @@ inline uint64_t StdHash( ArraySampleKey const &a )
 }
 
 //-*****************************************************************************
-struct ArraySampleKeyStdHash :
-        public std::unary_function<ArraySampleKey,uint64_t>
+struct DataSampleKeyStdHash :
+        public std::unary_function<DataSampleKey,uint64_t>
 {
-    uint64_t operator()( ArraySampleKey const &a ) const
+    uint64_t operator()( DataSampleKey const &a ) const
     {
         return StdHash( a );
     }
@@ -118,23 +118,23 @@ struct ArraySampleKeyStdHash :
 template <class MAPPED>
 struct UnorderedMapUtil
 {
-    typedef boost::unordered_map<ArraySampleKey,
+    typedef boost::unordered_map<DataSampleKey,
                                  MAPPED,
-                                 ArraySampleKeyStdHash,
-                                 ArraySampleKeyEqualTo> umap_type;
-    typedef boost::unordered_multimap<ArraySampleKey,
+                                 DataSampleKeyStdHash,
+                                 DataSampleKeyEqualTo> umap_type;
+    typedef boost::unordered_multimap<DataSampleKey,
                                       MAPPED,
-                                      ArraySampleKeyStdHash,
-                                      ArraySampleKeyEqualTo> umultimap_type;
+                                      DataSampleKeyStdHash,
+                                      DataSampleKeyEqualTo> umultimap_type;
 };
 
 //-*****************************************************************************
 // Unordered sets don't need a wrapping template.
 // This isn't a terribly useful type. And it's meaningless to have
 // multisets in this context.
-typedef boost::unordered_set<ArraySampleKey,
-                             ArraySampleKeyStdHash,
-                             ArraySampleKeyEqualTo> UnorderedArraySampleKeySet;
+typedef boost::unordered_set<DataSampleKey,
+                             DataSampleKeyStdHash,
+                             DataSampleKeyEqualTo> UnorderedDataSampleKeySet;
 
 } // End namespace v1
 } // End namespace AbcCoreAbstract

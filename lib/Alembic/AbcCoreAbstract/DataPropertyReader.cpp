@@ -34,14 +34,14 @@
 //
 //-*****************************************************************************
 
-#include <Alembic/AbcCoreAbstract/ArrayPropertyReader.h>
+#include <Alembic/AbcCoreAbstract/DataPropertyReader.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
 namespace v1 {
 
 //-*****************************************************************************
-ArrayPropertyReader::~ArrayPropertyReader()
+DataPropertyReader::~DataPropertyReader()
 {
     // Nothing
 }

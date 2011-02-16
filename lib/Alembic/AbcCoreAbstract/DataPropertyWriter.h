@@ -34,27 +34,25 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcCoreAbstract_ScalarPropertyWriter_h_
-#define _Alembic_AbcCoreAbstract_ScalarPropertyWriter_h_
+#ifndef _Alembic_AbcCoreAbstract_DataPropertyWriter_h_
+#define _Alembic_AbcCoreAbstract_DataPropertyWriter_h_
 
 #include <Alembic/AbcCoreAbstract/Foundation.h>
 #include <Alembic/AbcCoreAbstract/BasePropertyWriter.h>
+#include <Alembic/AbcCoreAbstract/DataSample.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
 namespace v1 {
 
 //-*****************************************************************************
-//! A Scalar Property is a Rank 0 property which has a single value for each
-//! sample. This is distinguished from an Array Property, which has a
-//! variable number of elements per sample, and requires more sophisticated
-//! resource management.
-class ScalarPropertyWriter : public BasePropertyWriter
+//! The Data Property holds the data
+class DataPropertyWriter : public BasePropertyWriter
 {
 public:
     //! Virtual destructor
     //! ...
-    virtual ~ScalarPropertyWriter();
+    virtual ~DataPropertyWriter();
 
     //-*************************************************************************
     // NEW FUNCTIONS
@@ -64,27 +62,25 @@ public:
     //! a given time. Depending on the time sampling type,
     //! the sampleTime may be ignored, or it may be checked for consistency
     //! to ensure synchronization.
+    //!
     //! Samples must always be written starting at index 0, and
     //! moving incrementally forward, writing each subsequent index in order.
     //! An exception will be thrown if the samples are written out of order,
     //! or if the sample times are inconsistent.
     //!
-    //! For specifying the sample, this takes a void pointer which
-    //! points to the beginning of the memory corresponding to the scalar.
+    //! This takes a read-only ArraySample by const reference. The class
+    //! will make an internal copy (or the functional equivalent of ),
+    //! and will not use that memory block outside the scope of this
+    //! function call.
     //!
-    //! For String and Wstring, the const void *iSamp is assumed to be
-    //! static_castable to const std::string * and const std::wstring *,
-    //! respectively.
-    //!
-    //! The data passed into this function will be used or copied locally
-    //! by this function, and need not live (in the calling context)
-    //! outside the return scope of this function call.
+    //! Arrays of std::string and std::wstring are assumed to be
+    //! treated just like regular data elements.
     virtual void setSample( index_t iSampleIndex,
                             chrono_t iSampleTime,
-                            const void *iSamp ) = 0;
+                            const DataSample & iSamp ) = 0;
 
-    //! Simply copies the previously written sample's value.
-    //! This is an important feature.
+    //! Set the next sample to equal the previous sample.
+    //! An important feature!
     virtual void setFromPreviousSample( index_t iSampleIndex,
                                         chrono_t iSampleTime ) = 0;
 
@@ -98,4 +94,3 @@ public:
 } // End namespace Alembic
 
 #endif
-

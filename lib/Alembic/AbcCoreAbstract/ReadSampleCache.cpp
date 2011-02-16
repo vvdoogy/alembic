@@ -1,7 +1,7 @@
 //-*****************************************************************************
 //
 // Copyright (c) 2009-2010,
-//  Sony Pictures Imageworks Inc. and
+//  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
 // All rights reserved.
@@ -16,7 +16,7 @@
 // in the documentation and/or other materials provided with the
 // distribution.
 // *       Neither the name of Sony Pictures Imageworks, nor
-// Industrial Light & Magic, nor the names of their contributors may be used
+// Industrial Light & Magic nor the names of their contributors may be used
 // to endorse or promote products derived from this software without specific
 // prior written permission.
 //
@@ -34,18 +34,19 @@
 //
 //-*****************************************************************************
 
-#include <Alembic/AbcCoreAbstract/ArrayPropertyWriter.h>
+#include <Alembic/AbcCoreAbstract/ReadSampleCache.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
 namespace v1 {
 
 //-*****************************************************************************
-ArrayPropertyWriter::~ArrayPropertyWriter()
+ReadSampleCache::~ReadSampleCache()
 {
-    // Nothing
+    // Nothing!
 }
 
 } // End namespace v1
 } // End namespace AbcCoreAbstract
 } // End namespace Alembic
+
