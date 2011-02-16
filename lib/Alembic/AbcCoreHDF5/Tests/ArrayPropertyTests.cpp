@@ -149,8 +149,6 @@ void testDuplicateArray()
         ABC::ObjectReaderPtr archive = a->getTop();
         ABC::CompoundPropertyReaderPtr parent = archive->getProperties();
 
-        std::cout << "reading from " << archiveName << std::endl;
-
         TESTING_ASSERT(parent->getNumProperties() == 3);
         for (size_t i = 0; i < parent->getNumProperties(); ++i)
         {
