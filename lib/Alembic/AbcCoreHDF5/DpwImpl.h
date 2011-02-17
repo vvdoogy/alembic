@@ -34,8 +34,8 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcCoreHDF5_ApwImpl_h_
-#define _Alembic_AbcCoreHDF5_ApwImpl_h_
+#ifndef _Alembic_AbcCoreHDF5_DpwImpl_h_
+#define _Alembic_AbcCoreHDF5_DpwImpl_h_
 
 #include <Alembic/AbcCoreHDF5/Foundation.h>
 #include <Alembic/AbcCoreHDF5/SimplePwImpl.h>
@@ -45,21 +45,21 @@ namespace Alembic {
 namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
-class ApwImpl : public AbcA::DataPropertyWriter,
-    public boost::enable_shared_from_this<ApwImpl>
+class DpwImpl : public AbcA::DataPropertyWriter,
+    public boost::enable_shared_from_this<DpwImpl>
 {
 protected:
     friend class BaseCpwImpl;
 
     //-*************************************************************************
-    ApwImpl( AbcA::CompoundPropertyWriterPtr iParent,
+    DpwImpl( AbcA::CompoundPropertyWriterPtr iParent,
              hid_t iParentGroup,
              PropertyHeaderPtr iHeader );
 
     virtual AbcA::DataPropertyWriterPtr asDataPtr();
     
 public:
-    virtual ~ApwImpl();
+    virtual ~DpwImpl();
 
     virtual const AbcA::PropertyHeader & getHeader() const;
 

@@ -34,7 +34,7 @@
 //
 //-*****************************************************************************
 
-#include <Alembic/AbcCoreHDF5/ApwImpl.h>
+#include <Alembic/AbcCoreHDF5/DpwImpl.h>
 #include <Alembic/AbcCoreHDF5/WriteUtil.h>
 #include <Alembic/AbcCoreHDF5/StringWriteUtil.h>
 
@@ -42,7 +42,7 @@ namespace Alembic {
 namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
-ApwImpl::ApwImpl( AbcA::CompoundPropertyWriterPtr iParent,
+DpwImpl::DpwImpl( AbcA::CompoundPropertyWriterPtr iParent,
                   hid_t iParentGroup,
                   PropertyHeaderPtr iHeader )
     : m_parent( iParent )
@@ -100,7 +100,7 @@ ApwImpl::ApwImpl( AbcA::CompoundPropertyWriterPtr iParent,
 
 
 //-*****************************************************************************
-ApwImpl::~ApwImpl()
+DpwImpl::~DpwImpl()
 {
     // Wrap the whole thing in a try block, so as to prevent
     // exceptions from being thrown out of a destructor.
@@ -159,34 +159,34 @@ ApwImpl::~ApwImpl()
 }
 
 //-*****************************************************************************
-const AbcA::PropertyHeader & ApwImpl::getHeader() const
+const AbcA::PropertyHeader & DpwImpl::getHeader() const
 {
     ABCA_ASSERT( m_header, "Invalid header" );
     return *m_header;
 }
 
 //-*****************************************************************************
-AbcA::ObjectWriterPtr ApwImpl::getObject()
+AbcA::ObjectWriterPtr DpwImpl::getObject()
 {
     ABCA_ASSERT( m_parent, "Invalid parent" );
     return m_parent->getObject();
 }
 
 //-*****************************************************************************
-AbcA::DataPropertyWriterPtr ApwImpl::asDataPtr()
+AbcA::DataPropertyWriterPtr DpwImpl::asDataPtr()
 {
     return shared_from_this();
 }
 
 //-*****************************************************************************
-AbcA::CompoundPropertyWriterPtr ApwImpl::getParent()
+AbcA::CompoundPropertyWriterPtr DpwImpl::getParent()
 {
     ABCA_ASSERT( m_parent, "Invalid parent" );
     return m_parent;
 }
 
 //-*****************************************************************************
-hid_t ApwImpl::getSampleIGroup()
+hid_t DpwImpl::getSampleIGroup()
 {
     if ( m_sampleIGroup >= 0 )
     {
@@ -215,7 +215,7 @@ hid_t ApwImpl::getSampleIGroup()
 }
 
 //-*****************************************************************************
-void ApwImpl::writeSample( hid_t iGroup,
+void DpwImpl::writeSample( hid_t iGroup,
                            const std::string &iSampleName,
                            index_t iSampleIndex,
                            const AbcA::DataSample & iSamp,
@@ -240,7 +240,7 @@ void ApwImpl::writeSample( hid_t iGroup,
 }
 
 //-*****************************************************************************
-void ApwImpl::setSample (index_t iSampleIndex, chrono_t iSampleTime,
+void DpwImpl::setSample (index_t iSampleIndex, chrono_t iSampleTime,
     const DataSample & iSamp )
 {
     // Check errors.
@@ -339,7 +339,7 @@ void ApwImpl::setSample (index_t iSampleIndex, chrono_t iSampleTime,
 }
 
 //-*****************************************************************************
-void ApwImpl::setFromPreviousSample (index_t iSampleIndex, chrono_t iSampleTime)
+void DpwImpl::setFromPreviousSample (index_t iSampleIndex, chrono_t iSampleTime)
 {
     // Various programmer error checks
     // Check errors.
@@ -384,7 +384,7 @@ void ApwImpl::setFromPreviousSample (index_t iSampleIndex, chrono_t iSampleTime)
 }
 
 //-*****************************************************************************
-size_t ApwImpl::getNumSamples()
+size_t DpwImpl::getNumSamples()
 {
     return ( size_t )m_nextSampleIndex;
 }

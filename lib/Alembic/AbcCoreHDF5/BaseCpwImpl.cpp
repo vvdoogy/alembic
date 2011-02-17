@@ -36,8 +36,7 @@
 
 #include <Alembic/AbcCoreHDF5/BaseCpwImpl.h>
 #include <Alembic/AbcCoreHDF5/WriteUtil.h>
-#include <Alembic/AbcCoreHDF5/SpwImpl.h>
-#include <Alembic/AbcCoreHDF5/ApwImpl.h>
+#include <Alembic/AbcCoreHDF5/DpwImpl.h>
 #include <Alembic/AbcCoreHDF5/CpwImpl.h>
 
 namespace Alembic {

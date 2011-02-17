@@ -34,8 +34,6 @@
 
 # C++ files for this project
 SET( CXX_FILES 
-  AprImpl.cpp
-  ApwImpl.cpp
   ArImpl.cpp
   AwImpl.cpp
   BaseCprImpl.cpp
@@ -46,6 +44,8 @@ SET( CXX_FILES
   CprImpl.cpp
   CpwImpl.cpp
   DataTypeRegistry.cpp
+  DprImpl.cpp
+  DpwImpl.cpp
   HDF5Util.cpp
   OrImpl.cpp
   OwImpl.cpp
@@ -62,11 +62,9 @@ SET( CXX_FILES
 )
 
 SET( H_FILES 
-  All.h
-  AprImpl.h
-  ApwImpl.h
   ArImpl.h
   AwImpl.h
+  All.h
   BaseCprImpl.h
   BaseCpwImpl.h
   BaseOrImpl.h
@@ -75,6 +73,8 @@ SET( H_FILES
   CprImpl.h
   CpwImpl.h
   DataTypeRegistry.h
+  DprImpl.h
+  DpwImpl.h
   HDF5Util.h
   Foundation.h
   OrImpl.h
