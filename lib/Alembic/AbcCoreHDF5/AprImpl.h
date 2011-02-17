@@ -38,39 +38,41 @@
 #define _Alembic_AbcCoreHDF5_AprImpl_h_
 
 #include <Alembic/AbcCoreHDF5/Foundation.h>
-#include <Alembic/AbcCoreHDF5/SimplePrImpl.h>
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
-class AprImpl
-    : public SimplePrImpl<AbcA::ArrayPropertyReader,
-                          AprImpl,
-                          AbcA::ArraySamplePtr&>
-    , public boost::enable_shared_from_this<AprImpl>
+class AprImpl : public AbcA::DataPropertyReader,
+    public boost::enable_shared_from_this<AprImpl>
 {
 public:
-    AprImpl( AbcA::CompoundPropertyReaderPtr iParent,
-             hid_t iParentGroup,
-             PropertyHeaderPtr iHeader )
-      : SimplePrImpl<AbcA::ArrayPropertyReader,
-                     AprImpl,
-                     AbcA::ArraySamplePtr&>( iParent, iParentGroup, iHeader )
-    {
-        if ( m_header->getPropertyType() != AbcA::kArrayProperty )
-        {
-            ABCA_THROW( "Attempted to create a ArrayPropertyReader from a "
-                        "non-array property type" );
-        }
-    }
+    AprImpl( AbcA::CompoundPropertyReaderPtr iParent, hid_t iParentGroup,
+        PropertyHeaderPtr iHeader );
 
-    virtual AbcA::ArrayPropertyReaderPtr asArrayPtr();
-    
+    virtual AbcA::DataPropertyReaderPtr asDataPtr();
+
+    virtual const AbcA::PropertyHeader &getHeader() const;
+
+    virtual AbcA::ObjectReaderPtr getObject();
+
+    virtual AbcA::CompoundPropertyReaderPtr getParent();
+
+    virtual size_t getNumSamples();
+
+    virtual bool isConstant();
+
+    virtual bool isScalar();
+
+    virtual AbcA::TimeSampling getTimeSampling();
+
+    virtual void getSample( index_t iSampleIndex,
+                            AbcA::ArraySamplePtr & oSample );
+
+    virtual bool getKey( index_t iSampleIndex, AbcA::ArraySampleKey & oKey );
+
 protected:
-    friend class SimplePrImpl<AbcA::ArrayPropertyReader, AprImpl,
-                              AbcA::ArraySamplePtr&>;
-    
+
     //-*************************************************************************
     // This function is called by SimplePrImpl to provide the actual
     // property reading.
@@ -85,6 +87,51 @@ protected:
                      const std::string &iSampleName,
                      AbcA::ArraySampleKey & oSamplePtr );
 
+    // Parent compound property writer. It must exist.
+    AbcA::CompoundPropertyReaderPtr m_parent;
+
+    // The HDF5 Group associated with the parent property reader.
+    hid_t m_parentGroup;
+
+    // We don't hold a pointer to the object, but instead
+    // get it from the compound property reader.
+
+    // The Header
+    PropertyHeaderPtr m_header;
+
+    // Data Types.
+    hid_t m_fileDataType;
+    bool m_cleanFileDataType;
+    hid_t m_nativeDataType;
+    bool m_cleanNativeDataType;
+
+    bool m_isScalar;
+
+    // The number of samples that were written. This may be greater
+    // than the number of samples that were stored, because on the tail
+    // of the property we don't write the same sample out over and over
+    // until it changes.
+    uint32_t m_numSamples;
+
+    // The number of unique samples
+    // This may be the same as the number of samples,
+    // or it may be less. This corresponds to the number of samples
+    // that are actually stored. In the case of a "constant" property,
+    // this will be 1.
+    uint32_t m_numUniqueSamples;
+
+    // Value of the single time sample, if there's only one unique
+    // sample.
+    chrono_t m_timeSample0;
+
+    // The time sampling ptr.
+    // Contains Array Sample corresponding to the time samples
+    AbcA::TimeSamplingPtr m_timeSamplingPtr;
+
+    // The simple properties only store samples after the first
+    // sample in a sub group. Therefore, there may not actually be
+    // a group associated with this property.
+    hid_t m_samplesIGroup;
 };
 
 } // End namespace AbcCoreHDF5

@@ -34,10 +34,10 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcCoreHDF5_WrittenArraySampleMap_h_
-#define _Alembic_AbcCoreHDF5_WrittenArraySampleMap_h_
+#ifndef _Alembic_AbcCoreHDF5_WrittenSampleMap_h_
+#define _Alembic_AbcCoreHDF5_WrittenSampleMap_h_
 
-#include <Alembic/AbcCoreAbstract/ArraySampleKey.h>
+#include <Alembic/AbcCoreAbstract/DataSampleKey.h>
 #include <Alembic/AbcCoreHDF5/Foundation.h>
 #include <Alembic/AbcCoreHDF5/HDF5Util.h>
 
@@ -46,20 +46,20 @@ namespace Alembic {
 namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
-// A Written Array Sample ID is a receipt that contains information that
-// refers to the exact location in an HDF5 file that an array sample was written
-// to. It also contains the Key of the array sample, so it may be verified.
+// A Written Sample ID is a receipt that contains information that
+// refers to the exact location in an HDF5 file that a data sample was written
+// to. It also contains the Key of the data sample, so it may be verified.
 //
-// This object is used to "reuse" an already written array sample by linking
+// This object is used to "reuse" an already written data sample by linking
 // it from the previous usage.
 //-*****************************************************************************
-class WrittenArraySampleID
+class WrittenSampleID
 {
 public:
-    WrittenArraySampleID()
+    WrittenSampleID()
       : m_sampleKey() {}
 
-    WrittenArraySampleID( const AbcA::ArraySample::Key &iKey, hid_t iObjLocID )
+    WrittenSampleID( const AbcA::DataSample::Key &iKey, hid_t iObjLocID )
       : m_sampleKey( iKey )
     {
         int strLen =  H5Iget_name( iObjLocID, NULL, 0  );
@@ -72,31 +72,31 @@ public:
         H5Iget_name( iObjLocID, &(m_objectLocation[0]), strLen );
     }
 
-    const AbcA::ArraySample::Key &getKey() const { return m_sampleKey; }
+    const AbcA::DataSample::Key &getKey() const { return m_sampleKey; }
 
     std::string getObjectLocation() const { return m_objectLocation; }
 
 private:
-    AbcA::ArraySample::Key m_sampleKey;
+    AbcA::DataSample::Key m_sampleKey;
     std::string m_objectLocation;
 };
 
 //-*****************************************************************************
-typedef boost::shared_ptr<WrittenArraySampleID> WrittenArraySampleIDPtr;
+typedef boost::shared_ptr<WrittenSampleID> WrittenSampleIDPtr;
 
 //-*****************************************************************************
 // This class handles the mapping.
-class WrittenArraySampleMap
+class WrittenSampleMap
 {
 protected:
     friend class AwImpl;
 
-    WrittenArraySampleMap() {}
+    WrittenSampleMap() {}
 
 public:
 
     // Returns 0 if it can't find it
-    WrittenArraySampleIDPtr find( const AbcA::ArraySample::Key &key ) const
+    WrittenSampleIDPtr find( const AbcA::DataSample::Key &key ) const
     {
         Map::const_iterator miter = m_map.find( key );
         if ( miter != m_map.end() )
@@ -105,23 +105,23 @@ public:
         }
         else
         {
-            return WrittenArraySampleIDPtr();
+            return WrittenSampleIDPtr();
         }
     }
 
     // Store. Will clobber if you've already stored it.
-    void store( WrittenArraySampleIDPtr r )
+    void store( WrittenSampleIDPtr r )
     {
         if ( !r )
         {
-            ABCA_THROW( "Invalid WrittenArraySampleIDPtr" );
+            ABCA_THROW( "Invalid WrittenSampleIDPtr" );
         }
 
         m_map[r->getKey()] = r;
     }
 
 protected:
-    typedef AbcA::UnorderedMapUtil<WrittenArraySampleIDPtr>::umap_type Map;
+    typedef AbcA::UnorderedMapUtil<WrittenSampleIDPtr>::umap_type Map;
     Map m_map;
 };
 

@@ -45,12 +45,8 @@ namespace Alembic {
 namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
-class ApwImpl
-    : public SimplePwImpl<AbcA::ArrayPropertyWriter,
-                          ApwImpl,
-                          const AbcA::ArraySample &,
-                          AbcA::ArraySample::Key>
-    , public boost::enable_shared_from_this<ApwImpl>
+class ApwImpl : public AbcA::DataPropertyWriter,
+    public boost::enable_shared_from_this<ApwImpl>
 {
 protected:
     friend class BaseCpwImpl;
@@ -60,16 +56,31 @@ protected:
              hid_t iParentGroup,
              PropertyHeaderPtr iHeader );
 
-    virtual AbcA::ArrayPropertyWriterPtr asArrayPtr();
+    virtual AbcA::DataPropertyWriterPtr asDataPtr();
     
 public:
     virtual ~ApwImpl();
 
+    virtual const AbcA::PropertyHeader & getHeader() const;
+
+    virtual AbcA::ObjectWriterPtr getObject();
+
+    virtual AbcA::CompoundPropertyWriterPtr getParent();
+
+    virtual void setSample( index_t iSampleIndex,
+                            chrono_t iSampleTime,
+                            Abc iSamp );
+
+    virtual void setFromPreviousSample( index_t iSampleIndex,
+                                        chrono_t iSampleTime );
+
+    virtual size_t getNumSamples();
+
     //-*************************************************************************
     static AbcA::ArraySample::Key
-    computeSampleKey( const AbcA::ArraySample &iSamp )
+    computeSampleKey( const AbcA::DataSample &iSamp )
     {
-        return iSamp.getKey();
+        return iSamp.computeKey();
     }
 
     //-*************************************************************************
@@ -97,9 +108,48 @@ public:
                       const AbcA::ArraySample & iSamp,
                       const AbcA::ArraySample::Key &iKey );
 
+private:
+    hid_t getSampleIGroup();
+
 protected:
+    // The parent compound property writer.
+    AbcA::CompoundPropertyWriterPtr m_parent;
+    
+    // The parent group. We need to keep this around because we
+    // don't create our group until we need to. This is guaranteed to
+    // exist because our parent (or object) is guaranteed to exist.
+    hid_t m_parentGroup;
+
+    // The header which defines this property.
+    PropertyHeaderPtr m_header;
+
+    // The DataTypes for this property.
+    hid_t m_fileDataType;
+    bool m_cleanFileDataType;
+    hid_t m_nativeDataType;
+    bool m_cleanNativeDataType;
+
+    // The group corresponding to this property.
+    // It may never be created or written.
+    hid_t m_sampleIGroup;
+    
+    // The time samples. The number of these will be determined by
+    // the TimeSamplingType
+    std::vector<chrono_t> m_timeSamples;
+
+    // Index of the next sample to write
+    uint32_t m_nextSampleIndex;
+
+    // Number of unique samples.
+    // If this is zero, it means we haven't written a sample yet.
+    // Otherwise, it is the number of samples we've actually written.
+    // It is common for the tail end of sampling blocks to be repeated
+    // values, so we don't bother writing them out if the tail is
+    // non-varying.
+    uint32_t m_numUniqueSamples;
+
     // Previous written array sample identifier!
-    WrittenArraySampleIDPtr m_previousWrittenArraySampleID;
+    WrittenSampleIDPtr m_previousWrittenSampleID;
 };
 
 } // End namespace AbcCoreHDF5
