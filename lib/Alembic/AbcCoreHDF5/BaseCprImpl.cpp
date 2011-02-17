@@ -256,21 +256,21 @@ BaseCprImpl::getPropertyHeader( const std::string &iName )
 }
 
 //-*****************************************************************************
-AbcA::ScalarPropertyReaderPtr
-BaseCprImpl::getScalarProperty( const std::string &iName )
+AbcA::DataPropertyReaderPtr
+BaseCprImpl::getDataProperty( const std::string &iName )
 {
     SubPropertiesMap::iterator fiter = m_subProperties.find( iName );
     if ( fiter == m_subProperties.end() )
     {
-        return AbcA::ScalarPropertyReaderPtr();
+        return AbcA::DataPropertyReaderPtr();
     }
 
     SubProperty &sub = (*fiter).second;
 
-    if ( !(sub.header->isScalar()) )
+    if ( !(sub.header->isData()) )
     {
-        // return AbcA::ScalarPropertyReaderPtr();
-        ABCA_THROW( "Tried to read a scalar property from a non-scalar: "
+        // return AbcA::DataPropertyReaderPtr();
+        ABCA_THROW( "Tried to read a data property from a non-data: "
                     << iName << ", type: "
                     << sub.header->getPropertyType() );
     }
@@ -279,7 +279,7 @@ BaseCprImpl::getScalarProperty( const std::string &iName )
     if ( sub.made.expired() )
     {
         // Make a new one.
-        bptr.reset( new SprImpl( this->asCompoundPtr(),
+        bptr.reset( new DprImpl( this->asCompoundPtr(),
                                  m_group,
                                  sub.header ) );
         sub.made = bptr;
@@ -288,47 +288,8 @@ BaseCprImpl::getScalarProperty( const std::string &iName )
     {
         bptr = sub.made.lock();
     }
-    AbcA::ScalarPropertyReaderPtr ret =
-        boost::dynamic_pointer_cast<AbcA::ScalarPropertyReader,
-        AbcA::BasePropertyReader>( bptr );
-    return ret;
-}
-
-//-*****************************************************************************
-AbcA::ArrayPropertyReaderPtr
-BaseCprImpl::getArrayProperty( const std::string &iName )
-{
-    SubPropertiesMap::iterator fiter = m_subProperties.find( iName );
-    if ( fiter == m_subProperties.end() )
-    {
-        return AbcA::ArrayPropertyReaderPtr();
-    }
-
-    SubProperty &sub = (*fiter).second;
-
-    if ( !(sub.header->isArray()) )
-    {
-        // return AbcA::ArrayPropertyReaderPtr();
-        ABCA_THROW( "Tried to read an array property from a non-array: "
-                    << iName << ", type: "
-                    << sub.header->getPropertyType() );
-    }
-
-    AbcA::BasePropertyReaderPtr bptr;
-    if ( sub.made.expired() )
-    {
-        // Make a new one.
-        bptr.reset( new AprImpl( this->asCompoundPtr(),
-                                 m_group,
-                                 sub.header ) );
-        sub.made = bptr;
-    }
-    else
-    {
-        bptr = sub.made.lock();
-    }
-    AbcA::ArrayPropertyReaderPtr ret =
-        boost::dynamic_pointer_cast<AbcA::ArrayPropertyReader,
+    AbcA::DataPropertyReaderPtr ret =
+        boost::dynamic_pointer_cast<AbcA::DataPropertyReader,
         AbcA::BasePropertyReader>( bptr );
     return ret;
 }

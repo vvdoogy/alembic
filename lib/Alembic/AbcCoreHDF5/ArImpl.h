@@ -54,7 +54,7 @@ private:
     friend struct ReadArchive;
 
     ArImpl( const std::string &iFileName,
-            AbcA::ReadArraySampleCachePtr iCache );
+            AbcA::ReadSampleCachePtr iCache );
 
 public:
     virtual ~ArImpl();
@@ -70,15 +70,15 @@ public:
 
     virtual AbcA::ArchiveReaderPtr asArchivePtr();
 
-    virtual AbcA::ReadArraySampleCachePtr getReadArraySampleCachePtr()
+    virtual AbcA::ReadSampleCachePtr getReadSampleCachePtr()
     {
-        return m_readArraySampleCache;
+        return m_readSampleCache;
     }
 
     virtual void
-    setReadArraySampleCachePtr( AbcA::ReadArraySampleCachePtr iPtr )
+    setReadSampleCachePtr( AbcA::ReadSampleCachePtr iPtr )
     {
-        m_readArraySampleCache = iPtr;
+        m_readSampleCache = iPtr;
     }
 
 private:
@@ -87,7 +87,7 @@ private:
 
     TopOrImpl *m_top;
 
-    AbcA::ReadArraySampleCachePtr m_readArraySampleCache;
+    AbcA::ReadSampleCachePtr m_readSampleCache;
 };
 
 } // End namespace AbcCoreHDF5

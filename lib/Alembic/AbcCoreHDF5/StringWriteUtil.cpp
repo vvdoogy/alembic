@@ -293,8 +293,8 @@ void WriteWstrings( hid_t iParent,
 //-*****************************************************************************
 //-*****************************************************************************
 template <class StringT, class CharT>
-WrittenArraySampleIDPtr
-WriteStringArrayT( WrittenArraySampleMap &iMap,
+WrittenSampleIDPtr
+WriteStringArrayT( WrittenSampleMap &iMap,
                    hid_t iGroup,
                    const std::string &iName,
                    const AbcA::ArraySample &iSamp,
@@ -302,7 +302,7 @@ WriteStringArrayT( WrittenArraySampleMap &iMap,
                    int iCompressionLevel )
 {
     // See whether or not we've already stored this.
-    WrittenArraySampleIDPtr writeID = iMap.find( iKey );
+    WrittenSampleIDPtr writeID = iMap.find( iKey );
     if ( writeID )
     {
         CopyWrittenArray( iGroup, iName, writeID );
@@ -407,7 +407,7 @@ WriteStringArrayT( WrittenArraySampleMap &iMap,
     // with the compacted string.
     WriteDimensions( dsetId, "dims", dims );
 
-    writeID.reset( new WrittenArraySampleID( iKey, dsetId ) );
+    writeID.reset( new WrittenSampleID( iKey, dsetId ) );
 
     iMap.store( writeID );
 
@@ -417,8 +417,8 @@ WriteStringArrayT( WrittenArraySampleMap &iMap,
 
 
 //-*****************************************************************************
-WrittenArraySampleIDPtr
-WriteStringArray( WrittenArraySampleMap &iMap,
+WrittenSampleIDPtr
+WriteStringArray( WrittenSampleMap &iMap,
                   hid_t iGroup,
                   const std::string &iName,
                   const AbcA::ArraySample &iSamp,
@@ -434,8 +434,8 @@ WriteStringArray( WrittenArraySampleMap &iMap,
 }
 
 //-*****************************************************************************
-WrittenArraySampleIDPtr
-WriteWstringArray( WrittenArraySampleMap &iMap,
+WrittenSampleIDPtr
+WriteWstringArray( WrittenSampleMap &iMap,
                    hid_t iGroup,
                    const std::string &iName,
                    const AbcA::ArraySample &iSamp,

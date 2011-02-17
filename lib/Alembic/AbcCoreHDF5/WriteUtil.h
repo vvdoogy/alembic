@@ -38,14 +38,14 @@
 #define _Alembic_AbcCoreHDF5_WriteUtil_h_
 
 #include <Alembic/AbcCoreHDF5/Foundation.h>
-#include <Alembic/AbcCoreHDF5/WrittenArraySampleMap.h>
+#include <Alembic/AbcCoreHDF5/WrittenSampleMap.h>
 #include <Alembic/AbcCoreHDF5/StringWriteUtil.h>
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
-WrittenArraySampleMap& GetWrittenArraySampleMap(
+WrittenSampleMap& GetWrittenSampleMap(
     AbcA::ArchiveWriterPtr iArchive );
 
 //-*****************************************************************************
@@ -58,7 +58,7 @@ WriteDimensions( hid_t iParent,
 void
 WriteKey( hid_t iParent,
           const std::string &iAttrName,
-          const AbcA::ArraySample::Key &iKey );
+          const AbcA::DataSample::Key &iKey );
 
 //-*****************************************************************************
 void
@@ -102,21 +102,21 @@ WriteSmallArray( hid_t iParent,
 void
 CopyWrittenArray( hid_t iParent,
                   const std::string &iName,
-                  WrittenArraySampleIDPtr iRef );
+                  WrittenSampleIDPtr iRef );
 
 //-*****************************************************************************
-WrittenArraySampleIDPtr
-WriteArray( WrittenArraySampleMap &iMap,
+WrittenSampleIDPtr
+WriteArray( WrittenSampleMap &iMap,
             hid_t iGroup,
             const std::string &iName,
-            const AbcA::ArraySample &iSamp,
-            const AbcA::ArraySample::Key &iKey,
+            const AbcA::DataSample &iSamp,
+            const AbcA::DataSample::Key &iKey,
             hid_t iFileType,
             hid_t iNativeType,
             int iCompressionLevel );
 
 //-*****************************************************************************
-void WriteSampling( WrittenArraySampleMap &iMap,
+void WriteSampling( WrittenSampleMap &iMap,
                     hid_t iGroup,
                     const std::string &iName,
                     const AbcA::TimeSamplingType &iTsmpType,

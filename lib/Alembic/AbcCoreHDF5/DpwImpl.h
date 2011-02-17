@@ -39,7 +39,7 @@
 
 #include <Alembic/AbcCoreHDF5/Foundation.h>
 #include <Alembic/AbcCoreHDF5/SimplePwImpl.h>
-#include <Alembic/AbcCoreHDF5/WrittenArraySampleMap.h>
+#include <Alembic/AbcCoreHDF5/WrittenSampleMap.h>
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
@@ -77,18 +77,18 @@ public:
     virtual size_t getNumSamples();
 
     //-*************************************************************************
-    static AbcA::ArraySample::Key
+    static AbcA::DataSample::Key
     computeSampleKey( const AbcA::DataSample &iSamp )
     {
         return iSamp.computeKey();
     }
 
     //-*************************************************************************
-    bool sameAsPreviousSample( const AbcA::ArraySample &iSamp,
-                               const AbcA::ArraySample::Key &iKey ) const
+    bool sameAsPreviousSample( const AbcA::DataSample &iSamp,
+                               const AbcA::DataSample::Key &iKey ) const
     {
-        return ( m_previousWrittenArraySampleID &&
-                 iKey == m_previousWrittenArraySampleID->getKey() );
+        return ( m_previousWrittenSampleID &&
+                 iKey == m_previousWrittenSampleID->computeKey() );
     }
 
     //-*************************************************************************
@@ -98,15 +98,15 @@ public:
     {
         // Copy the sample.
         CopyWrittenArray( iGroup, iSampleName,
-                          m_previousWrittenArraySampleID );
+                          m_previousWrittenSampleID );
     }
 
     //-*************************************************************************
     void writeSample( hid_t iGroup,
                       const std::string &iSampleName,
                       index_t iSampleIndex,
-                      const AbcA::ArraySample & iSamp,
-                      const AbcA::ArraySample::Key &iKey );
+                      const AbcA::DataSample & iSamp,
+                      const AbcA::DataSample::Key &iKey );
 
 private:
     hid_t getSampleIGroup();

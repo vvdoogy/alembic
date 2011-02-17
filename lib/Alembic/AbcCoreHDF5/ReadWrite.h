@@ -59,7 +59,7 @@ struct WriteArchive
 //! This would only be used if you wished to create a global cache separately
 //! from an archive - this is actually fairly common, though, which is why
 //! it is exposed here.
-::Alembic::AbcCoreAbstract::v1::ReadArraySampleCachePtr
+::Alembic::AbcCoreAbstract::v1::ReadSampleCachePtr
 CreateCache( void );
 
 //-*****************************************************************************
@@ -74,7 +74,7 @@ struct ReadArchive
     // Take the given cache.
     ::Alembic::AbcCoreAbstract::v1::ArchiveReaderPtr
     operator()( const std::string &iFileName,
-                ::Alembic::AbcCoreAbstract::v1::ReadArraySampleCachePtr iCache )
+                ::Alembic::AbcCoreAbstract::v1::ReadSampleCachePtr iCache )
         const;
 };
 

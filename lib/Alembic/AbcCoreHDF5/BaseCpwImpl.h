@@ -72,12 +72,10 @@ private:
     hid_t getGroup();
 
 public:
-    virtual AbcA::ScalarPropertyWriterPtr
-    createScalarProperty( const AbcA::PropertyHeader & iHeader );
-    
-    virtual AbcA::ArrayPropertyWriterPtr
-    createArrayProperty( const AbcA::PropertyHeader & iHeader );
-    
+
+    virtual AbcA::DataPropertyWriterPtr
+    createDataProperty( const AbcA::PropertyHeader & iHeader );
+
     virtual AbcA::CompoundPropertyWriterPtr
     createCompoundProperty( const AbcA::PropertyHeader & iHeader );
 

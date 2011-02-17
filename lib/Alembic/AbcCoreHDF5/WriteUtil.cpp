@@ -48,12 +48,12 @@ namespace AbcCoreHDF5 {
 //-*****************************************************************************
 
 //-*****************************************************************************
-WrittenArraySampleMap &
-GetWrittenArraySampleMap( AbcA::ArchiveWriterPtr iVal )
+WrittenSampleMap &
+GetWrittenSampleMap( AbcA::ArchiveWriterPtr iVal )
 {
     AwImpl *ptr = dynamic_cast<AwImpl*>( iVal.get() );
     ABCA_ASSERT( ptr, "NULL Impl Ptr" );
-    return ptr->getWrittenArraySampleMap();
+    return ptr->getWrittenSampleMap();
 }
 
 //-*****************************************************************************
@@ -294,8 +294,8 @@ WritePropertyHeaderExceptTime( hid_t iGroup,
 }
 
 //-*****************************************************************************
-WrittenArraySampleIDPtr
-WriteArray( WrittenArraySampleMap &iMap,
+WrittenSampleIDPtr
+WriteArray( WrittenSampleMap &iMap,
             hid_t iGroup,
             const std::string &iName,
             const AbcA::ArraySample &iSamp,
@@ -318,7 +318,7 @@ WriteArray( WrittenArraySampleMap &iMap,
     }
     
     // See whether or not we've already stored this.
-    WrittenArraySampleIDPtr writeID = iMap.find( iKey );
+    WrittenSampleIDPtr writeID = iMap.find( iKey );
     if ( writeID )
     {
         CopyWrittenArray( iGroup, iName, writeID );
@@ -394,7 +394,7 @@ WriteArray( WrittenArraySampleMap &iMap,
     // still contain useful information.
     WriteDimensions( dsetId, "dims", dims );
 
-    writeID.reset( new WrittenArraySampleID( iKey, dsetId ) );
+    writeID.reset( new WrittenSampleID( iKey, dsetId ) );
     iMap.store( writeID );
 
     // Return the reference.
@@ -405,14 +405,14 @@ WriteArray( WrittenArraySampleMap &iMap,
 void
 CopyWrittenArray( hid_t iGroup,
                   const std::string &iName,
-                  WrittenArraySampleIDPtr iRef )
+                  WrittenSampleIDPtr iRef )
 {
     ABCA_ASSERT( ( bool )iRef,
                   "CopyWrittenArray() passed a bogus ref" );
 
     hid_t fid = H5Iget_file_id(iGroup);
     ABCA_ASSERT( fid >= 0,
-                "CopyWrittenArray() Could not get file ID from iGroup" );
+                "Copyg() Could not get file ID from iGroup" );
 
     hid_t did = H5Dopen( fid,
         iRef->getObjectLocation().c_str(), H5P_DEFAULT );
@@ -438,7 +438,7 @@ CopyWrittenArray( hid_t iGroup,
 }
 
 //-*****************************************************************************
-void WriteSampling( WrittenArraySampleMap &iMap,
+void WriteSampling( WrittenSampleMap &iMap,
                     hid_t iGroup,
                     const std::string &iName,
                     const AbcA::TimeSamplingType &iTsmpType,

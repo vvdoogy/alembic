@@ -43,7 +43,7 @@ namespace Alembic {
 namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
-typedef boost::weak_ptr<AbcA::ArraySample> ArraySampleWeakPtr;
+typedef boost::weak_ptr<AbcA::DataSample> DataSampleWeakPtr;
 
 //-*****************************************************************************
 class CacheImpl;
@@ -53,7 +53,7 @@ typedef boost::weak_ptr<CacheImpl> CacheImplWeakPtr;
 //-*****************************************************************************
 //! This class is underimplemented. It ought to allow limits on storage.
 //! Todo!
-class CacheImpl : public AbcA::ReadArraySampleCache
+class CacheImpl : public AbcA::ReadSampleCache
 {
 public:
     //-*************************************************************************
@@ -63,12 +63,12 @@ public:
     
     virtual ~CacheImpl();
 
-    virtual AbcA::ReadArraySampleID
-    find( const AbcA::ArraySample::Key &iKey );
+    virtual AbcA::ReadSampleID
+    find( const AbcA::DataSample::Key &iKey );
     
-    virtual AbcA::ReadArraySampleID
-    store( const AbcA::ArraySample::Key &iKey,
-           AbcA::ArraySamplePtr iBytes );
+    virtual AbcA::ReadSampleID
+    store( const AbcA::DataSample::Key &iKey,
+           AbcA::DataSamplePtr iBytes );
 
 private:
     //-*************************************************************************
@@ -78,8 +78,8 @@ private:
     struct Record
     {
         Record(){}
-        Record( AbcA::ArraySamplePtr iGivenPtr,
-                AbcA::ArraySamplePtr iDeleterPtr )
+        Record( AbcA::DataSamplePtr iGivenPtr,
+                AbcA::DataSamplePtr iDeleterPtr )
           : given( iGivenPtr ),
             weakDeleter( iDeleterPtr )
         {
@@ -90,7 +90,7 @@ private:
         }
         
         // This is the original, given Array Sample Ptr.
-        AbcA::ArraySamplePtr given;
+        AbcA::DataSamplePtr given;
 
         // This is the one we've created which corresponds
         // to this record. It has the same pointer as above,
@@ -100,7 +100,7 @@ private:
         // Also: I LOVE SMART PTRS
         // We don't store it directly because we want the destructor
         // to get called whenever we're not using this in the world anymore.
-        ArraySampleWeakPtr weakDeleter;
+        DataSampleWeakPtr weakDeleter;
     };
 
 public:
@@ -108,22 +108,22 @@ public:
 
 private:
     friend class RecordDeleter;
-    AbcA::ArraySamplePtr lock( const AbcA::ArraySample::Key &iKey,
-                               AbcA::ArraySamplePtr iSamp );
-    void unlock( const AbcA::ArraySample::Key &iKey );
+    AbcA::DataSamplePtr lock( const AbcA::DataSample::Key &iKey,
+                               AbcA::DataSamplePtr iSamp );
+    void unlock( const AbcA::DataSample::Key &iKey );
 
 public:
     class RecordDeleter
     {
     private:
         friend class CacheImpl;
-        RecordDeleter( const AbcA::ArraySample::Key &iKey,
+        RecordDeleter( const AbcA::DataSample::Key &iKey,
                        CacheImplPtr iCache )
           : m_key( iKey ),
             m_cache( iCache ) {}
 
     public:
-        void operator()( AbcA::ArraySample *iPtr )
+        void operator()( AbcA::DataSample *iPtr )
         {
             CacheImplPtr cachePtr = m_cache.lock();
             if ( cachePtr )
@@ -133,13 +133,13 @@ public:
         }
 
     private:
-        AbcA::ArraySample::Key m_key;
+        AbcA::DataSample::Key m_key;
         CacheImplWeakPtr m_cache;
     };
 
 private:
     typedef AbcA::UnorderedMapUtil<Record>::umap_type Map;
-    typedef AbcA::UnorderedMapUtil<AbcA::ArraySamplePtr>::umap_type
+    typedef AbcA::UnorderedMapUtil<AbcA::DataSamplePtr>::umap_type
     UnlockedMap;
 
     Map m_lockedMap;
@@ -147,7 +147,7 @@ private:
 };
 
 //-*****************************************************************************
-AbcA::ReadArraySampleCachePtr MakeCacheImplPtr();
+AbcA::ReadDataSampleCachePtr MakeCacheImplPtr();
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

@@ -38,7 +38,7 @@
 #define _Alembic_AbcCoreHDF5_AwImpl_h_
 
 #include <Alembic/AbcCoreHDF5/Foundation.h>
-#include <Alembic/AbcCoreHDF5/WrittenArraySampleMap.h>
+#include <Alembic/AbcCoreHDF5/WrittenSampleMap.h>
 #include <Alembic/AbcCoreHDF5/DataTypeRegistry.h>
 
 namespace Alembic {
@@ -74,9 +74,9 @@ public:
     //-*************************************************************************
     // GLOBAL FILE CONTEXT STUFF.
     //-*************************************************************************
-    WrittenArraySampleMap &getWrittenArraySampleMap()
+    WrittenSampleMap &getWrittenSampleMap()
     {
-        return m_writtenArraySampleMap;
+        return m_writtenSampleMap;
     }
 
 private:
@@ -89,7 +89,7 @@ private:
     // like a normal object writer would.
     TopOwImpl *m_top;
 
-    WrittenArraySampleMap m_writtenArraySampleMap;
+    WrittenSampleMap m_writtenSampleMap;
 };
 
 } // End namespace AbcCoreHDF5
