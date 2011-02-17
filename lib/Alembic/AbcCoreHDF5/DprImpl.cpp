@@ -34,13 +34,13 @@
 //
 //-*****************************************************************************
 
-#include <Alembic/AbcCoreHDF5/AprImpl.h>
+#include <Alembic/AbcCoreHDF5/DprImpl.h>
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
-AprImpl( AbcA::CompoundPropertyReaderPtr iParent, hid_t iParentGroup,
+DprImpl( AbcA::CompoundPropertyReaderPtr iParent, hid_t iParentGroup,
     PropertyHeaderPtr iHeader )
     : m_parent( iParent )
     , m_parentGroup( iParentGroup )
@@ -101,54 +101,54 @@ AprImpl( AbcA::CompoundPropertyReaderPtr iParent, hid_t iParentGroup,
 }
 
 //-*****************************************************************************
-AbcA::DataPropertyReaderPtr AprImpl::asDataPtr()
+AbcA::DataPropertyReaderPtr DprImpl::asDataPtr()
 {
     return shared_from_this();
 }
 
 
 //-*****************************************************************************
-const AbcA::PropertyHeader & AprImpl::getHeader() const
+const AbcA::PropertyHeader & DprImpl::getHeader() const
 {
     ABCA_ASSERT( m_header, "Invalid header" );
     return *m_header;
 }
 
 //-*****************************************************************************
-AbcA::ObjectReaderPtr AprImpl::getObject()
+AbcA::ObjectReaderPtr DprImpl::getObject()
 {
     ABCA_ASSERT( m_parent, "Invalid parent" );
     return m_parent->getObject();
 }
 
 //-*****************************************************************************
-AbcA::CompoundPropertyReaderPtr AprImpl::getParent()
+AbcA::CompoundPropertyReaderPtr DprImpl::getParent()
 {
     ABCA_ASSERT( m_parent, "Invalid parent" );
     return m_parent;
 }
 
 //-*****************************************************************************
-size_t AprImpl::getNumSamples()
+size_t DprImpl::getNumSamples()
 {
     return ( size_t )m_numSamples;
 }
 
 //-*****************************************************************************
-bool AprImpl::isConstant()
+bool DprImpl::isConstant()
 {
     return ( m_numUniqueSamples < 2 );
 }
 
 //-*****************************************************************************
-bool AprImpl::isScalar()
+bool DprImpl::isScalar()
 {
     return m_isScalar;
 }
 
 //-*****************************************************************************
 // This class reads the time sampling on demand.
-AbcA::TimeSampling AprImpl::getTimeSampling()
+AbcA::TimeSampling DprImpl::getTimeSampling()
 {
     //-*************************************************************************
     // Read the time samples as an array ptr
@@ -197,7 +197,7 @@ AbcA::TimeSampling AprImpl::getTimeSampling()
 }
 
 //-*****************************************************************************
-void AprImpl::getSample( index_t iSampleIndex, AbcA::DataSamplePtr& oSample )
+void DprImpl::getSample( index_t iSampleIndex, AbcA::DataSamplePtr& oSample )
 {
     // Verify sample index
     ABCA_ASSERT( iSampleIndex >= 0 &&
@@ -259,7 +259,7 @@ void AprImpl::getSample( index_t iSampleIndex, AbcA::DataSamplePtr& oSample )
 }
 
 //-*****************************************************************************
-bool AprImpl::getKey( index_t iSampleIndex, AbcA::DataSampleKey & oKey )
+bool DprImpl::getKey( index_t iSampleIndex, AbcA::DataSampleKey & oKey )
 {
     // Verify sample index
     ABCA_ASSERT( iSampleIndex >= 0 &&
@@ -322,7 +322,7 @@ bool AprImpl::getKey( index_t iSampleIndex, AbcA::DataSampleKey & oKey )
 }
 
 //-*****************************************************************************
-AprImpl::~AprImpl()
+DprImpl::~DprImpl()
 {
     // Clean up our samples group, if necessary.
     if ( m_samplesIGroup >= 0 )
@@ -345,7 +345,7 @@ AprImpl::~AprImpl()
 }
 
 //-*****************************************************************************
-void AprImpl::readSample( hid_t iGroup,
+void DprImpl::readSample( hid_t iGroup,
                           const std::string &iSampleName,
                           index_t iSampleIndex,
                           AbcA::ArraySamplePtr& oSamplePtr )
@@ -365,7 +365,7 @@ void AprImpl::readSample( hid_t iGroup,
 }
 
 //-*****************************************************************************
-bool AprImpl::readKey( hid_t iGroup,
+bool DprImpl::readKey( hid_t iGroup,
                           const std::string &iSampleName,
                           AbcA::ArraySampleKey& oKey )
 {

@@ -36,8 +36,7 @@
 
 #include <Alembic/AbcCoreHDF5/BaseCprImpl.h>
 #include <Alembic/AbcCoreHDF5/CprImpl.h>
-#include <Alembic/AbcCoreHDF5/AprImpl.h>
-#include <Alembic/AbcCoreHDF5/SprImpl.h>
+#include <Alembic/AbcCoreHDF5/DprImpl.h>
 #include <Alembic/AbcCoreHDF5/ReadUtil.h>
 #include <Alembic/AbcCoreHDF5/HDF5Util.h>
 
