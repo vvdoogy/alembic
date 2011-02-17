@@ -40,9 +40,308 @@ namespace Alembic {
 namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
-AbcA::ArrayPropertyReaderPtr AprImpl::asArrayPtr()
+AprImpl( AbcA::CompoundPropertyReaderPtr iParent, hid_t iParentGroup,
+    PropertyHeaderPtr iHeader )
+    : m_parent( iParent )
+    , m_parentGroup( iParentGroup )
+    , m_header( iHeader )
+    , m_fileDataType( -1 )
+    , m_cleanFileDataType( false )
+    , m_nativeDataType( -1 )
+    , m_cleanNativeDataType( false )
+    , m_timeSample0( 0.0 )
+    , m_samplesIGroup( -1 )
+{
+    // Validate all inputs.
+    ABCA_ASSERT( m_parent, "Invalid parent" );
+    ABCA_ASSERT( m_parentGroup >= 0, "Invalid parent group" );
+    ABCA_ASSERT( m_header, "Invalid header" );
+    ABCA_ASSERT( m_header->getPropertyType() != AbcA::kCompoundProperty,
+        "Tried to create a simple property with a compound header" );
+
+    if ( m_header->getPropertyType() != AbcA::kDataProperty )
+    {
+        ABCA_THROW( "Attempted to create a DataPropertyReader from a non-array"
+            " property type" );
+    }
+
+    // Get data types
+    PlainOldDataType POD = m_header->getDataType().getPod();
+    if ( POD != kStringPOD && POD != kWstringPOD )
+    {
+        m_fileDataType = GetFileH5T( m_header->getDataType(),
+                                     m_cleanFileDataType );
+        m_nativeDataType = GetNativeH5T( m_header->getDataType(),
+                                         m_cleanNativeDataType );
+    }
+
+    // Get our name.
+    const std::string &myName = m_header->getName();
+
+    // Read the num samples.
+    m_numSamples = 0;
+    m_numUniqueSamples = 0;
+    uint32_t numSamples32 = 0;
+    uint32_t numUniqueSamples32 = 0;
+    m_isScalar = false;  // look for the isScalar attr
+    ReadNumSamples( m_parentGroup,
+                    myName,
+                    REMOVE_SCALAR,
+                    numSamples32,
+                    numUniqueSamples32 );
+    m_numSamples = numSamples32;
+    m_numUniqueSamples = numUniqueSamples32;
+
+    // Validate num unique samples.
+    ABCA_ASSERT( m_numUniqueSamples <= m_numSamples,
+                 "Corrupt numUniqueSamples: " << m_numUniqueSamples
+                 << "in property: " << myName
+                 << " which has numSamples: " << m_numSamples );
+
+}
+
+//-*****************************************************************************
+AbcA::DataPropertyReaderPtr AprImpl::asDataPtr()
 {
     return shared_from_this();
+}
+
+
+//-*****************************************************************************
+const AbcA::PropertyHeader & AprImpl::getHeader() const
+{
+    ABCA_ASSERT( m_header, "Invalid header" );
+    return *m_header;
+}
+
+//-*****************************************************************************
+AbcA::ObjectReaderPtr AprImpl::getObject()
+{
+    ABCA_ASSERT( m_parent, "Invalid parent" );
+    return m_parent->getObject();
+}
+
+//-*****************************************************************************
+AbcA::CompoundPropertyReaderPtr AprImpl::getParent()
+{
+    ABCA_ASSERT( m_parent, "Invalid parent" );
+    return m_parent;
+}
+
+//-*****************************************************************************
+size_t AprImpl::getNumSamples()
+{
+    return ( size_t )m_numSamples;
+}
+
+//-*****************************************************************************
+bool AprImpl::isConstant()
+{
+    return ( m_numUniqueSamples < 2 );
+}
+
+//-*****************************************************************************
+bool AprImpl::isScalar()
+{
+    return m_isScalar;
+}
+
+//-*****************************************************************************
+// This class reads the time sampling on demand.
+AbcA::TimeSampling AprImpl::getTimeSampling()
+{
+    //-*************************************************************************
+    // Read the time samples as an array ptr
+    // check their sizes, convert to times, create time sampling ptr.
+    // whew.
+    const std::string &myName = m_header->getName();
+
+    // Read the array, possibly from the cache.
+    // We are either a brand new shared_ptr <DataSample>
+    // that owns the memory (and is now in the cache)
+    // OR we are a ref_count ++ of the shared_ptr <DataSample>
+    // found from the cache.
+    // We'll create a TimeSamplingPtr and it will keep this
+    // reference for us.
+    AbcA::ArraySamplePtr timeSamples =
+        AbcCoreHDF5::ReadTimeSamples( this->getObject()->getArchive()->
+                         getReadArraySampleCachePtr(),
+                         m_parentGroup, myName + ".time" );
+    ABCA_ASSERT( timeSamples,
+                 "Couldn't read time samples for attr: " << myName );
+
+    // Check the byte sizes.
+    const AbcA::TimeSamplingType &tst = m_header->getTimeSamplingType();
+    uint32_t numExpectedTimeSamples =
+        std::min( tst.getNumSamplesPerCycle(), m_numSamples );
+
+    size_t gotNumTimes =
+        timeSamples->getDimensions().numPoints();
+
+    ABCA_ASSERT( numExpectedTimeSamples == 0 ||
+                 numExpectedTimeSamples == gotNumTimes,
+                 "Expected: " << numExpectedTimeSamples
+                 << " time samples, but got: "
+                 << gotNumTimes << " instead." );
+
+    // Build a time sampling ptr.
+    // m_timeSamplingPtr is shared_ptr to TimeSampling.
+    // TimeSampling contains numSamples and handy accessors AND
+    // the ArraySamplePtr of sampleTimes
+    m_timeSamplingPtr.reset( new AbcA::TimeSampling( tst, m_numSamples,
+                                                     timeSamples ) );
+
+    AbcA::TimeSampling ret = *m_timeSamplingPtr;
+    // And return it.
+    return ret;
+}
+
+//-*****************************************************************************
+void AprImpl::getSample( index_t iSampleIndex, AbcA::DataSamplePtr& oSample )
+{
+    // Verify sample index
+    ABCA_ASSERT( iSampleIndex >= 0 &&
+                 iSampleIndex < m_numSamples,
+                 "Invalid sample index: " << iSampleIndex
+                 << ", should be between 0 and " << m_numSamples-1 );
+
+    if ( iSampleIndex >= m_numUniqueSamples )
+    {
+        iSampleIndex = m_numUniqueSamples-1;
+    }
+
+    // Get our name.
+    const std::string &myName = m_header->getName();
+
+    if ( iSampleIndex == 0 )
+    {
+        // Read the sample from the parent group.
+        // Sample 0 is always on the parent group, with
+        // our name + ".sample_0" as the name of it.
+        std::string sample0Name = getSampleName( myName, 0 );
+        if ( m_header->getPropertyType() == AbcA::kScalarProperty )
+        {
+            ABCA_ASSERT( H5Aexists( m_parentGroup, sample0Name.c_str() ),
+                         "Invalid property: " << myName
+                         << ", missing smp0" );
+        }
+        else
+        {
+            ABCA_ASSERT( DatasetExists( m_parentGroup, sample0Name ),
+                         "Invalid property: " << myName
+                         << ", missing smp1" );
+        }
+
+        this->readSample( m_parentGroup, sample0Name, iSampleIndex, oSample );
+    }
+    else
+    {
+        // Create the subsequent samples group.
+        if ( m_samplesIGroup < 0 )
+        {
+            std::string samplesIName = myName + ".smpi";
+            ABCA_ASSERT( GroupExists( m_parentGroup, samplesIName ),
+                         "Invalid property: " << myName
+                         << ", missing smpi" );
+
+            m_samplesIGroup = H5Gopen2( m_parentGroup,
+                                        samplesIName.c_str(),
+                                        H5P_DEFAULT );
+            ABCA_ASSERT( m_samplesIGroup >= 0,
+                         "Invalid property: " << myName
+                         << ", invalid smpi group" );
+        }
+
+        // Read the sample.
+        std::string sampleName = getSampleName( myName, iSampleIndex );
+        this->readSample( m_samplesIGroup, sampleName, iSampleIndex, oSample );
+    }
+}
+
+//-*****************************************************************************
+bool AprImpl::getKey( index_t iSampleIndex, AbcA::DataSampleKey & oKey )
+{
+    // Verify sample index
+    ABCA_ASSERT( iSampleIndex >= 0 &&
+                 iSampleIndex < m_numSamples,
+                 "Invalid sample index: " << iSampleIndex
+                 << ", should be between 0 and " << m_numSamples-1 );
+
+    if ( iSampleIndex >= m_numUniqueSamples )
+    {
+        iSampleIndex = m_numUniqueSamples-1;
+    }
+
+    // Get our name.
+    const std::string &myName = m_header->getName();
+
+    if ( iSampleIndex == 0 )
+    {
+        // Read the sample from the parent group.
+        // Sample 0 is always on the parent group, with
+        // our name + ".sample_0" as the name of it.
+        std::string sample0Name = getSampleName( myName, 0 );
+        if ( m_header->getPropertyType() == AbcA::kScalarProperty )
+        {
+            ABCA_ASSERT( H5Aexists( m_parentGroup, sample0Name.c_str() ),
+                         "Invalid property: " << myName
+                         << ", missing smp0" );
+        }
+        else
+        {
+            ABCA_ASSERT( DatasetExists( m_parentGroup, sample0Name ),
+                         "Invalid property: " << myName
+                         << ", missing smp1" );
+        }
+
+        this->readKey( m_parentGroup, sample0Name, oKey );
+    }
+    else
+    {
+        // Create the subsequent samples group.
+        if ( m_samplesIGroup < 0 )
+        {
+            std::string samplesIName = myName + ".smpi";
+            ABCA_ASSERT( GroupExists( m_parentGroup,
+                                      samplesIName ),
+                         "Invalid property: " << myName
+                         << ", missing smpi" );
+
+            m_samplesIGroup = H5Gopen2( m_parentGroup,
+                                        samplesIName.c_str(),
+                                        H5P_DEFAULT );
+            ABCA_ASSERT( m_samplesIGroup >= 0,
+                         "Invalid property: " << myName
+                         << ", invalid smpi group" );
+        }
+
+        // Read the sample.
+        std::string sampleName = getSampleName( myName, iSampleIndex );
+        this->readKey( m_samplesIGroup, sampleName, oKey );
+    }
+}
+
+//-*****************************************************************************
+AprImpl::~AprImpl()
+{
+    // Clean up our samples group, if necessary.
+    if ( m_samplesIGroup >= 0 )
+    {
+        H5Gclose( m_samplesIGroup );
+        m_samplesIGroup = -1;
+    }
+
+    if ( m_fileDataType >= 0 && m_cleanFileDataType )
+    {
+        H5Tclose( m_fileDataType );
+        m_fileDataType = -1;
+    }
+
+    if ( m_nativeDataType >= 0 && m_cleanNativeDataType )
+    {
+        H5Tclose( m_nativeDataType );
+        m_nativeDataType = -1;
+    }
 }
 
 //-*****************************************************************************

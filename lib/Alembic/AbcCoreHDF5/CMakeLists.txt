@@ -52,8 +52,6 @@ SET( CXX_FILES
   ProtoObjectReader.cpp
   ReadUtil.cpp
   ReadWrite.cpp
-  SprImpl.cpp
-  SpwImpl.cpp
   StringReadUtil.cpp
   StringWriteUtil.cpp
   TopCprImpl.cpp
@@ -86,8 +84,6 @@ SET( H_FILES
   ReadWrite.h
   SimplePrImpl.h
   SimplePwImpl.h
-  SprImpl.h
-  SpwImpl.h
   StringReadUtil.h
   StringWriteUtil.h
   TopCprImpl.h
@@ -95,7 +91,7 @@ SET( H_FILES
   TopOrImpl.h
   TopOwImpl.h
   WriteUtil.h
-  WrittenArraySampleMap.h
+  WrittenSampleMap.h
 )
 
 SET( SOURCE_FILES ${CXX_FILES} ${H_FILES} )
