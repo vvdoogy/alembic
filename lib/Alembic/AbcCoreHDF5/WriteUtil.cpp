@@ -47,6 +47,12 @@ namespace AbcCoreHDF5 {
 //-*****************************************************************************
 //-*****************************************************************************
 
+// size in bytes that we use to determine whether to put a DataSample in
+// an HDF Attribute (can't be shared), or an HDF Dataset (can be shared)
+// The HDF users guide suggests using 64k as a rule of thumb about when to
+// put something in an Attribute and when to put it in a Dataset.
+const int HDFATTR_MAX_SIZE = 4096;
+
 //-*****************************************************************************
 WrittenSampleMap &
 GetWrittenSampleMap( AbcA::ArchiveWriterPtr iVal )
