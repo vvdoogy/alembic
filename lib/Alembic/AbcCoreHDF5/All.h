@@ -44,7 +44,7 @@ namespace AbcCoreHDF5 {
 
 //-*****************************************************************************
 // Forward declare this function, which can be used to create a cache.
-::Alembic::AbcCoreAbstract::v1::ReadArraySampleCachePtr MakeCacheImplPtr();
+::Alembic::AbcCoreAbstract::v1::ReadSampleCachePtr MakeCacheImplPtr();
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

@@ -67,9 +67,9 @@ public:
     virtual AbcA::TimeSampling getTimeSampling();
 
     virtual void getSample( index_t iSampleIndex,
-                            AbcA::ArraySamplePtr & oSample );
+                            AbcA::DataSamplePtr & oSample );
 
-    virtual bool getKey( index_t iSampleIndex, AbcA::ArraySampleKey & oKey );
+    virtual bool getKey( index_t iSampleIndex, AbcA::DataSampleKey & oKey );
 
 protected:
 
@@ -79,13 +79,13 @@ protected:
     void readSample( hid_t iGroup,
                      const std::string &iSampleName,
                      index_t iSampleIndex,
-                     AbcA::ArraySamplePtr& oSamplePtr );
+                     AbcA::DataSamplePtr& oSamplePtr );
 
     //-*************************************************************************
     // This function is called by SimplePrImpl to provide the actual key reading
     bool readKey( hid_t iGroup,
                      const std::string &iSampleName,
-                     AbcA::ArraySampleKey & oSamplePtr );
+                     AbcA::DataSampleKey & oSamplePtr );
 
     // Parent compound property writer. It must exist.
     AbcA::CompoundPropertyReaderPtr m_parent;

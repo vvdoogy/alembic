@@ -52,7 +52,7 @@ namespace AbcCoreHDF5 {
 bool
 ReadKey( hid_t iHashDset,
          const std::string &iAttrName,
-         AbcA::ArraySample::Key &oKey );
+         AbcA::DataSample::Key &oKey );
 
 //-*****************************************************************************
 bool
@@ -91,8 +91,8 @@ ReadDimensions( hid_t iParent,
                 Dimensions &oDims );
 
 //-*****************************************************************************
-AbcA::ArraySamplePtr 
-ReadArray( AbcA::ReadArraySampleCachePtr iCache,
+AbcA::DataSamplePtr 
+ReadArray( AbcA::ReadSampleCachePtr iCache,
            hid_t iGroup,
            const std::string &iArrayName,
            const AbcA::DataType &iDataType,
@@ -111,11 +111,11 @@ ReadNumSamples( hid_t iGroup,
 //-*****************************************************************************
 // Returns whether it actually found the data you're writing out (true)
 // or whether you're faking an array of 1 double == 0.0 (false)
-// It returns them as an ArraySamplePtr, because that is the object which
+// It returns them as an DataSamplePtr, because that is the object which
 // contains the resource management and therefore we want store a reference
 // to it for storage. It is trivially convertable to a ChronoArrayPtr.
-AbcA::ArraySamplePtr
-ReadTimeSamples( AbcA::ReadArraySampleCachePtr iCache,
+AbcA::DataSamplePtr
+ReadTimeSamples( AbcA::ReadSampleCachePtr iCache,
                  hid_t iGroup,
                  const std::string &iPropName );
 

@@ -38,7 +38,7 @@
 #define _Alembic_AbcCoreHDF5_StringReadUtil_h_
 
 #include <Alembic/AbcCoreHDF5/Foundation.h>
-#include <Alembic/AbcCoreHDF5/WrittenArraySampleMap.h>
+#include <Alembic/AbcCoreHDF5/WrittenSampleMap.h>
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
@@ -73,21 +73,21 @@ WriteWstrings( hid_t iGroup,
 
 
 //-*****************************************************************************
-WrittenArraySampleIDPtr
-WriteStringArray( WrittenArraySampleMap &iMap,
+WrittenSampleIDPtr
+WriteStringArray( WrittenSampleMap &iMap,
                   hid_t iGroup,
                   const std::string &iName,
-                  const AbcA::ArraySample &iSamp,
-                  const AbcA::ArraySample::Key &iKey,
+                  const AbcA::DataSample &iSamp,
+                  const AbcA::DataSample::Key &iKey,
                   int iCompressionLevel );
 
 //-*****************************************************************************
-WrittenArraySampleIDPtr
-WriteWstringArray( WrittenArraySampleMap &iMap,
+WrittenSampleIDPtr
+WriteWstringArray( WrittenSampleMap &iMap,
                    hid_t iGroup,
                    const std::string &iName,
-                   const AbcA::ArraySample &iSamp,
-                   const AbcA::ArraySample::Key &iKey,
+                   const AbcA::DataSample &iSamp,
+                   const AbcA::DataSample::Key &iKey,
                    int iCompressionLevel );
 
 } // End namespace AbcCoreHDF5

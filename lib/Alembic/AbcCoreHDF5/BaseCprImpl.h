@@ -64,9 +64,6 @@ public:
     virtual const AbcA::PropertyHeader *
     getPropertyHeader( const std::string &iName );
 
-    virtual AbcA::ScalarPropertyReaderPtr
-    getScalarProperty( const std::string &iName );
-    
     virtual AbcA::ArrayPropertyReaderPtr
     getArrayProperty( const std::string &iName );
     

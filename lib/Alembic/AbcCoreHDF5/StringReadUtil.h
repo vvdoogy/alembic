@@ -71,15 +71,15 @@ ReadWstrings( hid_t iParent,
               std::wstring *oStrings );
 
 //-*****************************************************************************
-AbcA::ArraySamplePtr
-ReadStringArray( AbcA::ReadArraySampleCachePtr iCache,
+AbcA::DataSamplePtr
+ReadStringArray( AbcA::ReadSampleCachePtr iCache,
                  hid_t iParent,
                  const std::string &iArrayName,
                  const AbcA::DataType &iDataType );
 
 //-*****************************************************************************
-AbcA::ArraySamplePtr
-ReadWstringArray( AbcA::ReadArraySampleCachePtr iCache,
+AbcA::DataSamplePtr
+ReadWstringArray( AbcA::ReadSampleCachePtr iCache,
                   hid_t iParent,
                   const std::string &iArrayName,
                   const AbcA::DataType &iDataType );
