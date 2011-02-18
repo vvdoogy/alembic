@@ -93,7 +93,7 @@ WriteScalar( hid_t iParent,
              const std::string &iAttrName,
              hid_t iFileType,
              hid_t iNativeType,
-             const void *iData )
+             const AbcA::ArraySample &iSamp )
 {
     hid_t dspaceId = H5Screate( H5S_SCALAR );
     DspaceCloser dspaceCloser( dspaceId );
@@ -300,12 +300,12 @@ WritePropertyHeaderExceptTime( hid_t iGroup,
 }
 
 //-*****************************************************************************
-WrittenSampleIDPtr
+void
 WriteArray( WrittenSampleMap &iMap,
             hid_t iGroup,
             const std::string &iName,
-            const AbcA::ArraySample &iSamp,
-            const AbcA::ArraySample::Key &iKey,
+            const AbcA::DataSample &iSamp,
+            const AbcA::DataSample::Key &iKey,
             hid_t iFileType,
             hid_t iNativeType,
             int iCompressionLevel )
@@ -322,7 +322,13 @@ WriteArray( WrittenSampleMap &iMap,
         return WriteWstringArray( iMap, iGroup, iName, iSamp, iKey,
                                   iCompressionLevel );
     }
-    
+
+    if (HDFATTR_MAX_SIZE > iSamp.getDataType().getNumBytes() * iSamp.size())
+    {
+        WriteScalar(iGroup, iName, iFileType, iNativeType, iSamp);
+        return WrittenSampleIDPtr();
+    }
+
     // See whether or not we've already stored this.
     WrittenSampleIDPtr writeID = iMap.find( iKey );
     if ( writeID )
@@ -398,7 +404,8 @@ WriteArray( WrittenSampleMap &iMap,
 
     // If we don't have data, write the dimensions, which may
     // still contain useful information.
-    WriteDimensions( dsetId, "dims", dims );
+    std::string dimName = iName + ".dims";
+    WriteDimensions( iGroup, dimName.c_str(), dims );
 
     writeID.reset( new WrittenSampleID( iKey, dsetId ) );
     iMap.store( writeID );
@@ -418,7 +425,7 @@ CopyWrittenArray( hid_t iGroup,
 
     hid_t fid = H5Iget_file_id(iGroup);
     ABCA_ASSERT( fid >= 0,
-                "Copyg() Could not get file ID from iGroup" );
+                "CopyWrittenArray() Could not get file ID from iGroup" );
 
     hid_t did = H5Dopen( fid,
         iRef->getObjectLocation().c_str(), H5P_DEFAULT );
