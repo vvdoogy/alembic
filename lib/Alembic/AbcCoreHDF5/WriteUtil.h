@@ -105,7 +105,7 @@ CopyWrittenArray( hid_t iParent,
                   WrittenSampleIDPtr iRef );
 
 //-*****************************************************************************
-WrittenSampleIDPtr
+void
 WriteArray( WrittenSampleMap &iMap,
             hid_t iGroup,
             const std::string &iName,
@@ -116,7 +116,8 @@ WriteArray( WrittenSampleMap &iMap,
             int iCompressionLevel );
 
 //-*****************************************************************************
-void WriteSampling( WrittenSampleMap &iMap,
+void
+WriteSampling( WrittenSampleMap &iMap,
                     hid_t iGroup,
                     const std::string &iName,
                     const AbcA::TimeSamplingType &iTsmpType,
