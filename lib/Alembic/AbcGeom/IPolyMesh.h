@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -39,6 +39,7 @@
 
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
+#include <Alembic/AbcGeom/IFaceSet.h>
 #include <Alembic/AbcGeom/IGeomParam.h>
 
 namespace Alembic {
@@ -57,8 +58,8 @@ public:
         Sample() {}
 
         Abc::V3fArraySamplePtr getPositions() const { return m_positions; }
-        Abc::Int32ArraySamplePtr getIndices() const { return m_indices; }
-        Abc::Int32ArraySamplePtr getCounts() const { return m_counts; }
+        Abc::Int32ArraySamplePtr getFaceIndices() const { return m_indices; }
+        Abc::Int32ArraySamplePtr getFaceCounts() const { return m_counts; }
         Abc::Box3d getSelfBounds() const { return m_selfBounds; }
         Abc::Box3d getChildBounds() const { return m_childBounds; }
 
@@ -116,8 +117,8 @@ public:
     IPolyMeshSchema( CPROP_PTR iParentObject,
                      const std::string &iName,
 
-                     const Abc::IArgument &iArg0 = Abc::IArgument(),
-                     const Abc::IArgument &iArg1 = Abc::IArgument() )
+                     const Abc::Argument &iArg0 = Abc::Argument(),
+                     const Abc::Argument &iArg1 = Abc::Argument() )
       : Abc::ISchema<PolyMeshSchemaInfo>( iParentObject, iName,
                                             iArg0, iArg1 )
     {
@@ -128,8 +129,8 @@ public:
     //! schema name used.
     template <class CPROP_PTR>
     explicit IPolyMeshSchema( CPROP_PTR iParentObject,
-                              const Abc::IArgument &iArg0 = Abc::IArgument(),
-                              const Abc::IArgument &iArg1 = Abc::IArgument() )
+                              const Abc::Argument &iArg0 = Abc::Argument(),
+                              const Abc::Argument &iArg1 = Abc::Argument() )
       : Abc::ISchema<PolyMeshSchemaInfo>( iParentObject,
                                             iArg0, iArg1 )
     {
@@ -141,14 +142,19 @@ public:
     IPolyMeshSchema( CPROP_PTR iThis,
                      Abc::WrapExistingFlag iFlag,
 
-                     const Abc::IArgument &iArg0 = Abc::IArgument(),
-                     const Abc::IArgument &iArg1 = Abc::IArgument() )
+                     const Abc::Argument &iArg0 = Abc::Argument(),
+                     const Abc::Argument &iArg1 = Abc::Argument() )
       : Abc::ISchema<PolyMeshSchemaInfo>( iThis, iFlag, iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
     }
 
-    //! Default copy constructor used.
+    //! Copy constructor.
+    IPolyMeshSchema(const IPolyMeshSchema& iCopy)
+    {
+        *this = iCopy;
+    }
+
     //! Default assignment operator used.
 
 
@@ -157,9 +163,7 @@ public:
     //! This returns the number of samples that were written, independently
     //! of whether or not they were constant.
     size_t getNumSamples()
-    { return std::max( m_positions.getNumSamples(),
-                       std::max( m_indices.getNumSamples(),
-                                 m_counts.getNumSamples() ) ); }
+    { return  m_positions.getNumSamples(); }
 
     //! Return the topological variance.
     //! This indicates how the mesh may change.
@@ -169,24 +173,19 @@ public:
     //! regardless of the time sampling.
     bool isConstant() { return getTopologyVariance() == kConstantTopology; }
 
-    //! Time sampling type.
-    //!
-    AbcA::TimeSamplingType getTimeSamplingType() const
-    {
-        return m_positions.getTimeSamplingType();
-    }
-
     //! Time information.
     //! Any of the properties could be the bearer of the time
     //! sampling information, which otherwise defaults to Identity.
-    AbcA::TimeSampling getTimeSampling()
+    AbcA::TimeSamplingPtr getTimeSampling()
     {
-        if ( !m_positions.getTimeSampling().isStatic() )
-        { return m_positions.getTimeSampling(); }
-        else if ( !m_indices.getTimeSampling().isStatic() )
-        { return m_indices.getTimeSampling(); }
+        if ( m_positions.valid() )
+        {
+            return m_positions.getTimeSampling();
+        }
         else
-        { return m_counts.getTimeSampling(); }
+        {
+            return getObject().getArchive().getTimeSampling( 0 );
+        }
     }
 
     //-*************************************************************************
@@ -199,13 +198,9 @@ public:
         m_indices.get( oSample.m_indices, iSS );
         m_counts.get( oSample.m_counts, iSS );
 
-        // a minor hedge against older Archives that don't have these
-        // properties.  Will remove before 1.0. --JDA, 2011-02-24
-        if ( m_selfBounds )
-        {
-            m_selfBounds.get( oSample.m_selfBounds, iSS );
-        }
-        if ( m_childBounds )
+        m_selfBounds.get( oSample.m_selfBounds, iSS );
+
+        if ( m_childBounds && m_childBounds.getNumSamples() > 0 )
         {
             m_childBounds.get( oSample.m_childBounds, iSS );
         }
@@ -256,6 +251,9 @@ public:
 
         m_arbGeomParams.reset();
 
+        m_faceSetsLoaded = false;
+        m_faceSets.clear();
+
         Abc::ISchema<PolyMeshSchemaInfo>::reset();
     }
 
@@ -269,13 +267,19 @@ public:
                  m_counts.valid() );
     }
 
+    // FaceSet related
+    //! Appends the names of any FaceSets for this PolyMesh.
+    void getFaceSetNames (std::vector <std::string> & oFaceSetNames);
+    IFaceSet getFaceSet( const std::string &iFaceSetName );
+    bool hasFaceSet( const std::string &iFaceSetName );
+
     //! unspecified-bool-type operator overload.
     //! ...
     ALEMBIC_OVERRIDE_OPERATOR_BOOL( IPolyMeshSchema::valid() );
 
 protected:
-    void init( const Abc::IArgument &iArg0,
-               const Abc::IArgument &iArg1 );
+    void init( const Abc::Argument &iArg0,
+               const Abc::Argument &iArg1 );
 
     Abc::IV3fArrayProperty m_positions;
     Abc::IInt32ArrayProperty m_indices;
@@ -288,6 +292,11 @@ protected:
     Abc::IBox3dProperty m_childBounds;
 
     Abc::ICompoundProperty m_arbGeomParams;
+
+    // FaceSets, this starts as empty until client
+    // code attempts to access facesets.
+    bool                              m_faceSetsLoaded;
+    std::map <std::string, IFaceSet>  m_faceSets;
 };
 
 //-*****************************************************************************

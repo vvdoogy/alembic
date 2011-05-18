@@ -42,7 +42,7 @@
 
 namespace Alembic {
 namespace AbcCoreAbstract {
-namespace v1 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 //! A ReadArraySampleID is a bundle that contains a pointer to the
@@ -103,7 +103,7 @@ private:
 //-*****************************************************************************
 
 //-*****************************************************************************
-//! Alembic caches array samples based on an MD5 checksum key.
+//! Alembic caches array samples based on a Murmur3 128bit checksum key.
 //! This is an abstract interface to these caches, which can be implemented
 //! in any number of ways.
 class ReadArraySampleCache
@@ -136,7 +136,10 @@ public:
 //-*****************************************************************************
 typedef boost::shared_ptr<ReadArraySampleCache> ReadArraySampleCachePtr;
 
-} // End namespace v1
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
+
 } // End namespace AbcCoreAbstract
 } // End namespace Alembic
 

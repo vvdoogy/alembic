@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class TopOwImpl;
@@ -53,7 +54,7 @@ class AwImpl : public AbcA::ArchiveWriter
 {
 private:
     friend struct WriteArchive;
-    
+
     AwImpl( const std::string &iFileName,
             const AbcA::MetaData &iMetaData );
 
@@ -79,6 +80,12 @@ public:
         return m_writtenArraySampleMap;
     }
 
+    virtual uint32_t addTimeSampling( const AbcA::TimeSampling & iTs );
+
+    virtual AbcA::TimeSamplingPtr getTimeSampling( uint32_t iIndex );
+
+    virtual uint32_t getNumTimeSamplings() { return m_timeSamples.size(); }
+
 private:
     std::string m_fileName;
     AbcA::MetaData m_metaData;
@@ -89,8 +96,14 @@ private:
     // like a normal object writer would.
     TopOwImpl *m_top;
 
+    std::vector < AbcA::TimeSamplingPtr > m_timeSamples;
+
     WrittenArraySampleMap m_writtenArraySampleMap;
 };
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

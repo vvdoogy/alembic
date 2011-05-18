@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -38,7 +38,6 @@
 #define _Alembic_AbcCoreAbstract_Foundation_h_
 
 #include <Alembic/Util/All.h>
-#include <Alembic/MD5Hash/All.h>
 
 #include <boost/smart_ptr.hpp>
 #include <boost/make_shared.hpp>
@@ -57,13 +56,10 @@
 
 namespace Alembic {
 namespace AbcCoreAbstract {
-namespace v1 {
+namespace ALEMBIC_VERSION_NS {
 
 // Just pull the whole Util namespace in. This is safe.
 using namespace ::Alembic::Util;
-
-// Same with MD5Hash.
-using namespace ::Alembic::MD5Hash;
 
 //! Index type
 //! Just being pedantic.
@@ -95,7 +91,10 @@ do                                              \
 while( 0 )
 
 
-} // End namespace v1
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
+
 } // End namespace AbcCoreAbstract
 } // End namespace Alembic
 

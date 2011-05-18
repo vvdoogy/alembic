@@ -47,14 +47,22 @@
 #include <maya/MDagPath.h>
 #include <maya/MObject.h>
 #include <maya/MString.h>
+#include <maya/MFnDependencyNode.h>
 
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/Abc/IArchive.h>
+#include <Alembic/Abc/IArrayProperty.h>
 
 // replace one MObject with another, while keeping all the old hierarchy intact
 // The objects have to be a Dag object
 MStatus replaceDagObject(MObject & oldObject, MObject & newObject,
     const MString & name);
+
+// disconnect all plugs based on the name of the IArrayProperty 
+// from iSampledPropList[iFirstProp] to the end of iSampledPropList
+void disconnectProps(MFnDependencyNode & iNode,
+    std::vector<Alembic::Abc::IArrayProperty> & iSampledPropList,
+    std::size_t iFirstProp);
 
 // disconnect all the plugs that are connected to this plug
 MStatus disconnectAllPlugsTo(MPlug & dstPlug);
@@ -88,7 +96,7 @@ bool stripFileName(const MString & filePath, MString & fileName);
 bool removeDangleAlembicNodes();
 
 double getWeightAndIndex(double iFrame,
-    const Alembic::AbcCoreAbstract::v1::TimeSampling & iTime,
+    Alembic::AbcCoreAbstract::v1::TimeSamplingPtr iTime, size_t numSamps,
     int64_t & oIndex, int64_t & oCeilIndex);
     
 template<typename T>

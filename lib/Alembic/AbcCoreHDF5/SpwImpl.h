@@ -42,6 +42,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 // This type is a no-op.
@@ -68,7 +69,10 @@ protected:
     //-*************************************************************************
     SpwImpl( AbcA::CompoundPropertyWriterPtr iParent,
              hid_t iParentGroup,
-             PropertyHeaderPtr iHeader );
+             const std::string & iName,
+             const AbcA::MetaData & iMetaData,
+             const AbcA::DataType & iDataType,
+             uint32_t iTimeSamplingIndex );
 
     AbcA::ScalarPropertyWriterPtr asScalarPtr();
 
@@ -108,6 +112,10 @@ protected:
     // helper class to keep track of our storage.
     AbcA::ScalarSample m_previousSample;
 };
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

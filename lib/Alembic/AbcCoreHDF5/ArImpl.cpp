@@ -41,6 +41,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 ArImpl::ArImpl( const std::string &iFileName,
@@ -52,13 +53,24 @@ ArImpl::ArImpl( const std::string &iFileName,
     // OPEN THE FILE!
     htri_t exi = H5Fis_hdf5( m_fileName.c_str() );
     ABCA_ASSERT( exi == 1, "Nonexistent File: " << m_fileName );
-    
+
     m_file = H5Fopen( m_fileName.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT );
     ABCA_ASSERT( m_file >= 0,
                  "Could not open file: " << m_fileName );
 
+    // get the version using HDF5 native calls
+    int version = -INT_MAX;
+    if (H5Aexists(m_file, "abc_version"))
+    {
+        H5LTget_attribute_int(m_file, ".", "abc_version", &version);
+    }
+    ABCA_ASSERT(version == ALEMBIC_HDF5_FILE_VERSION,
+        "Unsupported file version detected.");
+
     // Read the top object
     m_top = new TopOrImpl( *this, m_file );
+
+    ReadTimeSamples( m_file, m_timeSamples );
 }
 
 //-*****************************************************************************
@@ -81,6 +93,15 @@ AbcA::ObjectReaderPtr ArImpl::getTop()
     AbcA::ObjectReaderPtr ret( m_top,
                                Alembic::Util::NullDeleter() );
     return ret;
+}
+
+//-*****************************************************************************
+AbcA::TimeSamplingPtr ArImpl::getTimeSampling( uint32_t iIndex )
+{
+    ABCA_ASSERT( iIndex < m_timeSamples.size(),
+        "Invalid index provided to getTimeSampling." );
+
+    return m_timeSamples[iIndex];
 }
 
 //-*****************************************************************************
@@ -129,5 +150,6 @@ ArImpl::~ArImpl()
     }
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

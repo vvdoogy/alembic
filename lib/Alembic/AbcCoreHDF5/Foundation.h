@@ -39,8 +39,6 @@
 
 #include <Alembic/AbcCoreAbstract/All.h>
 
-#include <Alembic/MD5Hash/All.h>
-
 #include <Alembic/Util/All.h>
 
 #include <boost/smart_ptr.hpp>
@@ -67,24 +65,20 @@
 
 #include <H5LTpublic.h>
 
+#define ALEMBIC_HDF5_FILE_VERSION -8
+
 //-*****************************************************************************
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
-namespace AbcA = ::Alembic::AbcCoreAbstract::v1;
+namespace AbcA = ::Alembic::AbcCoreAbstract;
 
 using namespace ::Alembic::Util;
 using AbcA::index_t;
 using AbcA::chrono_t;
-
-using namespace ::Alembic::MD5Hash;
-
-//-*****************************************************************************
-// MAGIC NUMBER FOR COMPOUND PROPERTY TYPES
-static const uint16_t COMPOUND_MAGIC =
-    ( uint16_t )BOOST_BINARY( 1101 1011 1101 1100 );
 
 //-*****************************************************************************
 typedef boost::weak_ptr<AbcA::ObjectWriter> WeakOwPtr;
@@ -109,9 +103,18 @@ inline std::string getSampleName( const std::string &iName,
     }
     else
     {
-        return ( boost::format( ".smp_%08d" ) % iSampleIndex ).str();
+        // could use boost::lexical_cast
+        std::ostringstream strm;
+        strm.width(4);
+        strm.fill('0');
+        strm << iSampleIndex;
+        return strm.str();
     }
 }
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

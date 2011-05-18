@@ -42,6 +42,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 // The Scalar Property Reader fills up bytes corresponding to memory for
@@ -55,10 +56,13 @@ class SprImpl
 public:
     SprImpl( AbcA::CompoundPropertyReaderPtr iParent,
              hid_t iParentGroup,
-             PropertyHeaderPtr iHeader )
-      : SimplePrImpl<AbcA::ScalarPropertyReader,
-                     SprImpl,
-                     void*>( iParent, iParentGroup, iHeader )
+             PropertyHeaderPtr iHeader,
+             uint32_t iNumSamples,
+             uint32_t iFirstChangedIndex,
+             uint32_t iLastChangedIndex )
+      : SimplePrImpl<AbcA::ScalarPropertyReader, SprImpl, void*>
+        ( iParent, iParentGroup, iHeader, iNumSamples, iFirstChangedIndex,
+          iLastChangedIndex )
     {
         if ( m_header->getPropertyType() != AbcA::kScalarProperty )
         {
@@ -90,6 +94,10 @@ protected:
                   AbcA::ArraySampleKey & oSamplePtr ) { return false; }
 
 };
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

@@ -38,11 +38,39 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
+
+//-*****************************************************************************
+AprImpl::AprImpl( AbcA::CompoundPropertyReaderPtr iParent,
+    hid_t iParentGroup,
+    PropertyHeaderPtr iHeader,
+    bool iIsScalarLike,
+    uint32_t iNumSamples,
+    uint32_t iFirstChangedIndex,
+    uint32_t iLastChangedIndex )
+    : SimplePrImpl<AbcA::ArrayPropertyReader, AprImpl, AbcA::ArraySamplePtr&>
+        ( iParent, iParentGroup, iHeader, iNumSamples, iFirstChangedIndex,
+          iLastChangedIndex )
+{
+    if ( m_header->getPropertyType() != AbcA::kArrayProperty )
+    {
+        ABCA_THROW( "Attempted to create a ArrayPropertyReader from a "
+                    "non-array property type" );
+    }
+
+    m_isScalarLike = iIsScalarLike;
+}
 
 //-*****************************************************************************
 AbcA::ArrayPropertyReaderPtr AprImpl::asArrayPtr()
 {
     return shared_from_this();
+}
+
+//-*****************************************************************************
+bool AprImpl::isScalarLike()
+{
+    return m_isScalarLike;
 }
 
 //-*****************************************************************************
@@ -54,7 +82,7 @@ void AprImpl::readSample( hid_t iGroup,
     assert( iGroup >= 0 );
 
     // Check index integrity.
-    assert( iSampleIndex >= 0 && iSampleIndex < m_numUniqueSamples );
+    assert( iSampleIndex >= 0 && iSampleIndex <= m_lastChangedIndex );
 
     // Read the array sample, possibly from the cache.
     const AbcA::DataType &dataType = m_header->getDataType();
@@ -109,5 +137,6 @@ bool AprImpl::readKey( hid_t iGroup,
     return false;
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

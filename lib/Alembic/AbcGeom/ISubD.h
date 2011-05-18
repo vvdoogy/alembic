@@ -40,6 +40,7 @@
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
 #include <Alembic/AbcGeom/IGeomParam.h>
+#include <Alembic/AbcGeom/IFaceSet.h>
 
 namespace Alembic {
 namespace AbcGeom {
@@ -194,8 +195,8 @@ public:
     ISubDSchema( CPROP_PTR iParentObject,
                  const std::string &iName,
 
-                 const Abc::IArgument &iArg0 = Abc::IArgument(),
-                 const Abc::IArgument &iArg1 = Abc::IArgument() )
+                 const Abc::Argument &iArg0 = Abc::Argument(),
+                 const Abc::Argument &iArg1 = Abc::Argument() )
       : Abc::ISchema<SubDSchemaInfo>( iParentObject, iName,
                                       iArg0, iArg1 )
     {
@@ -206,8 +207,8 @@ public:
     //! ".geom".
     template <class CPROP_PTR>
     explicit ISubDSchema( CPROP_PTR iParentObject,
-                          const Abc::IArgument &iArg0 = Abc::IArgument(),
-                          const Abc::IArgument &iArg1 = Abc::IArgument() )
+                          const Abc::Argument &iArg0 = Abc::Argument(),
+                          const Abc::Argument &iArg1 = Abc::Argument() )
       : Abc::ISchema<SubDSchemaInfo>( iParentObject,
                                       iArg0, iArg1 )
     {
@@ -219,14 +220,19 @@ public:
     ISubDSchema( CPROP_PTR iThis,
                  Abc::WrapExistingFlag iFlag,
 
-                 const Abc::IArgument &iArg0 = Abc::IArgument(),
-                 const Abc::IArgument &iArg1 = Abc::IArgument() )
+                 const Abc::Argument &iArg0 = Abc::Argument(),
+                 const Abc::Argument &iArg1 = Abc::Argument() )
       : Abc::ISchema<SubDSchemaInfo>( iThis, iFlag, iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
     }
 
-    //! Default copy constructor used.
+    //! Copy constructor.
+    ISubDSchema(const ISubDSchema& iCopy)
+    {
+        *this = iCopy;
+    }
+
     //! Default assignment operator used.
 
     //-*************************************************************************
@@ -247,28 +253,17 @@ public:
     //! ...
     size_t getNumSamples();
 
-    //! Return the time sampling type, which is stored on each of the
-    //! sub properties.
-    AbcA::TimeSamplingType getTimeSamplingType() const
-    { return m_positions.getTimeSamplingType(); }
-
-
-    //! Time information.
-    //! If the time sampling ptr is null, it means we don't have any explicit
-    //! mapping from sample indices to times (identity time sampling). If
-    //! a time needs to be associated with an index, it will simply be
-    //! ( chrono_t )index_t, and similarly ( index_t )chrono_t.
-    AbcA::TimeSampling getTimeSampling()
+    //! Return the time sampling
+    AbcA::TimeSamplingPtr getTimeSampling()
     {
-        if ( !m_positions.getTimeSampling().isStatic() )
+        if ( m_positions.valid() )
         {
             return m_positions.getTimeSampling();
         }
-        else if ( !m_faceIndices.getTimeSampling().isStatic() )
+        else
         {
-            return m_faceIndices.getTimeSampling();
+            return getObject().getArchive().getTimeSampling( 0 );
         }
-        else { return m_faceCounts.getTimeSampling(); }
     }
 
     void get( Sample &iSamp,
@@ -323,6 +318,9 @@ public:
 
         m_arbGeomParams.reset();
 
+        m_faceSetsLoaded = false;
+        m_faceSets.clear();
+
         Abc::ISchema<SubDSchemaInfo>::reset();
     }
 
@@ -336,12 +334,18 @@ public:
                  m_faceCounts.valid() );
     }
 
+    // FaceSet related
+    //! Appends the names of any FaceSets for this SubD.
+    void getFaceSetNames( std::vector <std::string> &oFaceSetNames );
+    IFaceSet getFaceSet( const std::string &iFaceSetName );
+    bool hasFaceSet( const std::string &iFaceSetName );
+
     //! unspecified-bool-type operator overload.
     //! ...
     ALEMBIC_OVERRIDE_OPERATOR_BOOL( ISubDSchema::valid() );
 
 protected:
-    void init( const Abc::IArgument &iArg0, const Abc::IArgument &iArg1 );
+    void init( const Abc::Argument &iArg0, const Abc::Argument &iArg1 );
 
     Abc::IV3fArrayProperty m_positions;
     Abc::IInt32ArrayProperty m_faceIndices;
@@ -376,6 +380,11 @@ protected:
 
     // random geometry parameters
     Abc::ICompoundProperty m_arbGeomParams;
+
+    // FaceSets, this starts as empty until client
+    // code attempts to access facesets.
+    bool                              m_faceSetsLoaded;
+    std::map <std::string, IFaceSet>  m_faceSets;
 };
 
 //-*****************************************************************************

@@ -40,54 +40,16 @@
 #include "SubDTags.h"
 
 //-*****************************************************************************
-void ProcessSimpleTransform( ISimpleXform &xform, ProcArgs &args )
-{
-    ISimpleXformSchema &xs = xform.getSchema();
-
-    const TimeSampling &ts = xs.getTimeSampling();
-
-    SampleTimeSet sampleTimes;
-    GetRelevantSampleTimes( args, ts, sampleTimes );
-
-    bool multiSample = sampleTimes.size() > 1;
-
-    if ( multiSample )
-    {
-        WriteMotionBegin( args, sampleTimes );
-    }
-
-    for ( SampleTimeSet::iterator iter = sampleTimes.begin();
-          iter != sampleTimes.end(); ++iter )
-    {
-        ISampleSelector iss( *iter );
-
-        SimpleXformSample sample = xs.getValue( iss );
-
-        M44d m = sample.getMatrix();
-
-        if ( ! multiSample && m == M44d() )
-        {
-            continue;
-        }
-
-        WriteConcatTransform( m );
-    }
-
-    if ( multiSample )
-    {
-        RiMotionEnd();
-    }
-}
-
-//-*****************************************************************************
 void ProcessXform( IXform &xform, ProcArgs &args )
 {
     IXformSchema &xs = xform.getSchema();
 
-    const TimeSampling &ts = xs.getTimeSampling();
+    TimeSamplingPtr ts = xs.getTimeSampling();
+
+    size_t xformSamps = xs.getNumSamples();
 
     SampleTimeSet sampleTimes;
-    GetRelevantSampleTimes( args, ts, sampleTimes );
+    GetRelevantSampleTimes( args, ts, xformSamps, sampleTimes );
 
     bool multiSample = sampleTimes.size() > 1;
 
@@ -106,41 +68,38 @@ void ProcessXform( IXform &xform, ProcArgs &args )
 
     //loop through the operators individually since a MotionBegin block
     //can enclose only homogenous statements
-    for ( size_t i = 0, e = sampleVectors.front().getNum(); i < e; ++i )
+    for ( size_t i = 0, e = xs.getNumOps(); i < e; ++i )
     {
         if ( multiSample ) { WriteMotionBegin(args, sampleTimes); }
 
         for ( size_t j = 0; j < sampleVectors.size(); ++j )
         {
-            XformDataPtr sample = sampleVectors[j].get(i);
+            XformOp &op = sampleVectors[j][i];
 
-            switch ( sample->getType() )
+            switch ( op.getType() )
             {
             case kScaleOperation:
             {
-                V3d value = ScaleData( sample ).get();
+                V3d value = op.getScale();
                 RiScale( value.x, value.y, value.z );
                 break;
             }
             case kTranslateOperation:
             {
-                V3d value = TranslateData( sample ).get();
+                V3d value = op.getTranslate();
                 RiTranslate( value.x, value.y, value.z );
                 break;
             }
             case kRotateOperation:
             {
-                RotateData rotateSample( sample );
-                V3d axis = rotateSample.getAxis();
-                // Xform stores rotation in radians, rman wants it in degrees
-                float degrees = 180.0 * rotateSample.getAngle() / M_PI;
+                V3d axis = op.getAxis();
+                float degrees = op.getAngle();
                 RiRotate( degrees, axis.x, axis.y, axis.z );
                 break;
             }
             case kMatrixOperation:
             {
-                M44d m = MatrixData( sample ).get();
-                WriteConcatTransform( m );
+                WriteConcatTransform( op.getMatrix() );
                 break;
             }
             }
@@ -155,10 +114,10 @@ void ProcessPolyMesh( IPolyMesh &polymesh, ProcArgs &args )
 {
     IPolyMeshSchema &ps = polymesh.getSchema();
 
-    const TimeSampling &ts = ps.getTimeSampling();
+    TimeSamplingPtr ts = ps.getTimeSampling();
 
     SampleTimeSet sampleTimes;
-    GetRelevantSampleTimes( args, ts, sampleTimes );
+    GetRelevantSampleTimes( args, ts, ps.getNumSamples(), sampleTimes );
 
     bool multiSample = sampleTimes.size() > 1;
 
@@ -173,22 +132,46 @@ void ProcessPolyMesh( IPolyMesh &polymesh, ProcArgs &args )
 
         IPolyMeshSchema::Sample sample = ps.getValue( sampleSelector );
 
-        RtInt npolys = (RtInt) sample.getCounts()->size();
+        RtInt npolys = (RtInt) sample.getFaceCounts()->size();
 
         ParamListBuilder ParamListBuilder;
 
         ParamListBuilder.add( "P", (RtPointer)sample.getPositions()->get() );
 
-        std::set<std::string> excludeNames;
-        excludeNames.insert( "P" );
+        IV2fGeomParam uvParam = ps.getUVs();
+        if ( uvParam.valid() )
+        {
+            AddGeomParamToParamListBuilder<IV2fGeomParam>(
+                ps, //TODO, replace this with uvParam.getParent()
+                *ps.getPropertyHeader( uvParam.getName() ), //TODO, relace this with uvParam.getHeader()
+                sampleSelector,
+                "float",
+                ParamListBuilder,
+                2,
+                "st");
+        }
+        IN3fGeomParam nParam = ps.getNormals();
+        if ( nParam.valid() )
+        {
+            AddGeomParamToParamListBuilder<IN3fGeomParam>(
+                ps, //TODO, replace this with uvParam.getParent()
+                *ps.getPropertyHeader( nParam.getName() ), //TODO, relace this with uvParam.getHeader()
+                sampleSelector,
+                "normal",
+                ParamListBuilder);
 
-        AddArbitraryProperties( ps, sampleSelector, ParamListBuilder,
-                                &excludeNames );
+        }
+
+
+
+        ICompoundProperty arbGeomParams = ps.getArbGeomParams();
+        AddArbitraryGeomParams( arbGeomParams,
+                    sampleSelector, ParamListBuilder );
 
         RiPointsPolygonsV(
             npolys,
-            (RtInt*) sample.getCounts()->get(),
-            (RtInt*) sample.getIndices()->get(),
+            (RtInt*) sample.getFaceCounts()->get(),
+            (RtInt*) sample.getFaceIndices()->get(),
             ParamListBuilder.n(),
             ParamListBuilder.nms(),
             ParamListBuilder.vals() );
@@ -203,10 +186,10 @@ void ProcessSubD( ISubD &subd, ProcArgs &args )
 {
     ISubDSchema &ss = subd.getSchema();
 
-    const TimeSampling &ts = ss.getTimeSampling();
+    TimeSamplingPtr ts = ss.getTimeSampling();
 
     SampleTimeSet sampleTimes;
-    GetRelevantSampleTimes( args, ts, sampleTimes );
+    GetRelevantSampleTimes( args, ts, ss.getNumSamples(), sampleTimes );
 
     bool multiSample = sampleTimes.size() > 1;
 
@@ -228,11 +211,22 @@ void ProcessSubD( ISubD &subd, ProcArgs &args )
 
         ParamListBuilder.add( "P", (RtPointer)sample.getPositions()->get() );
 
-        std::set<std::string> excludeNames;
-        excludeNames.insert( "P" );
+        IV2fGeomParam uvParam = ss.getUVs();
+        if ( uvParam.valid() )
+        {
+            AddGeomParamToParamListBuilder<IV2fGeomParam>(
+                ss, //TODO, replace this with uvParam.getParent()
+                *ss.getPropertyHeader( uvParam.getName() ), //TODO, relace this with uvParam.getHeader()
+                sampleSelector,
+                "float",
+                ParamListBuilder,
+                2,
+                "st");
+        }
 
-        AddArbitraryProperties( ss, sampleSelector, ParamListBuilder,
-                                &excludeNames );
+        ICompoundProperty arbGeomParams = ss.getArbGeomParams();
+        AddArbitraryGeomParams( arbGeomParams,
+                    sampleSelector, ParamListBuilder );
 
         std::string subdScheme = sample.getSubdivisionScheme();
 
@@ -289,7 +283,6 @@ void ProcessSubD( ISubD &subd, ProcArgs &args )
 void WriteIdentifier( const ObjectHeader &ohead )
 {
     std::string name = ohead.getFullName();
-    name = name.substr( 4, name.size() - 1 ); //for now, shave off the /ABC
     char* nameArray[] = { const_cast<char*>( name.c_str() ), RI_NULL };
 
     RiAttribute(const_cast<char*>( "identifier" ), const_cast<char*>( "name" ),

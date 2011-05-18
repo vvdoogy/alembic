@@ -40,26 +40,32 @@ namespace Alembic {
 namespace AbcGeom {
 
 //-*****************************************************************************
-void IPointsSchema::init( const Abc::IArgument &iArg0,
-                          const Abc::IArgument &iArg1 )
+void IPointsSchema::init( const Abc::Argument &iArg0,
+                          const Abc::Argument &iArg1 )
 {
-    ALEMBIC_ABC_SAFE_CALL_BEGIN( "IPointsTrait::init()" );
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "IPointsSchema::init()" );
 
-    Abc::IArguments args;
+    Abc::Arguments args;
     iArg0.setInto( args );
     iArg1.setInto( args );
 
-    m_positions = Abc::IV3fArrayProperty( *this, "P",
+    AbcA::CompoundPropertyReaderPtr _this = this->getPtr();
+
+    m_positions = Abc::IV3fArrayProperty( _this, "P",
                                           args.getSchemaInterpMatching() );
-    m_ids = Abc::IUInt64ArrayProperty( *this, ".pointIds",
+    m_ids = Abc::IUInt64ArrayProperty( _this, ".pointIds",
                                       args.getSchemaInterpMatching() );
 
-    m_selfBounds = Abc::IBox3dProperty( *this, ".selfBnds", iArg0, iArg1 );
-    m_childBounds = Abc::IBox3dProperty( *this, ".childBnds", iArg0, iArg1 );
+    m_selfBounds = Abc::IBox3dProperty( _this, ".selfBnds", iArg0, iArg1 );
+
+    if ( this->getPropertyHeader(".childBnds") != NULL )
+    {
+        m_childBounds = Abc::IBox3dProperty( _this, ".childBnds", iArg0, iArg1);
+    }
 
     if ( this->getPropertyHeader( ".arbGeomParams" ) != NULL )
     {
-        m_arbGeomParams = Abc::ICompoundProperty( *this, ".arbGeomParams",
+        m_arbGeomParams = Abc::ICompoundProperty( _this, ".arbGeomParams",
                                                   args.getErrorHandlerPolicy()
                                                 );
     }

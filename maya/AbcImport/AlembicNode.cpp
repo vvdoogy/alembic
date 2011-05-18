@@ -59,6 +59,7 @@
 #include "util.h"
 #include "AlembicNode.h"
 #include "CreateSceneHelper.h"
+#include "CameraHelper.h"
 #include "MeshHelper.h"
 #include "PointHelper.h"
 #include "XformHelper.h"
@@ -75,7 +76,6 @@ MObject AlembicNode::mRemoveIfNoUpdateAttr;
 MObject AlembicNode::mConnectRootNodesAttr;
 
 MObject AlembicNode::mSampledNurbsCurveNumCurveAttr;
-MObject AlembicNode::mIsSampledTransOpAngleAttr;
 
 MObject AlembicNode::mOutSubDArrayAttr;
 MObject AlembicNode::mOutPolyArrayAttr;
@@ -83,7 +83,6 @@ MObject AlembicNode::mOutCameraArrayAttr;
 MObject AlembicNode::mOutNurbsCurveGrpArrayAttr;
 MObject AlembicNode::mOutNurbsSurfaceArrayAttr;
 MObject AlembicNode::mOutTransOpArrayAttr;
-MObject AlembicNode::mOutTransOpAngleArrayAttr;
 MObject AlembicNode::mOutPropArrayAttr;
 
 MStatus AlembicNode::initialize()
@@ -206,16 +205,6 @@ MStatus AlembicNode::initialize()
     status = nAttr.setUsesArrayDataBuilder(true);
     status = addAttribute(mOutTransOpArrayAttr);
 
-    // sampled transform operation angle channels
-    mOutTransOpAngleArrayAttr = uAttr.create("outTransOpAngle", "ota",
-        MFnUnitAttribute::kAngle, 0.0);
-    status = uAttr.setStorable(false);
-    status = uAttr.setWritable(false);
-    status = uAttr.setKeyable(false);
-    status = uAttr.setArray(true);
-    status = uAttr.setUsesArrayDataBuilder(true);
-    status = addAttribute(mOutTransOpAngleArrayAttr);
-
     // sampled camera
     // assume the boolean variables cannot be keyed
     mOutCameraArrayAttr = nAttr.create("outCamera", "ocam",
@@ -228,12 +217,20 @@ MStatus AlembicNode::initialize()
 
     // sampled custom-attributes
     mOutPropArrayAttr = gAttr.create("prop", "pr", &status);
+    status = gAttr.addNumericDataAccept(MFnNumericData::kBoolean);
     status = gAttr.addNumericDataAccept(MFnNumericData::kByte);
     status = gAttr.addNumericDataAccept(MFnNumericData::kShort);
-    status = gAttr.addNumericDataAccept(MFnNumericData::kLong);
+    status = gAttr.addNumericDataAccept(MFnNumericData::k2Short);
+    status = gAttr.addNumericDataAccept(MFnNumericData::k3Short);
     status = gAttr.addNumericDataAccept(MFnNumericData::kInt);
+    status = gAttr.addNumericDataAccept(MFnNumericData::k2Int);
+    status = gAttr.addNumericDataAccept(MFnNumericData::k3Int);
     status = gAttr.addNumericDataAccept(MFnNumericData::kFloat);
+    status = gAttr.addNumericDataAccept(MFnNumericData::k2Float);
+    status = gAttr.addNumericDataAccept(MFnNumericData::k3Float);
     status = gAttr.addNumericDataAccept(MFnNumericData::kDouble);
+    status = gAttr.addNumericDataAccept(MFnNumericData::k2Double);
+    status = gAttr.addNumericDataAccept(MFnNumericData::k3Double);
     status = gAttr.addDataAccept(MFnData::kString);
     status = gAttr.addDataAccept(MFnData::kIntArray);
     status = gAttr.addDataAccept(MFnData::kDoubleArray);
@@ -250,18 +247,11 @@ MStatus AlembicNode::initialize()
     status = attributeAffects(mTimeAttr, mOutNurbsSurfaceArrayAttr);
     status = attributeAffects(mTimeAttr, mOutNurbsCurveGrpArrayAttr);
     status = attributeAffects(mTimeAttr, mOutTransOpArrayAttr);
-    status = attributeAffects(mTimeAttr, mOutTransOpAngleArrayAttr);
     status = attributeAffects(mTimeAttr, mOutCameraArrayAttr);
     status = attributeAffects(mTimeAttr, mOutPropArrayAttr);
 
     MFnIntArrayData fnIntArrayData;
     MObject intArrayDefaultObject = fnIntArrayData.create(&status);
-    mIsSampledTransOpAngleAttr = tAttr.create("transOpAngle", "ta",
-        MFnData::kIntArray, intArrayDefaultObject);
-    status = tAttr.setStorable(true);
-    status = tAttr.setWritable(true);
-    status = addAttribute(mIsSampledTransOpAngleAttr);
-
     mSampledNurbsCurveNumCurveAttr = tAttr.create("numCurve", "nc",
         MFnData::kIntArray, intArrayDefaultObject);
     status = tAttr.setStorable(true);
@@ -290,7 +280,7 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
 
         // no caching!
         Alembic::Abc::IArchive archive(Alembic::AbcCoreHDF5::ReadArchive(),
-            fileName.asChar(),
+            fileName.asChar(), Alembic::Abc::ErrorHandler::Policy(),
             Alembic::AbcCoreAbstract::v1::ReadArraySampleCachePtr());
 
         if (!archive.valid())
@@ -348,22 +338,6 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
             visitor.getData(mData);
             mData.getFrameRange(mSequenceStartTime, mSequenceEndTime);
         }
-
-        // getting the arrays so there's no need to repeat the tedious work
-        dataHandle = dataBlock.inputValue(mIsSampledTransOpAngleAttr, &status);
-        if (status == MS::kSuccess)
-        {
-            MObject intArrayObj = dataHandle.data();
-            MFnIntArrayData intArray(intArrayObj, &status);
-            if (status == MS::kSuccess)
-            {
-                unsigned int length = intArray.length();
-                mData.mIsSampledXformOpAngle.clear();
-                mData.mIsSampledXformOpAngle.reserve(length);
-                for (unsigned int i = 0; i < length; i++)
-                    mData.mIsSampledXformOpAngle.push_back(intArray[i]);
-            }
-        }
     }
 
     clamp<double>(mSequenceStartTime, mSequenceEndTime, inputTime);
@@ -377,12 +351,16 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
 
     if (plug == mOutPropArrayAttr)
     {
+
         if (mOutRead[0])
+        {
+            dataBlock.setClean(plug);
             return MS::kSuccess;
+        }
 
         mOutRead[0] = true;
 
-        unsigned int propSize = 0; //mData.mPropList.size();
+        unsigned int propSize = mData.mPropList.size();
 
         if (propSize > 0)
         {
@@ -390,20 +368,23 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                 mOutPropArrayAttr, &status);
 
             // for all of the nodes with sampled attributes
-            /*
-            for (unsigned int i = 0, handlePos = 0; i < propSize; i++)
+            for (unsigned int i = 0; i < propSize; i++)
             {
-                updateProp(mCurTime, mData.mPropList[i],
-                    outArrayHandle, handlePos);
+                MDataHandle handle = outArrayHandle.outputValue();
+                readProp(mCurTime, mData.mPropList[i], handle);
+                outArrayHandle.next();
             }
-            */
             outArrayHandle.setAllClean();
         }
+
     }
-    else if (plug == mOutTransOpArrayAttr || plug == mOutTransOpAngleArrayAttr)
+    else if (plug == mOutTransOpArrayAttr )
     {
         if (mOutRead[1])
+        {
+            dataBlock.setClean(plug);
             return MS::kSuccess;
+        }
 
         mOutRead[1] = true;
 
@@ -411,17 +392,10 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
 
         if (xformSize > 0)
         {
-            unsigned int isAngleIndex = 0;
-
             MArrayDataHandle outArrayHandle =
                 dataBlock.outputValue(mOutTransOpArrayAttr, &status);
 
             MPlug arrayPlug(thisMObject(), mOutTransOpArrayAttr);
-
-            MArrayDataHandle outAngleArrayHandle = dataBlock.outputValue(
-                mOutTransOpAngleArrayAttr, &status);
-
-            MPlug angleArrayPlug(thisMObject(), mOutTransOpAngleArrayAttr);
 
             MDataHandle outHandle;
 
@@ -438,53 +412,38 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                 }
                 else
                 {
-                    read(mCurTime, mData.mXformList[i], sampleList);
+                    Alembic::AbcGeom::XformSample samp;
+                    read(mCurTime, mData.mXformList[i], sampleList, samp);
                 }
 
                 unsigned int sampleSize = sampleList.size();
 
                 for (unsigned int j = 0; j < sampleSize; j++)
                 {
-                    if (mData.mIsSampledXformOpAngle[isAngleIndex++] == true)
+                    // only use the handle if it matches the index.
+                    // The index wont line up in the sparse case so we
+                    // can just skip that element.
+                    if (outArrayHandle.elementIndex() == outHandleIndex++)
                     {
-                        // only use the handle if it matches the index.
-                        // The index wont line up in the sparse case so we
-                        // can just skip that element.
-                        if (outAngleArrayHandle.elementIndex() ==
-                            angleHandleIndex++)
-                        {
-                            outHandle = outAngleArrayHandle.outputValue();
-                        }
-                        else
-                            continue;
-
-                        outAngleArrayHandle.next();
+                        outHandle = outArrayHandle.outputValue(&status);
                     }
                     else
-                    {
-                        // only use the handle if it matches the index.
-                        // The index wont line up in the sparse case so we
-                        // can just skip that element.
-                        if (outArrayHandle.elementIndex() == outHandleIndex++)
-                        {
-                            outHandle = outArrayHandle.outputValue(&status);
-                        }
-                        else
-                            continue;
+                        continue;
 
-                        outArrayHandle.next();
-                    }
+                    outArrayHandle.next();
                     outHandle.set(sampleList[j]);
                 }
             }
             outArrayHandle.setAllClean();
-            outAngleArrayHandle.setAllClean();
         }
     }
     else if (plug == mOutSubDArrayAttr)
     {
         if (mOutRead[2])
+        {
+            dataBlock.setClean(plug);
             return MS::kSuccess;
+        }
 
         mOutRead[2] = true;
 
@@ -517,8 +476,8 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                     outHandle.set(obj);
                 }
             }
-            outArrayHandle.setAllClean();
             mSubDInitialized = true;
+            outArrayHandle.setAllClean();
         }
         // for the case where we don't have any nodes, we want to make sure
         // to push out empty meshes on our connections, this can happen if
@@ -548,14 +507,17 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                 }
                 while (outArrayHandle.next() == MS::kSuccess);
             }
-            outArrayHandle.setAllClean();
             mSubDInitialized = true;
+            outArrayHandle.setAllClean();
         }
     }
     else if (plug == mOutPolyArrayAttr)
     {
         if (mOutRead[3])
+        {
+            dataBlock.setClean(plug);
             return MS::kSuccess;
+        }
 
         mOutRead[3] = true;
 
@@ -588,8 +550,8 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                     outHandle.set(obj);
                 }
             }
-            outArrayHandle.setAllClean();
             mPolyInitialized = true;
+            outArrayHandle.setAllClean();
         }
         // for the case where we don't have any nodes, we want to make sure
         // to push out empty meshes on our connections, this can happen if
@@ -619,24 +581,26 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                 }
                 while (outArrayHandle.next() == MS::kSuccess);
             }
-            outArrayHandle.setAllClean();
             mPolyInitialized = true;
+            outArrayHandle.setAllClean();
         }
     }
     else if (plug == mOutCameraArrayAttr)
     {
         if (mOutRead[4])
+        {
+            dataBlock.setClean(plug);
             return MS::kSuccess;
+        }
 
         mOutRead[4] = true;
 
-        unsigned int cameraSize = 0; //mData.mCameraNodePtrList.size();
+        unsigned int cameraSize = mData.mCameraList.size();
 
         if (cameraSize > 0)
         {
             MArrayDataHandle outArrayHandle =
                 dataBlock.outputValue(mOutCameraArrayAttr, &status);
-
             MPlug arrayPlug(thisMObject(), mOutCameraArrayAttr);
             double angleConversion = 1.0;
 
@@ -661,12 +625,11 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
             for (unsigned int cameraIndex = 0; cameraIndex < cameraSize;
                 cameraIndex++)
             {
-                //Alembic::Abc::ICamera cam =
-                //    mData.mCameraList[cameraIndex];
+                Alembic::AbcGeom::ICamera & cam =
+                    mData.mCameraList[cameraIndex];
                 std::vector<double> array;
 
-                //read(mCurTime, camPtr, array);
-
+                read(mCurTime, cam, array);
 
                 for (unsigned int dataIndex = 0; dataIndex < array.size();
                     dataIndex++, index++)
@@ -681,7 +644,7 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                     outArrayHandle.next();
 
                     // not shutter angle index, so not an angle
-                    if (dataIndex != 22)
+                    if (dataIndex != 11)
                     {
                         outHandle.set(array[dataIndex]);
                     }
@@ -697,7 +660,10 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
     else if (plug == mOutNurbsSurfaceArrayAttr)
     {
         if (mOutRead[5])
+        {
+            dataBlock.setClean(plug);
             return MS::kSuccess;
+        }
 
         mOutRead[5] = true;
 
@@ -732,7 +698,10 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
     else if (plug == mOutNurbsCurveGrpArrayAttr)
     {
         if (mOutRead[6])
+        {
+            dataBlock.setClean(plug);
             return MS::kSuccess;
+        }
 
         mOutRead[6] = true;
 
@@ -782,6 +751,7 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
         return MS::kUnknownParameter;
     }
 
+    dataBlock.setClean(plug);
     return status;
 }
 

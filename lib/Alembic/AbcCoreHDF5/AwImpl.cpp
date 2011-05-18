@@ -41,6 +41,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 AwImpl::AwImpl( const std::string &iFileName,
@@ -49,6 +50,11 @@ AwImpl::AwImpl( const std::string &iFileName,
   , m_metaData( iMetaData )
   , m_file( -1 )
 {
+
+    // add default time sampling
+    AbcA::TimeSamplingPtr ts( new AbcA::TimeSampling() );
+    m_timeSamples.push_back(ts);
+
     // OPEN THE FILE!
     hid_t faid = H5Pcreate( H5P_FILE_ACCESS );
     if ( faid < 0 )
@@ -67,6 +73,10 @@ AwImpl::AwImpl( const std::string &iFileName,
     {
         ABCA_THROW( "Could not open file: " << m_fileName );
     }
+
+    // set the version using HDF5 native calls
+    int version = ALEMBIC_HDF5_FILE_VERSION;
+    H5LTset_attribute_int(m_file, ".", "abc_version", &version, 1);
 
     // Create top explicitly.
     m_top = new TopOwImpl( *this, m_file, m_metaData );
@@ -98,6 +108,39 @@ AbcA::ObjectWriterPtr AwImpl::getTop()
     AbcA::ObjectWriterPtr ret( m_top,
                                Alembic::Util::NullDeleter() );
     return ret;
+}
+
+//-*****************************************************************************
+uint32_t AwImpl::addTimeSampling( const AbcA::TimeSampling & iTs )
+{
+    index_t numTS = m_timeSamples.size();
+    for (index_t i = 0; i < numTS; ++i)
+    {
+        if (iTs == *(m_timeSamples[i]))
+            return i;
+    }
+
+    // we've got a new TimeSampling, write it and add it to our vector
+    AbcA::TimeSamplingPtr ts( new AbcA::TimeSampling(iTs) );
+    m_timeSamples.push_back(ts);
+
+    index_t latestSample = m_timeSamples.size() - 1;
+
+    std::stringstream strm;
+    strm << latestSample;
+    std::string name = strm.str();
+
+    WriteTimeSampling(m_file, name, *ts);
+    return latestSample;
+}
+
+//-*****************************************************************************
+AbcA::TimeSamplingPtr AwImpl::getTimeSampling( uint32_t iIndex )
+{
+    ABCA_ASSERT( iIndex < m_timeSamples.size(),
+        "Invalid index provided to getTimeSampling." );
+
+    return m_timeSamples[iIndex];
 }
 
 //-*****************************************************************************
@@ -143,5 +186,6 @@ AwImpl::~AwImpl()
     }
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

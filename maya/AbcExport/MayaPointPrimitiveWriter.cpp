@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -39,19 +39,21 @@
 
 MayaPointPrimitiveWriter::MayaPointPrimitiveWriter(
     double iFrame, MDagPath & iDag, Alembic::AbcGeom::OObject & iParent,
-    Alembic::AbcCoreAbstract::v1::TimeSamplingType & iTimeType,
-    bool iWriteVisibility) :
-    mIsAnimated(false), mDagPath(iDag), mCurIndex(0)
+    uint32_t iTimeIndex,
+    bool iWriteVisibility, bool iForceStatic) :
+    mIsAnimated(false), mDagPath(iDag)
 {
     MFnParticleSystem particle(mDagPath);
-    Alembic::AbcGeom::OPoints obj(iParent, particle.name().asChar(), iTimeType);
+    Alembic::AbcGeom::OPoints obj(iParent, particle.name().asChar(),
+        iTimeIndex);
     mSchema = obj.getSchema();
 
-    mAttrs = AttributesWriterPtr(new AttributesWriter(iFrame, obj,
-        particle, iTimeType, iWriteVisibility));
+    Alembic::Abc::OCompoundProperty cp = mSchema.getArbGeomParams();
+    mAttrs = AttributesWriterPtr(new AttributesWriter(cp, particle,
+        iTimeIndex, iWriteVisibility, iForceStatic));
 
     MObject object = iDag.node();
-    if (util::isAnimated(object))
+    if (!iForceStatic && util::isAnimated(object))
         mIsAnimated = true;
 
     write(iFrame);
@@ -78,8 +80,7 @@ void MayaPointPrimitiveWriter::write(double iFrame)
 
     if (size == 0)
     {
-        mSchema.set(samp,
-            Alembic::Abc::OSampleSelector(mCurIndex++, iFrame/24.0));
+        mSchema.set(samp);
         return;
     }
 
@@ -133,8 +134,7 @@ void MayaPointPrimitiveWriter::write(double iFrame)
     }
 
     // ignoring width and the velocity vectors for now
-    mSchema.set(samp, Alembic::Abc::OSampleSelector(mCurIndex++, iFrame/24.0));
-    mAttrs->write(iFrame);
+    mSchema.set(samp);
 }
 
 unsigned int MayaPointPrimitiveWriter::getNumCVs()
@@ -145,5 +145,5 @@ unsigned int MayaPointPrimitiveWriter::getNumCVs()
 
 bool MayaPointPrimitiveWriter::isAnimated() const
 {
-    return  mIsAnimated || (mAttrs != NULL && mAttrs->isAnimated());
+    return  mIsAnimated;
 }

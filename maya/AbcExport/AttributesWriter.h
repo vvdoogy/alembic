@@ -47,14 +47,15 @@ class AttributesWriter
   public:
     // fills in the property maps for both static and sampled, and does
     // the initial write at iFrame for sampled data
-    AttributesWriter(double iFrame, Alembic::Abc::OObject & iParent,
+    AttributesWriter(Alembic::Abc::OCompoundProperty & iParent,
         const MFnDagNode & iNode,
-        Alembic::AbcCoreAbstract::v1::TimeSamplingType & iTimeType,
-        bool iWriteVisibility);
+        uint32_t iTimeIndex,
+        bool iWriteVisibility,
+        bool iForceStatic);
 
     ~AttributesWriter();
 
-    void write(double iFrame);
+    void write();
     bool isAnimated();
 
     static std::string * mFilter;
@@ -62,13 +63,11 @@ class AttributesWriter
 
   private:
 
-    std::vector < PlugAndObjScalar > mPlugObjScalarVec;
     std::vector < PlugAndObjArray > mPlugObjArrayVec;
 
     // animated visibility plug
     PlugAndObjScalar mAnimVisibility;
 
-    size_t mCurIndex;
 };
 
 typedef boost::shared_ptr<AttributesWriter> AttributesWriterPtr;

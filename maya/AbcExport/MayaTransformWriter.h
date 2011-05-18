@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -44,43 +44,51 @@
 
 #include "AttributesWriter.h"
 
+// AnimChan contains what animated plugs to get as a double, and the helper
+// info about what operation and which channel to set in mSample
+struct AnimChan
+{
+    MPlug plug;
+
+    // extra value to multiply the data off of the plug by, used to invert
+    // certain operations, and convert radians to degrees
+    double scale;
+
+    uint32_t opNum;
+    uint32_t channelNum;
+};
+
 // Writes an MFnTransform
 class MayaTransformWriter
 {
   public:
 
-    MayaTransformWriter(double iFrame, Alembic::Abc::OObject & iParent,
-        MDagPath & iDag, 
-        Alembic::AbcCoreAbstract::v1::TimeSamplingType & iTimeType,
-        bool addWorld, bool iWriteVisibility);
+    MayaTransformWriter(Alembic::Abc::OObject & iParent, MDagPath & iDag, 
+        uint32_t iTimeIndex, bool addWorld, bool iWriteVisibility,
+        bool iForceStatic);
 
-    MayaTransformWriter(double iFrame, MayaTransformWriter & iParent,
-        MDagPath & iDag,
-        Alembic::AbcCoreAbstract::v1::TimeSamplingType & iTimeType,
-        bool iWriteVisibility);
+    MayaTransformWriter(MayaTransformWriter & iParent, MDagPath & iDag,
+        uint32_t iTimeIndex, bool iWriteVisibility, bool iForceStatic);
 
     ~MayaTransformWriter();
-    void write(double iFrame);
+    void write();
     bool isAnimated() const;
     Alembic::Abc::OObject getObject() {return mSchema.getObject();};
+    AttributesWriterPtr getAttrs() {return mAttrs;};
 
   private:
 
     Alembic::AbcGeom::OXformSchema mSchema;
     AttributesWriterPtr mAttrs;
-    size_t mCurIndex;
 
-    void pushTransformStack(double iFrame, const MFnTransform & iTrans,
-        Alembic::AbcGeom::XformOpVec & oOpVec,
-        std::vector<double> & oStatic, std::vector<double> & oAnim);
+    void pushTransformStack(const MFnTransform & iTrans, bool iForceStatic);
 
-    void pushTransformStack(double iFrame, const MFnIkJoint & iTrans,
-        Alembic::AbcGeom::XformOpVec & oOpVec,
-        std::vector<double> & oStatic, std::vector<double> & oAnim);
+    void pushTransformStack(const MFnIkJoint & iTrans, bool iForceStatic);
 
-    // list of plugs to get as doubles, the bool indicates
-    // whether we need to flip the value for an inverse evaluation
-    std::vector < std::pair < MPlug, bool > > mSampledList;
+    Alembic::AbcGeom::XformSample mSample;
+
+    std::vector < AnimChan > mAnimChanList;
+    MPlug mInheritsPlug;
 };
 
 typedef boost::shared_ptr < MayaTransformWriter > MayaTransformWriterPtr;

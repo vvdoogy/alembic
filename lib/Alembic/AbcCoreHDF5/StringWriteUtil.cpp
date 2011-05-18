@@ -40,6 +40,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 BOOST_STATIC_ASSERT( sizeof( char ) == sizeof( int8_t ) );
@@ -301,6 +302,13 @@ WriteStringArrayT( WrittenArraySampleMap &iMap,
                    const AbcA::ArraySample::Key &iKey,
                    int iCompressionLevel )
 {
+    // because strings are packed together, always write out the dimensions
+    Dimensions dims = iSamp.getDimensions();
+    ABCA_ASSERT( dims.rank() > 0,
+        "String type can not have a rank-0 array sample" );
+    std::string dimsName = iName + ".dims";
+    WriteDimensions( iGroup, dimsName, dims );
+
     // See whether or not we've already stored this.
     WrittenArraySampleIDPtr writeID = iMap.find( iKey );
     if ( writeID )
@@ -312,17 +320,6 @@ WriteStringArrayT( WrittenArraySampleMap &iMap,
     // Okay, need to actually store it.
     // It will be a dataset with an internal attribute for storing
     // the hash id.
-    
-    // Make a dataspace from the dimensions
-    Dimensions dims = iSamp.getDimensions();
-
-    // Dimensions of rank 0 is not allowed for an array property.
-    // However, the extent of any particular dimension can reach 0
-    // (as in the case of a particle-simulation with zero particles).
-    // In this case, we would want to know the dimensions, and can
-    // skip the dataset altogether.
-    ABCA_ASSERT( dims.rank() > 0,
-                 "Cannot have a rank-0 array sample in WriteArray" );
 
     bool hasData = dims.numPoints() > 0;
     hid_t dspaceId = -1;
@@ -403,10 +400,6 @@ WriteStringArrayT( WrittenArraySampleMap &iMap,
     // Write the key
     WriteKey( dsetId, "key", iKey );
 
-    // Write the "true" dimensions, since we clobbered them
-    // with the compacted string.
-    WriteDimensions( dsetId, "dims", dims );
-
     writeID.reset( new WrittenArraySampleID( iKey, dsetId ) );
 
     iMap.store( writeID );
@@ -450,5 +443,6 @@ WriteWstringArray( WrittenArraySampleMap &iMap,
                                                     iCompressionLevel );
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

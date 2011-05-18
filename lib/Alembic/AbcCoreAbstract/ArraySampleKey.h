@@ -37,12 +37,15 @@
 #ifndef _Alembic_AbcCoreAbstract_ArraySampleKey_h_
 #define _Alembic_AbcCoreAbstract_ArraySampleKey_h_
 
+#include <boost/unordered_map.hpp>
+#include <boost/unordered_set.hpp>
+
 #include <Alembic/AbcCoreAbstract/Foundation.h>
 #include <Alembic/AbcCoreAbstract/DataType.h>
 
 namespace Alembic {
 namespace AbcCoreAbstract {
-namespace v1 {
+namespace ALEMBIC_VERSION_NS {
 
 struct ArraySampleKey : public boost::totally_ordered<ArraySampleKey>
 {
@@ -55,7 +58,7 @@ struct ArraySampleKey : public boost::totally_ordered<ArraySampleKey>
     //! POD used at read time
     PlainOldDataType readPOD;
 
-    MD5Digest digest;
+    Digest digest;
 
     bool operator==( const ArraySampleKey &iRhs ) const
     {
@@ -97,7 +100,7 @@ struct ArraySampleKeyEqualTo :
 // Hash function
 inline size_t StdHash( ArraySampleKey const &a )
 {
-    // Theoretically, the bits of an MD5 Hash are uniformly
+    // Theoretically, the bits of our hash are uniformly
     // randomly distributed, so it doesn't matter which of the 128
     // bits we use to generate the 64 bits that we return as the hash
     // key. So, I'll just do the simple thing.
@@ -136,7 +139,10 @@ typedef boost::unordered_set<ArraySampleKey,
                              ArraySampleKeyStdHash,
                              ArraySampleKeyEqualTo> UnorderedArraySampleKeySet;
 
-} // End namespace v1
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
+
 } // End namespace AbcCoreAbstract
 } // End namespace Alembic
 

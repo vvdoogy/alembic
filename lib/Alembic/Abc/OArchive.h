@@ -39,7 +39,7 @@
 
 #include <Alembic/Abc/Foundation.h>
 #include <Alembic/Abc/Base.h>
-#include <Alembic/Abc/OArgument.h>
+#include <Alembic/Abc/Argument.h>
 
 namespace Alembic {
 namespace Abc {
@@ -77,10 +77,10 @@ public:
         const std::string &iFileName,
 
         //! Optionally could be the error handling policy, or the meta data.
-        const OArgument &iArg0 = OArgument(),
+        const Argument &iArg0 = Argument(),
 
         //! Optionally could be the error handling policy, or the meta data.
-        const OArgument &iArg1 = OArgument() );
+        const Argument &iArg1 = Argument() );
 
     //! This attaches an OArchive wrapper around an existing
     //! ArchiveWriterPtr, with an optional error handling policy.
@@ -132,6 +132,22 @@ public:
     //! compressed data, at the expense of time.
     void setCompressionHint( int8_t iCh );
 
+    //! Adds the TimeSampling to the Archive TimeSampling pool.
+    //! If the TimeSampling already exists in the pool, the index for the match
+    //! should be returned.
+    //! index 0 is automatically reserved for uniform time sampling with a start
+    //! time of 0 and time per cycle of 1 (aka identity sampling)
+    uint32_t addTimeSampling( const AbcA::TimeSampling & iTs );
+
+    //! Returns the TimeSampling at a given index.
+    //! index 0 is automatically reserved for uniform time sampling with a start
+    //! time of 0 and time per cycle of 1 (aka identity sampling)
+    AbcA::TimeSamplingPtr getTimeSampling( uint32_t iIndex );
+
+    //! Returns the total number of TimeSamplingPtrs in the Archive
+    //! TimeSampling pool.
+    uint32_t getNumTimeSamplings();
+
     //-*************************************************************************
     // ABC BASE MECHANISMS
     // These functions are used by Abc to deal with errors, rewrapping,
@@ -173,11 +189,11 @@ inline AbcA::ArchiveWriterPtr GetArchiveWriterPtr( OArchive &iArch )
 template <class ARCHIVE_CTOR>
 OArchive::OArchive( ARCHIVE_CTOR iCtor,
                     const std::string &iFileName,
-                    const OArgument &iArg0,
-                    const OArgument &iArg1 )
+                    const Argument &iArg0,
+                    const Argument &iArg1 )
 {
     // Create arguments
-    OArguments args( ErrorHandler::kThrowPolicy );
+    Arguments args( ErrorHandler::kThrowPolicy );
     iArg0.setInto( args );
     iArg1.setInto( args );
 

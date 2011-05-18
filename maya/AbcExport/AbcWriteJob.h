@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -39,9 +39,10 @@
 
 #include "Foundation.h"
 
-#include "MayaTransformWriter.h"
+#include "MayaCameraWriter.h"
 #include "MayaMeshWriter.h"
 #include "MayaPointPrimitiveWriter.h"
+#include "MayaTransformWriter.h"
 
 /*
 #include "MayaNurbsSurfaceWriter.h"
@@ -164,9 +165,9 @@ class AbcWriteJob
         bool iWriteVisibility,
         bool iWriteUVs,
         std::set<double> & iTransFrames,
-        Alembic::AbcCoreAbstract::v1::TimeSamplingType & iTransTimeType,
+        Alembic::AbcCoreAbstract::v1::TimeSamplingPtr iTransTime,
         std::set<double> & iShapeFrames,
-        Alembic::AbcCoreAbstract::v1::TimeSamplingType & iShapeTimeType,
+        Alembic::AbcCoreAbstract::v1::TimeSamplingPtr iShapeTime,
         std::string & iMelPerFrameCallback,
         std::string & iMelPostCallback,
         std::string & iPythonPerFrameCallback,
@@ -185,10 +186,10 @@ class AbcWriteJob
     /*
         MayaNurbsSurfaceWriterPtr,
         MayaNurbsCurveWriterPtr,
-        MayaCameraWriterPtr,
         MayaLightWriterPtr,
         MayaLocatorWriterPtr,
     */
+        MayaCameraWriterPtr,
         MayaMeshWriterPtr,
         MayaPointPrimitiveWriterPtr > MayaNodePtr;
 
@@ -205,7 +206,10 @@ class AbcWriteJob
     bool checkCurveGrp();
 
     std::vector< MayaTransformWriterPtr > mTransList;
+    std::vector< AttributesWriterPtr > mTransAttrList;
+
     std::vector< MayaNodePtr > mShapeList;
+    std::vector< AttributesWriterPtr > mShapeAttrList;
 
     // helper bounding box for recursive calculation
     MBoundingBox mCurBBox;
@@ -237,9 +241,11 @@ class AbcWriteJob
 
     MSelectionList mSList;
     std::set<double> mShapeFrames;
-    Alembic::AbcCoreAbstract::v1::TimeSamplingType mShapeTimeType;
+    Alembic::AbcCoreAbstract::v1::TimeSamplingPtr mShapeTime;
+    uint32_t mShapeTimeIndex;
     std::set<double> mTransFrames;
-    Alembic::AbcCoreAbstract::v1::TimeSamplingType mTransTimeType;
+    Alembic::AbcCoreAbstract::v1::TimeSamplingPtr mTransTime;
+    uint32_t mTransTimeIndex;
 
     // convenience booleans used mainly during setup
     // indicates whether the shapes and transforms
@@ -255,8 +261,10 @@ class AbcWriteJob
     // then we also call the post callback
     double mLastFrame;
 
+    Alembic::Abc::OBox3dProperty mBoxProp;
+    unsigned int mBoxIndex;
+
     // for the callbacks
-    bool mPerFrameBounds;
     std::string mMelPerFrameCallback;
     std::string mMelPostCallback;
     std::string mPythonPerFrameCallback;

@@ -42,6 +42,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 //-*****************************************************************************
@@ -65,12 +66,6 @@ WriteDataToAttr( hid_t iParent,
                  hid_t iNativeType,
                  const void *iData )
 {
-    htri_t exi = H5Aexists( iParent, iAttrName.c_str() );
-    if ( exi != 0 )
-    {
-        ABCA_THROW( "Duplicate attribute: " << iAttrName );
-    }
-
     hid_t attrId = H5Acreate2( iParent, iAttrName.c_str(),
                                iFileType, iDspace,
                                H5P_DEFAULT, H5P_DEFAULT );
@@ -143,11 +138,8 @@ WriteDimensions( hid_t iParent,
                  const std::string &iAttrName,
                  const Dimensions &iDims )
 {
-    // Only bother to write dimensions if they exist,
-    // which means rank > 0.
+
     size_t rank = iDims.rank();
-    ABCA_ASSERT( rank > 0,
-                 "Pointless to write rank0 dimensions" );
 
     // Create temporary storage to write
     std::vector<uint32_t> dimStorage( rank );
@@ -162,7 +154,7 @@ WriteDimensions( hid_t iParent,
                      H5T_NATIVE_UINT32,
                      rank,
                      ( const void * )&dimStorage.front() );
-}   
+}
 
 //-*****************************************************************************
 void
@@ -186,43 +178,6 @@ WriteMetaData( hid_t iGroup,
 
 //-*****************************************************************************
 static void
-WritePropertyAndDataType( hid_t iGroup,
-                          const std::string &iName,
-                          AbcA::PropertyType iPropertyType,
-                          const AbcA::DataType &iDataType )
-{
-    uint16_t bitField = 0;
-
-    static const uint16_t ptypeMask =
-        ( uint16_t )BOOST_BINARY( 0000 0000 0000 0011 );
-    static const uint16_t podMask =
-        ( uint16_t )BOOST_BINARY( 0000 0000 0011 1100 );
-    static const uint16_t extentMask =
-        ( uint16_t )BOOST_BINARY( 1111 1111 0000 0000 );
-
-    // Slam the property type in there.
-    bitField |= ptypeMask & ( uint16_t )iPropertyType;
-    if ( iPropertyType == AbcA::kCompoundProperty )
-    {
-        bitField |= COMPOUND_MAGIC & ~ptypeMask;
-    }
-    else
-    {
-        uint16_t pod = ( uint16_t )iDataType.getPod();
-        bitField |= podMask & ( pod << 2 );
-
-        uint16_t extent = ( uint16_t )iDataType.getExtent();
-        bitField |= extentMask & ( extent << 8 );
-    }
-
-    WriteScalar( iGroup, iName,
-                 H5T_STD_U16LE,
-                 H5T_NATIVE_UINT16,
-                 ( const void * )&bitField );
-}   
-
-//-*****************************************************************************
-static void
 WriteTimeSamplingType( hid_t iGroup,
                        const std::string &iName,
                        const AbcA::TimeSamplingType &iTimeSamplingType )
@@ -232,13 +187,8 @@ WriteTimeSamplingType( hid_t iGroup,
 
     const uint32_t spc = iTimeSamplingType.getNumSamplesPerCycle();
     const chrono_t tpc = iTimeSamplingType.getTimePerCycle();
-    
-    if ( iTimeSamplingType.isIdentity() )
-    {
-        // We don't bother writing it at all
-        assert( spc == 0 );
-    }
-    else if ( iTimeSamplingType.isUniform() )
+
+    if ( iTimeSamplingType.isUniform() )
     {
         // With uniform, we JUST write the time per sample
         assert( spc == 1 );
@@ -252,7 +202,7 @@ WriteTimeSamplingType( hid_t iGroup,
         // Here we have to write SPC, and if TPC is 1.0 we don't
         // bother writing it.
         assert( spc > 1 );
-        assert( tpc < AbcA::TimeSamplingType::ACYCLIC_TIME_PER_CYCLE );
+        assert( tpc < AbcA::TimeSamplingType::AcyclicTimePerCycle() );
         WriteScalar( iGroup, nameSPC,
                      H5T_STD_U32LE,
                      H5T_NATIVE_UINT32,
@@ -267,30 +217,13 @@ WriteTimeSamplingType( hid_t iGroup,
     }
     else
     {
-        //std::cout << "TOTALLY WRITING THESE HERE ACYCLIC SAMPLES: "
-        //          << spc << std::endl;
         assert( iTimeSamplingType.isAcyclic() );
-        assert( spc == AbcA::TimeSamplingType::ACYCLIC_NUM_SAMPLES );
+        assert( spc == AbcA::TimeSamplingType::AcyclicNumSamples() );
         WriteScalar( iGroup, nameSPC,
                      H5T_STD_U32LE,
                      H5T_NATIVE_UINT32,
                      ( const void * )&spc );
     }
-}
-
-//-*****************************************************************************
-void
-WritePropertyHeaderExceptTime( hid_t iGroup,
-                               const std::string &iName,
-                               const AbcA::PropertyHeader &iHeader )
-{
-    // First the type.
-    WritePropertyAndDataType( iGroup, iName + ".type",
-                              iHeader.getPropertyType(),
-                              iHeader.getDataType() );
-
-    // Then the meta data.
-    WriteMetaData( iGroup, iName + ".meta", iHeader.getMetaData() );
 }
 
 //-*****************************************************************************
@@ -304,6 +237,7 @@ WriteArray( WrittenArraySampleMap &iMap,
             hid_t iNativeType,
             int iCompressionLevel )
 {
+
     // Dispatch to string writing utils.
     const AbcA::DataType &dataType = iSamp.getDataType();
     if ( dataType.getPod() == kStringPOD )
@@ -316,7 +250,21 @@ WriteArray( WrittenArraySampleMap &iMap,
         return WriteWstringArray( iMap, iGroup, iName, iSamp, iKey,
                                   iCompressionLevel );
     }
-    
+
+    // write the dimensions as necessary
+    Dimensions dims = iSamp.getDimensions();
+    size_t rank = dims.rank();
+
+    ABCA_ASSERT( rank > 0, "Cannot have a rank-0 array sample" );
+
+    // rank 1 is the most common case, and we can easily infer it's size
+    // from the dataspace for non-strings, so don't bother writing it out
+    if (rank > 1)
+    {
+        std::string dimsName = iName + ".dims";
+        WriteDimensions( iGroup, dimsName, dims );
+    }
+
     // See whether or not we've already stored this.
     WrittenArraySampleIDPtr writeID = iMap.find( iKey );
     if ( writeID )
@@ -328,25 +276,14 @@ WriteArray( WrittenArraySampleMap &iMap,
     // Okay, need to actually store it.
     // It will be a dataset with an internal attribute for storing
     // the hash id.
-    
-    // Make a dataspace from the dimensions
-    Dimensions dims = iSamp.getDimensions();
-
-    // Dimensions of rank 0 is not allowed for an array property.
-    // However, the extent of any particular dimension can reach 0
-    // (as in the case of a particle-simulation with zero particles).
-    // In this case, we would want to know the dimensions, and can
-    // skip the dataset altogether.
-    ABCA_ASSERT( dims.rank() > 0,
-                 "Cannot have a rank-0 array sample in WriteArray" );
 
     bool hasData = dims.numPoints() > 0;
 
     hid_t dspaceId = -1;
     if ( hasData )
     {
-        HDimensions hdims( dims );
-        dspaceId = H5Screate_simple( hdims.rank(), hdims.rootPtr(), NULL );
+        hsize_t hdim = dims.numPoints() * dataType.getExtent();
+        dspaceId = H5Screate_simple( 1, &hdim, NULL );
     }
     else
     {
@@ -364,7 +301,7 @@ WriteArray( WrittenArraySampleMap &iMap,
         hid_t zipPlist = DsetGzipCreatePlist( dims,
             iCompressionLevel > 9 ? 9 : iCompressionLevel );
         PlistCloser plistCloser( zipPlist );
-        
+
         // Make the dataset.
         dsetId = H5Dcreate2( iGroup, iName.c_str(), iFileType, dspaceId,
                              H5P_DEFAULT, zipPlist, H5P_DEFAULT );
@@ -389,10 +326,6 @@ WriteArray( WrittenArraySampleMap &iMap,
 
     // Write the array sample key.
     WriteKey( dsetId, "key", iKey );
-
-    // If we don't have data, write the dimensions, which may
-    // still contain useful information.
-    WriteDimensions( dsetId, "dims", dims );
 
     writeID.reset( new WrittenArraySampleID( iKey, dsetId ) );
     iMap.store( writeID );
@@ -438,95 +371,118 @@ CopyWrittenArray( hid_t iGroup,
 }
 
 //-*****************************************************************************
-void WriteSampling( WrittenArraySampleMap &iMap,
-                    hid_t iGroup,
+void WritePropertyInfo( hid_t iGroup,
                     const std::string &iName,
-                    const AbcA::TimeSamplingType &iTsmpType,
+                    AbcA::PropertyType iPropertyType,
+                    const AbcA::DataType &iDataType,
+                    bool isScalarLike,
+                    uint32_t iTimeSamplingIndex,
                     uint32_t iNumSamples,
-                    uint32_t iNumUniqueSamples,
-                    const chrono_t *iTimes )
+                    uint32_t iFirstChangedIndex,
+                    uint32_t iLastChangedIndex )
 {
-    // Check to see if we need to write anything at all.
-    // If the time sampling type indicated that we should not retain
-    // constant sample times, and we have one or less unique samples,
-    // we leave.
-    // Since we haven't written the time sampling type yet, this effectively
-    // reduces the time sampling type to "identity" because there was no
-    // variation amongst the samples.
-    if ( iTsmpType.getRetainConstantSampleTimes() == false &&
-         iNumUniqueSamples < 2 )
+
+    uint32_t info[5] = {0, 0, 0, 0, 0};
+    uint32_t numFields = 1;
+
+    static const uint32_t ptypeMask = ( uint32_t )BOOST_BINARY (
+        0000 0000 0000 0000 0000 0000 0000 0011 );
+
+    static const uint32_t podMask = ( uint32_t )BOOST_BINARY (
+        0000 0000 0000 0000 0000 0000 0011 1100 );
+
+    static const uint32_t hasTsidxMask = ( uint32_t )BOOST_BINARY (
+        0000 0000 0000 0000 0000 0000 0100 0000 );
+
+    static const uint32_t noRepeatsMask = ( uint32_t )BOOST_BINARY (
+        0000 0000 0000 0000 0000 0000 1000 0000 );
+
+    static const uint32_t extentMask = ( uint32_t )BOOST_BINARY(
+        0000 0000 0000 0000 1111 1111 0000 0000 );
+
+    // for compounds we just write out 0
+    if ( iPropertyType != AbcA::kCompoundProperty )
     {
-        return;
+        // Slam the property type in there.
+        info[0] |= ptypeMask & ( uint32_t )iPropertyType;
+
+        // arrays may be scalar like, scalars are already scalar like
+        info[0] |= ( uint32_t ) isScalarLike;
+
+        uint32_t pod = ( uint32_t )iDataType.getPod();
+        info[0] |= podMask & ( pod << 2 );
+
+        if (iTimeSamplingIndex != 0)
+        {
+            info[0] |= hasTsidxMask;
+        }
+
+        if (iFirstChangedIndex == 1 && iLastChangedIndex == iNumSamples - 1)
+        {
+            info[0] |= noRepeatsMask;
+        }
+
+        uint32_t extent = ( uint32_t )iDataType.getExtent();
+        info[0] |= extentMask & ( extent << 8 );
+
+        ABCA_ASSERT( iFirstChangedIndex <= iNumSamples &&
+            iLastChangedIndex <= iNumSamples &&
+            iFirstChangedIndex <= iLastChangedIndex,
+            "Illegal Sampling!" << std::endl <<
+            "Num Samples: " << iNumSamples << std::endl <<
+            "First Changed Index: " << iFirstChangedIndex << std::endl <<
+            "Last Changed Index: " << iLastChangedIndex << std::endl );
+
+        // Write the num samples. Only bother writing if
+        // the num samples is greater than 1.  Existence of name.smp0
+        // is used by the reader to determine if 0 or 1 sample.
+        if ( iNumSamples > 1 )
+        {
+            info[1] = iNumSamples;
+            numFields ++;
+            if ( iFirstChangedIndex > 1 || ( iLastChangedIndex != 0 &&
+                iLastChangedIndex != iNumSamples - 1 ) )
+            {
+                info[2] = iFirstChangedIndex;
+                info[3] = iLastChangedIndex;
+                numFields += 2;
+            }
+        }
+
+        // finally set time sampling index on the end if necessary
+        if (iTimeSamplingIndex != 0)
+        {
+            info[numFields] = iTimeSamplingIndex;
+            numFields ++;
+        }
+
     }
 
-    // If we get here, write the time sampling type.
-    WriteTimeSamplingType( iGroup, iName, iTsmpType );
+    WriteSmallArray( iGroup, iName + ".info",
+        H5T_STD_U32LE, H5T_NATIVE_UINT32, numFields,
+        ( const void * ) info );
+}
 
-    // Write the num samples. Only bother writing if
-    // the num samples is greater than 1. The reader can infer
-    // that the num samples are 0 or 1 based on the presence
-    // of attributes.
-    if ( iNumSamples > 1 )
-    {
-        // If the num unique samples is different than the
-        // num samples, write a uint32[2], with the num unique
-        // samples as the second element. Otherwise, just write
-        // the num samples as uint32.
-        if ( iNumUniqueSamples < iNumSamples )
-        {
-            assert( iNumUniqueSamples > 0 );
+//-*****************************************************************************
+void WriteTimeSampling( hid_t iGroup,
+                    const std::string &iName,
+                    const AbcA::TimeSampling &iTsmp )
+{
 
-            uint32_t samps[2];
-            samps[0] = iNumSamples;
-            samps[1] = iNumUniqueSamples;
-
-            WriteSmallArray( iGroup, iName + ".nums",
-                             H5T_STD_U32LE,
-                             H5T_NATIVE_UINT32,
-                             2,
-                             ( const void * )samps );
-        }
-        else
-        {
-            WriteSmallArray( iGroup, iName + ".nums",
-                             H5T_STD_U32LE,
-                             H5T_NATIVE_UINT32,
-                             1,
-                             ( const void * )&iNumSamples );
-        }
-    }
+    AbcA::TimeSamplingType tst = iTsmp.getTimeSamplingType();
+    WriteTimeSamplingType( iGroup, iName, tst );
 
     //-*************************************************************************
     // WRITE TIMES.
     //-*************************************************************************
     std::string timeSampsName = iName + ".time";
-    size_t numTimes = std::min( ( size_t )iNumSamples,
-                                ( size_t )iTsmpType.getNumSamplesPerCycle() );
-    if ( numTimes < 1 )
-    {
-        // No times to write.
-        return;
-    }
 
-    if ( numTimes < 2 )
-    {   
-        // Only one time.
-        WriteScalar( iGroup, timeSampsName,
-                     H5T_IEEE_F64LE,
-                     H5T_NATIVE_DOUBLE,
-                     ( const void * )iTimes );
-    }
-    else
-    {
-        AbcA::ArraySample samp( ( const void * )iTimes,
-                                AbcA::DataType( kFloat64POD, 1 ),
-                                AbcA::Dimensions( numTimes ) );
-
-        WriteArray( iMap, iGroup, timeSampsName, samp, samp.getKey(),
-                    H5T_IEEE_F64LE,
-                    H5T_NATIVE_DOUBLE, -1 );
-    }
+    const std::vector < chrono_t > & samps = iTsmp.getStoredTimes();
+    ABCA_ASSERT( samps.size() > 0, "No TimeSamples to write!");
+    H5LTset_attribute_double ( iGroup, ".", timeSampsName.c_str(),
+        &samps.front(), samps.size() );
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

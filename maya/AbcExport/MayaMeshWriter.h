@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -49,15 +49,15 @@ class MayaMeshWriter
 {
   public:
 
-    MayaMeshWriter(double iFrame, MDagPath & iDag,
-        Alembic::Abc::OObject & iParent,
-        Alembic::AbcCoreAbstract::v1::TimeSamplingType & iTimeType,
-        bool iWriteVisibilty, bool iWriteUVs);
-    void write(double iFrame);
+    MayaMeshWriter(MDagPath & iDag, Alembic::Abc::OObject & iParent,
+        uint32_t iTimeIndex, bool iWriteVisibilty, bool iWriteUVs,
+        bool iForceStatic);
+    void write();
     bool isAnimated() const;
     bool isSubD();
     unsigned int getNumCVs();
     unsigned int getNumFaces();
+    AttributesWriterPtr getAttrs() {return mAttrs;};
 
   private:
 
@@ -66,10 +66,12 @@ class MayaMeshWriter
         std::vector< int32_t > & oFacePoints,
         std::vector< int32_t > & oPointCounts);
 
-    void writePoly(double iFrame);
-    void writeSubD(double iFrame, MDagPath & iDag);
+    void writePoly(const Alembic::AbcGeom::OV2fGeomParam::Sample & iUVs);
 
-    void getUVs(std::vector<float> & uvs, std::vector<int32_t> & indices);
+    void writeSubD(MDagPath & iDag,
+        const Alembic::AbcGeom::OV2fGeomParam::Sample & iUVs);
+
+    void getUVs(std::vector<float> & uvs, std::vector<uint32_t> & indices);
 
     void getPolyNormals(std::vector<float> & oNormals);
 
@@ -77,7 +79,6 @@ class MayaMeshWriter
     MDagPath mDagPath;
 
     size_t  mNumPoints;
-    size_t mCurIndex;
 
     AttributesWriterPtr mAttrs;
     Alembic::AbcGeom::OPolyMeshSchema   mPolySchema;

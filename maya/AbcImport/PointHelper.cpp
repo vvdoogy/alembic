@@ -58,9 +58,7 @@ MStatus read(double iFrame, const Alembic::AbcGeom::IPoints & iNode,
 }
 
 MStatus create(double iFrame, const Alembic::AbcGeom::IPoints & iNode,
-    MObject & iParent, MObject & iObject,
-    std::vector<std::string> & iSampledPropNameList,
-    bool iSwap)
+    MObject & iParent, MObject & iObject)
 {
     MStatus status = MS::kSuccess;
     Alembic::AbcGeom::IPointsSchema schema = iNode.getSchema();
@@ -72,7 +70,8 @@ MStatus create(double iFrame, const Alembic::AbcGeom::IPoints & iNode,
     }
 
     Alembic::AbcGeom::IPointsSchema::Sample samp;
-    int64_t index = schema.getTimeSampling().getNearIndex(iFrame).first;
+    int64_t index = schema.getTimeSampling()->getNearIndex(iFrame,
+        schema.getNumSamples()).first;
 
     schema.get(samp, index);
 
@@ -100,8 +99,6 @@ MStatus create(double iFrame, const Alembic::AbcGeom::IPoints & iNode,
                       (*v3ptr)[pId].y,
                       (*v3ptr)[pId].z);
     }
-
-    //addProperties(iFrame, iNode, iObject, iSampledPropNameList);
 
     status = fnParticle.emit(pArray);
     status = fnParticle.saveInitialState();

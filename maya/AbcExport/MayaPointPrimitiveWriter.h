@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -48,13 +48,13 @@ class MayaPointPrimitiveWriter
   public:
 
     MayaPointPrimitiveWriter(double iFrame, MDagPath & iDag,
-        Alembic::AbcGeom::OObject & iParent,
-        Alembic::AbcCoreAbstract::v1::TimeSamplingType & iTimeType,
-        bool iWriteVisibility);
+        Alembic::AbcGeom::OObject & iParent, uint32_t iTimeIndex,
+        bool iWriteVisibility, bool iForceStatic);
 
     void write(double iFrame);
     bool isAnimated() const;
     unsigned int getNumCVs();
+    AttributesWriterPtr getAttrs() {return mAttrs;};
 
   private:
 
@@ -63,7 +63,6 @@ class MayaPointPrimitiveWriter
 
     AttributesWriterPtr mAttrs;
     Alembic::AbcGeom::OPointsSchema mSchema;
-    size_t mCurIndex;
 };
 
 #endif  // _AlembicExport_MayaPointPrimitiveWriter_h_

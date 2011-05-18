@@ -74,111 +74,79 @@ namespace
         status = ioMesh.clearUVs();
         status = ioMesh.setUVs(uArray, vArray, &uvSetName);
         status = ioMesh.assignUVs(uvCounts, uvIds);
+
         if (status != MS::kSuccess)
-            printError("Assign UVs failed");
+            printError(ioMesh.fullPathName() + " Assign UVs failed");
 
         return status;
     }  // setMeshUVs
 
 
     void setUVs(double iFrame, MFnMesh & ioMesh,
-        Alembic::Abc::IObject & iParent)
+        Alembic::AbcGeom::IV2fGeomParam & iUVs)
     {
-        // this will need to change once UVs are part of the schema
-        Alembic::Abc::IV3fArrayProperty stValProp(iParent.getProperties(),
-            "st", Alembic::Abc::ErrorHandler::kQuietNoopPolicy);
-        Alembic::Abc::IInt32ArrayProperty stIndexProp(iParent.getProperties(),
-            "st.index", Alembic::Abc::ErrorHandler::kQuietNoopPolicy);
 
-        if (!stValProp.valid())
+        if (!iUVs.valid())
             return;
 
-        Alembic::Abc::V3fArraySamplePtr stValPtr;
-        int64_t zero = 0;
-        stValProp.get(stValPtr, Alembic::Abc::ISampleSelector(zero));
+        // no interpolation for now
+        int64_t index, ceilIndex;
+        double alpha = getWeightAndIndex(iFrame, iUVs.getTimeSampling(),
+            iUVs.getNumSamples(), index, ceilIndex);
 
-        Alembic::Abc::Int32ArraySamplePtr stIndexPtr;
-        if (stIndexProp.valid())
-            stIndexProp.get(stIndexPtr, Alembic::Abc::ISampleSelector(zero));
+        MFloatArray uArray;
+        MFloatArray vArray;
 
-        // Get uv values
-        size_t numUVs = stValPtr->size();
-        MFloatArray uArray(numUVs, 0.0);
-        MFloatArray vArray(numUVs, 0.0);
-        int uvIndex = 0;
-        int valueIndex = 0;
+        size_t numFaceVertices = ioMesh.numFaceVertices();
+        MIntArray uvCounts(ioMesh.numPolygons(), 0);
+        MIntArray uvIds(numFaceVertices, 0);
 
-        for (size_t i = 0; i < numUVs; ++i)
-        {
-            uArray[i] = (*stValPtr)[i].x;
-            vArray[i] = 1.0 - (*stValPtr)[i].y;
-        }
+        Alembic::AbcGeom::IV2fGeomParam::Sample samp;
+        iUVs.getIndexed(samp, Alembic::Abc::ISampleSelector(index));
 
-        const int numFaceVertices = ioMesh.numFaceVertices();
-        const int faceCount = ioMesh.numPolygons();
+        Alembic::AbcGeom::V2fArraySamplePtr uvPtr = samp.getVals();
+        Alembic::Abc::UInt32ArraySamplePtr indexPtr = samp.getIndices();
 
-        // no indices found
-        if ((stIndexPtr != NULL) && (numUVs == numFaceVertices))
-        {
-            MIntArray uvCounts(faceCount, 0);
-            MIntArray uvIds(numFaceVertices, 0);
-
-            // Set connectivity info
-            uvIndex = 0;
-            int uvCountsIndex = 0;
-            unsigned int vIndex = 0;
-            MItMeshPolygon meshPolygonIter(ioMesh.object());
-            do
-            {
-                const int numPolygonVertices(
-                    meshPolygonIter.polygonVertexCount() );
-                uvCounts[uvCountsIndex++] = numPolygonVertices;
-
-                for (int vertexIndex = 0;
-                    vertexIndex < numPolygonVertices; vertexIndex++)
-                {
-                    uvIds[uvIndex] = vIndex;
-                    uvIndex++;
-                    vIndex++;
-                }
-            }
-            while (meshPolygonIter.next() == MS::kSuccess
-                && !meshPolygonIter.isDone());
-
-            setMeshUVs(ioMesh, uArray, vArray, uvCounts, uvIds);
-        }
-        else if (stIndexPtr->size() == numFaceVertices)
-        {
-            MIntArray uvCounts(faceCount, 0);
-            MIntArray uvIds(numFaceVertices, 0);
-
-            // Set connectivity info
-            uvIndex = 0;
-            int uvCountsIndex = 0;
-            MItMeshPolygon meshPolygonIter(ioMesh.object());
-            do
-            {
-                int numPolygonVertices(meshPolygonIter.polygonVertexCount());
-                uvCounts[uvCountsIndex++] = numPolygonVertices;
-                int startPoint = uvIndex + numPolygonVertices - 1;
-
-                for (int vertexIndex = 0;
-                    vertexIndex < numPolygonVertices; vertexIndex++)
-                {
-                    uvIds[uvIndex] = (*stIndexPtr)[startPoint - vertexIndex];
-                    uvIndex++;
-                }
-            }
-            while (meshPolygonIter.next() == MS::kSuccess
-                && !meshPolygonIter.isDone());
-
-            setMeshUVs(ioMesh, uArray, vArray, uvCounts, uvIds);
-        }
-        else
+        if (numFaceVertices != indexPtr->size())
         {
             printWarning(
-                "UV indices can't be used as per-polygon per-vertex uv");
+                ioMesh.fullPathName() +
+                    " UVs aren't per-polygon per-vertex, skipping");
+            return;
         }
+
+        size_t numUVs = uvPtr->size();
+        uArray.setLength(numUVs);
+        vArray.setLength(numUVs);
+        for (size_t i = 0; i < numUVs; ++i)
+        {
+            uArray[i] = (*uvPtr)[i].x;
+            vArray[i] = 1.0 - (*uvPtr)[i].y;
+        }
+
+        size_t uvIndex = 0;
+        size_t uvCountsIndex = 0;
+        size_t vIndex = 0;
+
+        size_t numPolys = ioMesh.numPolygons();
+        for (size_t pIndex = 0; pIndex < numPolys; ++pIndex)
+        {
+            size_t numPolygonVertices = ioMesh.polygonVertexCount(pIndex);
+            uvCounts[uvCountsIndex++] = numPolygonVertices;
+            if (numPolygonVertices == 0)
+                continue;
+
+            size_t startPoint = uvIndex + numPolygonVertices - 1;
+
+            for (size_t vertexIndex = 0;
+                vertexIndex < numPolygonVertices; vertexIndex++)
+            {
+                uvIds[uvIndex++] = (*indexPtr)[startPoint - vertexIndex];
+            }
+        }
+
+
+        setMeshUVs(ioMesh, uArray, vArray, uvCounts, uvIds);
     }  // setUVs
 
     // utility to clear pt when doing a swap otherwise
@@ -204,54 +172,117 @@ namespace
 
     // normal vector is packed differently in file
     // from the format Maya accepts directly
-    void setPolyNormals(MFnMesh & ioMesh, std::vector<float> & normals)
+    void setPolyNormals(double iFrame, MFnMesh & ioMesh,
+        Alembic::AbcGeom::IN3fGeomParam iNormals)
     {
-        int size = normals.size()/3;
-        if (size == 0) return;
+        // no normals to set?  bail early
+        if (!iNormals)
+            return;
 
-        int numFaces = ioMesh.numPolygons();
-        if (size == ioMesh.numVertices())
+        if (iNormals.getScope() != Alembic::AbcGeom::kVertexScope &&
+            iNormals.getScope() != Alembic::AbcGeom::kFacevaryingScope)
         {
-            // per vertex normal
-            MVectorArray normalsIn;
-            MIntArray vertexList;
-            for (int i = 0, nIndex = 0; i < size; i++, nIndex += 3)
-            {
-                MVector normal(normals[nIndex],
-                                normals[nIndex+1],
-                                normals[nIndex+2]);
-                normalsIn.append(normal);
-                vertexList.append(i);
-            }
-            MStatus status = ioMesh.setVertexNormals(normalsIn, vertexList);
-            if (status != MS::kSuccess)
-                printError("Error setting per vertex normals");
+            printWarning(ioMesh.fullPathName() +
+                " normal vector has an unsupported scope, skipping normals");
+            return;
         }
-        else if (size == ioMesh.numFaceVertices())
+
+        int64_t index, ceilIndex;
+        double alpha = getWeightAndIndex(iFrame,
+            iNormals.getTimeSampling(), iNormals.getNumSamples(),
+            index, ceilIndex);
+
+        Alembic::AbcGeom::IN3fGeomParam::Sample samp;
+        iNormals.getExpanded(samp, Alembic::Abc::ISampleSelector(index));
+
+        MVectorArray normalsIn;
+
+        Alembic::Abc::N3fArraySamplePtr sampVal = samp.getVals();
+        size_t sampSize = sampVal->size();
+
+        Alembic::Abc::N3fArraySamplePtr ceilVals;
+        if (alpha != 0 && index != ceilIndex)
         {
-            // per vertex per-polygon normal
-            int nIndex = 0;
-            for (int faceIndex = 0; faceIndex < numFaces; faceIndex++)
+            Alembic::AbcGeom::IN3fGeomParam::Sample ceilSamp;
+            iNormals.getExpanded(ceilSamp,
+                Alembic::Abc::ISampleSelector(ceilIndex));
+            ceilVals = ceilSamp.getVals();
+            if (sampSize == ceilVals->size())
             {
-                MIntArray vertexList;
-                ioMesh.getPolygonVertices(faceIndex, vertexList);
-                unsigned int numVertices = vertexList.length();
-                // re-pack the order of normals in this vector before writing
-                // into prop so that Renderman can also use it
-                for ( int v = numVertices-1; v >= 0; v-- )
+                Alembic::Abc::N3fArraySamplePtr ceilVal = ceilSamp.getVals();
+                for (size_t i = 0; i < sampSize; ++i)
                 {
-                    unsigned int vertexIndex = vertexList[v];
-                    MVector normal(normals[nIndex],
-                                normals[nIndex+1],
-                                normals[nIndex+2]);
-                    ioMesh.setFaceVertexNormal(normal, faceIndex, vertexIndex);
-                    nIndex += 3;
+                    MVector normal(
+                        simpleLerp<float>(alpha, (*sampVal)[i].x,
+                            (*ceilVal)[i].x),
+                        simpleLerp<float>(alpha, (*sampVal)[i].y,
+                            (*ceilVal)[i].y),
+                        simpleLerp<float>(alpha, (*sampVal)[i].z,
+                            (*ceilVal)[i].z));
+                    normalsIn.append(normal);
+                }
+            }
+            else
+            {
+                for (size_t i = 0; i < sampSize; ++i)
+                {
+                    MVector normal((*sampVal)[i].x, (*sampVal)[i].y,
+                        (*sampVal)[i].z);
+                    normalsIn.append(normal);
                 }
             }
         }
         else
         {
-            printError("Normal vector is not of the correct length");
+            for (size_t i = 0; i < sampSize; ++i)
+            {
+                MVector normal((*sampVal)[i].x, (*sampVal)[i].y,
+                    (*sampVal)[i].z);
+                normalsIn.append(normal);
+            }
+        }
+
+        if (iNormals.getScope() == Alembic::AbcGeom::kVertexScope &&
+            sampSize == ioMesh.numVertices())
+        {
+            MIntArray vertexList;
+            for (size_t i = 0; i < sampSize; ++i)
+            {
+                vertexList.append(i);
+            }
+
+            ioMesh.setVertexNormals(normalsIn, vertexList);
+
+        }
+        else if (sampSize == ioMesh.numFaceVertices() &&
+            iNormals.getScope() == Alembic::AbcGeom::kFacevaryingScope)
+        {
+
+            MIntArray faceList(sampSize);
+            MIntArray vertexList(sampSize);
+
+            // per vertex per-polygon normal
+            std::size_t numFaces = ioMesh.numPolygons();
+            std::size_t nIndex = 0;
+            for (std::size_t faceIndex = 0; faceIndex < numFaces; faceIndex++)
+            {
+                MIntArray polyVerts;
+                ioMesh.getPolygonVertices(faceIndex, polyVerts);
+                int numVertices = polyVerts.length();
+                for (int v = numVertices - 1; v >= 0; v--, ++nIndex)
+                {
+                    faceList[nIndex] = faceIndex;
+                    vertexList[nIndex] = polyVerts[v];
+                }
+            }
+
+            ioMesh.setFaceVertexNormals(normalsIn, faceList, vertexList);
+        }
+        else
+        {
+            printWarning(ioMesh.fullPathName() +
+                " normal vector scope does not match size of data, " +
+                "skipping normals");
         }
     }
 
@@ -287,7 +318,6 @@ namespace
     }
 
     void fillTopology(MFnMesh & ioMesh, MObject & iParent,
-        const std::string & iName,
         MFloatPointArray & iPoints,
         Alembic::Abc::Int32ArraySamplePtr iIndices,
         Alembic::Abc::Int32ArraySamplePtr iCounts)
@@ -323,13 +353,11 @@ namespace
         MObject shape = ioMesh.create(iPoints.length(), numPolys, iPoints,
             polyCounts, polyConnects, iParent);
 
-        ioMesh.setName(iName.c_str());
-
     }
 
 }  // namespace
 
-// once normals are supported in the polyMesh schema, polyMesh will look 
+// once normals are supported in the polyMesh schema, polyMesh will look
 // different than readSubD
 void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     Alembic::AbcGeom::IPolyMesh & iNode, bool iInitialized)
@@ -339,7 +367,7 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 
     int64_t index, ceilIndex;
     double alpha = getWeightAndIndex(iFrame,
-        schema.getTimeSampling(), index, ceilIndex);
+        schema.getTimeSampling(), schema.getNumSamples(), index, ceilIndex);
 
     MFloatPointArray pointArray;
     Alembic::Abc::V3fArraySamplePtr ceilPoints;
@@ -359,6 +387,17 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 
         fillPoints(pointArray, points, ceilPoints, alpha);
         ioMesh.setPoints(pointArray, MSpace::kObject);
+
+        if (schema.getNormals().getNumSamples() > 1)
+        {
+            setPolyNormals(iFrame, ioMesh, schema.getNormals());
+        }
+
+        if (schema.getUVs().getNumSamples() > 1)
+        {
+            setUVs(iFrame, ioMesh, schema.getUVs());
+        }
+
         return;
     }
 
@@ -374,9 +413,11 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 
     fillPoints(pointArray, samp.getPositions(), ceilPoints, alpha);
 
-    fillTopology(ioMesh, iParent, iNode.getName(), pointArray,
-        samp.getIndices(), samp.getCounts());
+    fillTopology(ioMesh, iParent, pointArray, samp.getFaceIndices(),
+                 samp.getFaceCounts());
 
+    setPolyNormals(iFrame, ioMesh, schema.getNormals());
+    setUVs(iFrame, ioMesh, schema.getUVs());
 }
 
 void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
@@ -387,7 +428,7 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 
     int64_t index, ceilIndex;
     double alpha = getWeightAndIndex(iFrame,
-        schema.getTimeSampling(), index, ceilIndex);
+        schema.getTimeSampling(), schema.getNumSamples(), index, ceilIndex);
 
     MFloatPointArray pointArray;
     Alembic::Abc::V3fArraySamplePtr ceilPoints;
@@ -407,6 +448,12 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 
         fillPoints(pointArray, points, ceilPoints, alpha);
         ioMesh.setPoints(pointArray, MSpace::kObject);
+
+        if (schema.getUVs().getNumSamples() > 1)
+        {
+            setUVs(iFrame, ioMesh, schema.getUVs());
+        }
+
         return;
     }
 
@@ -422,137 +469,82 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 
     fillPoints(pointArray, samp.getPositions(), ceilPoints, alpha);
 
-    fillTopology(ioMesh, iParent, iNode.getName(), pointArray,
-        samp.getFaceIndices(), samp.getFaceCounts());
+    fillTopology(ioMesh, iParent, pointArray, samp.getFaceIndices(),
+        samp.getFaceCounts());
 
+    setUVs(iFrame, ioMesh, schema.getUVs());
 }
 
-void connectToPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
-    std::vector<std::string> & oSampledPropNameList, MObject & iMeshObject)
+void disconnectMesh(MObject & iMeshObject,
+    std::vector<Alembic::Abc::IArrayProperty> & iSampledPropList,
+    std::size_t iFirstProp)
 {
-    Alembic::AbcGeom::IPolyMeshSchema schema = iNode.getSchema();
-    MString name(iNode.getName().c_str());
-
-    int64_t index, ceilIndex;
-    double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(), index,
-        ceilIndex);
-
-    Alembic::AbcGeom::IPolyMeshSchema::Sample samp;
-    schema.get(samp, Alembic::Abc::ISampleSelector(index));
-
     MFnMesh fnMesh;
     fnMesh.setObject(iMeshObject);
-
-    size_t numVertices = fnMesh.numVertices();
-
-    // simple test for change in topology
-    if (samp.getPositions()->size() != numVertices)
-    {
-        MString theWarning("Processing fnMesh ");
-        theWarning += name;
-        theWarning += ", number of vertices changed: ";
-        theWarning += "number of fnMesh vertices is ";
-        theWarning += (unsigned int)(numVertices);
-        theWarning +=
-            MString(", number of fnMesh vertices last frame is ");
-        theWarning += static_cast<unsigned int>
-            (samp.getPositions()->size());
-        printWarning(theWarning);
-    }
 
     // disconnect old connection from AlembicNode or some other nodes
     // to inMesh if one such connection exist
     MPlug dstPlug = fnMesh.findPlug("inMesh");
     disconnectAllPlugsTo(dstPlug);
 
-    // get prop names and make sure they are disconnected before
-    // trying to connect to them
-    // disconnect connections to animated props
-    //dstPlug = fnMesh.findPlug(propName.c_str());
-    // disconnectAllPlugsTo(dstPlug);
+    disconnectProps(fnMesh, iSampledPropList, iFirstProp);
 
     clearPt(fnMesh);
 
-    MFloatPointArray ptArray;
-    Alembic::Abc::V3fArraySamplePtr ceilPoints;
-    if (index != ceilIndex)
-    {
-        Alembic::AbcGeom::IPolyMeshSchema::Sample ceilSamp;
-        schema.get(ceilSamp, Alembic::Abc::ISampleSelector(ceilIndex));
-        ceilPoints = ceilSamp.getPositions();
-    }
-
-    fillPoints(ptArray, samp.getPositions(), ceilPoints, alpha);
-    fnMesh.setPoints(ptArray, MSpace::kObject);
-
-    /*
-    if ( schema.hasNormals() )
-    {
-        setPolyNormals(fnMesh, normals);
-    }
-    */
-
-    //else
-    {
-        MStatus status = MS::kSuccess;
-        MPlug plug = fnMesh.findPlug("noNormals", &status);
-        if (status == MS::kSuccess)
-            plug.setValue(false);
-    }
-
-    setUVs(iFrame, fnMesh, iNode);
+    return;
 
 }
 
 MObject createPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
-    MObject & iParent, std::vector<std::string> & oSampledPropNameList)
+    MObject & iParent)
 {
     Alembic::AbcGeom::IPolyMeshSchema schema = iNode.getSchema();
     MString name(iNode.getName().c_str());
 
     MStatus status = MS::kSuccess;
 
-    int64_t index, ceilIndex;
-    double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(), index,
-        ceilIndex);
-
-    Alembic::AbcGeom::IPolyMeshSchema::Sample samp;
-    schema.get(samp, Alembic::Abc::ISampleSelector(index));
-
     MFnMesh fnMesh;
     MObject obj;
 
-    MFloatPointArray ptArray;
-    Alembic::Abc::V3fArraySamplePtr ceilPoints;
-    if (index != ceilIndex)
+    // add other properties
+    if (schema.getNumSamples() > 1)
     {
-        Alembic::AbcGeom::IPolyMeshSchema::Sample ceilSamp;
-        schema.get(ceilSamp, Alembic::Abc::ISampleSelector(ceilIndex));
-        ceilPoints = ceilSamp.getPositions();
+        MFloatPointArray emptyPt;
+        MIntArray emptyInt;
+        obj = fnMesh.create(0, 0, emptyPt, emptyInt, emptyInt, iParent);
+        fnMesh.setName(name);
     }
+    else
+    {
+        int64_t index, ceilIndex;
+        double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(),
+            schema.getNumSamples(), index, ceilIndex);
 
-    fillPoints(ptArray, samp.getPositions(), ceilPoints, alpha);
-    fillTopology(fnMesh, iParent, iNode.getName(),
-        ptArray, samp.getIndices(), samp.getCounts());
+        Alembic::AbcGeom::IPolyMeshSchema::Sample samp;
+        schema.get(samp, Alembic::Abc::ISampleSelector(index));
 
-    obj = fnMesh.object();
-    fnMesh.setName(name);
+        MFloatPointArray ptArray;
+        Alembic::Abc::V3fArraySamplePtr ceilPoints;
+        if (index != ceilIndex)
+        {
+            Alembic::AbcGeom::IPolyMeshSchema::Sample ceilSamp;
+            schema.get(ceilSamp, Alembic::Abc::ISampleSelector(ceilIndex));
+            ceilPoints = ceilSamp.getPositions();
+        }
+
+        fillPoints(ptArray, samp.getPositions(), ceilPoints, alpha);
+        fillTopology(fnMesh, iParent, ptArray, samp.getFaceIndices(),
+                     samp.getFaceCounts());
+        fnMesh.setName(iNode.getName().c_str());
+        setPolyNormals(iFrame, fnMesh, schema.getNormals());
+        setUVs(iFrame, fnMesh, schema.getUVs());
+        obj = fnMesh.object();
+    }
 
     MString pathName = fnMesh.partialPathName();
     setInitialShadingGroup(pathName);
 
-    //if ( schema.hasNormals() )
-    //    setPolyNormals(fnMesh, samp.getNormals());
-    //else
-    {
-        MPlug plug = fnMesh.findPlug("noNormals", &status);
-        if (status == MS::kSuccess)
-            plug.setValue(false);
-    }
-
-    setUVs(iFrame, fnMesh, iNode);
-
-    //if (!schema.hasNormals())
+    if ( !schema.getNormals().valid() )
     {
         MFnNumericAttribute attr;
         MString attrName("noNormals");
@@ -564,82 +556,17 @@ MObject createPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
         fnMesh.addAttribute(attrObj, MFnDependencyNode::kLocalDynamicAttr);
     }
 
-    // add other properties
-
     return obj;
 }
 
-void connectToSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
-    std::vector<std::string> & oSampledPropNameList, MObject & iMeshObject)
-{
-    Alembic::AbcGeom::ISubDSchema schema = iNode.getSchema();
-
-    int64_t index, ceilIndex;
-    double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(), index,
-        ceilIndex);
-
-    Alembic::AbcGeom::ISubDSchema::Sample samp;
-    schema.get(samp, Alembic::Abc::ISampleSelector(index));
-
-    MString name(iNode.getName().c_str());
-
-    MFnMesh fnMesh;
-
-    fnMesh.setObject(iMeshObject);
-
-    unsigned int numVertices = fnMesh.numVertices();
-
-    // simple test for change in topology
-    if (samp.getPositions()->size() != numVertices)
-    {
-        MString theWarning("Processing fnMesh ");
-        theWarning += name;
-        theWarning += ", number of vertices changed: ";
-        theWarning += "number of fnMesh vertices is ";
-        theWarning += numVertices;
-        theWarning +=
-            MString(", number of fnMesh vertices last frame is ");
-        theWarning += static_cast<unsigned int>
-            (samp.getPositions()->size());
-        printWarning(theWarning);
-    }
-
-    // disconnect old connection from AlembicNode or some other nodes
-    // to inMesh if one such connection exist
-    MPlug dstPlug = fnMesh.findPlug("inMesh");
-    disconnectAllPlugsTo(dstPlug);
-
-    // get prop names and make sure they are disconnected before
-    // trying to connect to them
-    // disconnect connections to animated props
-    //dstPlug = fnMesh.findPlug(propName.c_str());
-    // disconnectAllPlugsTo(dstPlug);
-
-    clearPt(fnMesh);
-
-    MFloatPointArray ptArray;
-    Alembic::Abc::V3fArraySamplePtr ceilPoints;
-    if (index != ceilIndex)
-    {
-        Alembic::AbcGeom::ISubDSchema::Sample ceilSamp;
-        schema.get(ceilSamp, Alembic::Abc::ISampleSelector(ceilIndex));
-        ceilPoints = ceilSamp.getPositions();
-    }
-
-    fillPoints(ptArray, samp.getPositions(), ceilPoints, alpha);
-    fnMesh.setPoints(ptArray, MSpace::kObject);
-    setUVs(iFrame, fnMesh, iNode);
-
-}
-
 MObject createSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
-    MObject & iParent, std::vector<std::string> & oSampledPropNameList)
+    MObject & iParent)
 {
     Alembic::AbcGeom::ISubDSchema schema = iNode.getSchema();
 
     int64_t index, ceilIndex;
-    double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(), index,
-        ceilIndex);
+    double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(),
+        schema.getNumSamples(), index, ceilIndex);
 
     Alembic::AbcGeom::ISubDSchema::Sample samp;
     schema.get(samp, Alembic::Abc::ISampleSelector(index));
@@ -652,17 +579,15 @@ MObject createSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
     Alembic::Abc::V3fArraySamplePtr emptyPtr;
     fillPoints(pointArray, samp.getPositions(), emptyPtr, 0.0);
 
-    fillTopology(fnMesh, iParent, iNode.getName(),
-        pointArray, samp.getFaceIndices(), samp.getFaceCounts());
-
-    MObject obj = fnMesh.object();
-    fnMesh.setName(name);
+    fillTopology(fnMesh, iParent, pointArray, samp.getFaceIndices(),
+        samp.getFaceCounts());
+    fnMesh.setName(iNode.getName().c_str());
 
     setInitialShadingGroup(fnMesh.partialPathName());
 
-    //addProperties(iFrame, iNode, obj, oSampledPropNameList);
+    MObject obj = fnMesh.object();
 
-    setUVs(iFrame, fnMesh, iNode);
+    setUVs(iFrame, fnMesh, schema.getUVs());
 
     // add the mFn-specific attributes to fnMesh node
     MFnNumericAttribute numAttr;
@@ -671,7 +596,7 @@ MObject createSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
         MFnNumericData::kBoolean, 1);
     numAttr.setKeyable(true);
     numAttr.setHidden(false);
-    fnMesh.addAttribute(attrObj,  MFnDependencyNode::kLocalDynamicAttr);
+    fnMesh.addAttribute(attrObj, MFnDependencyNode::kLocalDynamicAttr);
 
     if (samp.getInterpolateBoundary() > 0)
     {
@@ -706,17 +631,19 @@ MObject createSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
         fnMesh.addAttribute(attrObj,  MFnDependencyNode::kLocalDynamicAttr);
     }
 
-    if (!samp.getHoles()->size() == 0)
+    if (samp.getHoles() && !samp.getHoles()->size() == 0)
     {
         printWarning("Hole Poly Indices not yet supported.");
     }
 
-    if (!samp.getCreaseSharpnesses()->size() == 0)
+    if (samp.getCreaseSharpnesses() &&
+        !samp.getCreaseSharpnesses()->size() == 0)
     {
         printWarning("Creases not yet supported.");
     }
 
-    if (!samp.getCornerSharpnesses()->size() == 0)
+    if (samp.getCornerSharpnesses() &&
+        !samp.getCornerSharpnesses()->size() == 0)
     {
         printWarning("Corners not yet supported.");
     }

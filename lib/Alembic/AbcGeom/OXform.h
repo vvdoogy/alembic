@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -39,10 +39,15 @@
 
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
-#include <Alembic/AbcGeom/XformOp.h>
+
+#include <Alembic/AbcGeom/XformSample.h>
 
 namespace Alembic {
 namespace AbcGeom {
+
+//! The default value for determining whether a property is actually
+//! different from the default.
+static const double kXFORM_DELTA_TOLERANCE = 1.0e-12;
 
 //-*****************************************************************************
 class OXformSchema : public Abc::OSchema<XformSchemaInfo>
@@ -54,7 +59,9 @@ public:
 
     //! By convention we always define this_type in AbcGeom classes.
     //! Used by unspecified-bool-type conversion below
+    typedef Abc::OSchema<XformSchemaInfo> super_type;
     typedef OXformSchema this_type;
+    typedef XformSample sample_type;
 
     //-*************************************************************************
     // CONSTRUCTION, DESTRUCTION, ASSIGNMENT
@@ -73,42 +80,75 @@ public:
     //! MetaData, and to set TimeSamplingType.
     template <class CPROP_PTR>
     OXformSchema( CPROP_PTR iParentObject,
-                     const std::string &iName,
-                     const Abc::OArgument &iArg0 = Abc::OArgument(),
-                     const Abc::OArgument &iArg1 = Abc::OArgument(),
-                     const Abc::OArgument &iArg2 = Abc::OArgument() )
+                  const std::string &iName,
+                  const Abc::Argument &iArg0 = Abc::Argument(),
+                  const Abc::Argument &iArg1 = Abc::Argument(),
+                  const Abc::Argument &iArg2 = Abc::Argument() )
       : Abc::OSchema<XformSchemaInfo>( iParentObject, iName,
-                                            iArg0, iArg1, iArg2 )
+                                       iArg0, iArg1, iArg2 )
     {
         // Meta data and error handling are eaten up by
         // the super type, so all that's left is time sampling.
-        init( Abc::GetTimeSamplingType( iArg0, iArg1, iArg2 ) );
+        AbcA::TimeSamplingPtr tsPtr =
+            Abc::GetTimeSampling( iArg0, iArg1, iArg2 );
+
+        AbcA::index_t tsIndex =
+            Abc::GetTimeSamplingIndex( iArg0, iArg1, iArg2 );
+
+        if ( tsPtr )
+        {
+            tsIndex = iParentObject->getObject()->getArchive()->
+                addTimeSampling( *tsPtr );
+        }
+
+        m_timeSamplingIndex = tsIndex;
+
+        init( tsIndex );
     }
 
+    //! This constructor does the same as the above, but uses the default
+    //! name from the XformSchemaInfo struct.
     template <class CPROP_PTR>
     explicit OXformSchema( CPROP_PTR iParentObject,
-                              const Abc::OArgument &iArg0 = Abc::OArgument(),
-                              const Abc::OArgument &iArg1 = Abc::OArgument(),
-                              const Abc::OArgument &iArg2 = Abc::OArgument() )
+                           const Abc::Argument &iArg0 = Abc::Argument(),
+                           const Abc::Argument &iArg1 = Abc::Argument(),
+                           const Abc::Argument &iArg2 = Abc::Argument() )
       : Abc::OSchema<XformSchemaInfo>( iParentObject,
-                                            iArg0, iArg1, iArg2 )
+                                       iArg0, iArg1, iArg2 )
     {
         // Meta data and error handling are eaten up by
         // the super type, so all that's left is time sampling.
-        init( Abc::GetTimeSamplingType( iArg0, iArg1, iArg2 ) );
+        AbcA::TimeSamplingPtr tsPtr =
+            Abc::GetTimeSampling( iArg0, iArg1, iArg2 );
+
+        AbcA::index_t tsIndex =
+            Abc::GetTimeSamplingIndex( iArg0, iArg1, iArg2 );
+
+        if ( tsPtr )
+        {
+            tsIndex = iParentObject->getObject()->getArchive()->
+                addTimeSampling( *tsPtr );
+        }
+
+        m_timeSamplingIndex = tsIndex;
+
+        init( tsIndex );
     }
 
-    //! Default copy constructor used.
+    //! Explicit copy constructor to work around MSVC bug
+    OXformSchema( const OXformSchema &iCopy )
+    { *this = iCopy; }
+
     //! Default assignment operator used.
 
     //-*************************************************************************
     // SCHEMA STUFF
     //-*************************************************************************
 
-    //! Return the time sampling type, which is stored on each of the
-    //! sub properties.
-    AbcA::TimeSamplingType getTimeSamplingType() const
-    { return m_anim.getTimeSamplingType(); }
+    AbcA::TimeSamplingPtr getTimeSampling() const
+    {
+        return m_inherits.getTimeSampling();
+    }
 
     //-*************************************************************************
     // SAMPLE STUFF
@@ -116,34 +156,14 @@ public:
 
     //! Get number of samples written so far.
     //! ...
-    size_t getNumSamples()
-    { return m_anim.getNumSamples(); }
+    size_t getNumSamples() { return m_ops->getNumSamples(); }
 
-    //! Sets up the xform operations. This function be called before calling
-    //! set.
-    //! \param iOp Operations (translate, rotate scale) which make up the
-    //! the transform and decides what is static, and what is animated.
-    //! \param iStatic For the parts of the operations that do not change
-    void setXform( const XformOpVec & iOp,
-        const Abc::DoubleArraySample & iStatic );
-
-    //! Set an animated sample.  setXform needs to be called first.
-    void set( const Abc::DoubleArraySample & iAnim,
-              const Abc::OSampleSelector &iSS = Abc::OSampleSelector() );
-
-    //! Set the inherits transform hint
-    void setInherits(bool iInherits,
-                     const Abc::OSampleSelector &iSS = Abc::OSampleSelector() );
+    //! Set an animated sample.  On first call to set, the sample is modified,
+    //! so it can't be const.
+    void set( XformSample &ioSamp );
 
     //! Set from previous sample. Will hold the animated channels.
-    void setFromPrevious( const Abc::OSampleSelector &iSS );
-
-    //! Normally, setting the child bounds is done through the Sample, but
-    //! this Xform implementation is non-standard.
-    void setChildBounds( const Abc::Box3d &iBnds,
-                         const Abc::OSampleSelector &iSS =
-                         Abc::OSampleSelector() )
-    { m_childBounds.set( iBnds, iSS ); }
+    void setFromPrevious();
 
     //-*************************************************************************
     // ABC BASE MECHANISMS
@@ -155,37 +175,73 @@ public:
     //! state.
     void reset()
     {
-        m_anim.reset();
-        m_inherits.reset();
-        m_writtenOps = false;
-        m_numAnimated = 0;
         m_childBounds.reset();
-        m_time = AbcA::TimeSamplingType();
-        Abc::OSchema<XformSchemaInfo>::reset();
+        m_timeSamplingIndex = 0;
+        m_inherits.reset();
+        m_ops.reset();
+        m_vals.reset();
+        m_protoSample.reset();
+        m_animChannels.reset();
+
+        m_staticChans.clear();
+        m_staticChans.resize( 0 );
+        m_opVec.clear();
+        m_opVec.resize( 0 );
+
+        super_type::reset();
     }
 
     //! Valid returns whether this function set is valid.
     bool valid() const
     {
-        return ( Abc::OSchema<XformSchemaInfo>::valid() );
+        return ( m_ops && super_type::valid() );
     }
 
     //! unspecified-bool-type operator overload.
     //! ...
-    ALEMBIC_OVERRIDE_OPERATOR_BOOL( OXformSchema::valid() );
+    ALEMBIC_OVERRIDE_OPERATOR_BOOL( this_type::valid() );
+
+
+private:
+    void init( const AbcA::index_t iTSIndex );
+
+    std::size_t m_numChannels;
+    std::size_t m_numOps;
+
+    // should we store are channel values in an ArrayProperty,
+    // or in a ScalarProperty with some Dimension > 0 and < MAX_SCALAR_CHANS
+    bool m_useArrayProp;
+
+    AbcA::DataType m_arrayValuesDataType;
+    Alembic::Util::Dimensions m_arraySampleDimensions;
+
+    void setChannelValues( const std::vector<double> &iVals );
 
 protected:
-    void init( const AbcA::TimeSamplingType &iTst );
-
-    Abc::ODoubleArrayProperty m_anim;
-    Abc::OBoolProperty m_inherits;
 
     Abc::OBox3dProperty m_childBounds;
 
-private:
-    bool m_writtenOps;
-    size_t m_numAnimated;
-    AbcA::TimeSamplingType m_time;
+    AbcA::index_t m_timeSamplingIndex;
+
+    AbcA::ScalarPropertyWriterPtr m_ops;
+
+    AbcA::BasePropertyWriterPtr m_vals;
+
+    Abc::OBoolProperty m_inherits;
+
+    Abc::OBoolProperty m_isNotConstantIdentity;
+
+    Abc::OUInt32ArrayProperty m_animChannels;
+
+    // ensure that our sample's topology is unchanging between
+    // calls to set; see usage in OXformSchema::set()
+    XformSample m_protoSample;
+
+    std::vector<bool> m_staticChans;
+
+    std::vector<Alembic::Util::uint8_t> m_opVec;
+
+    bool m_isIdentity;
 };
 
 //-*****************************************************************************

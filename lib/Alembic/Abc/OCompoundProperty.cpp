@@ -137,21 +137,20 @@ OCompoundProperty OCompoundProperty::getParent()
 void OCompoundProperty::init( AbcA::CompoundPropertyWriterPtr iParent,
                               const std::string &iName,
                               ErrorHandler::Policy iParentPolicy,
-                              const OArgument &iArg0,
-                              const OArgument &iArg1 )
+                              const Argument &iArg0,
+                              const Argument &iArg1 )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "OCompoundProperty::init()" );
 
     ABCA_ASSERT( iParent, "invalid parent" );
 
-    OArguments args( iParentPolicy );
+    Arguments args( iParentPolicy );
     iArg0.setInto( args );
     iArg1.setInto( args );
 
     getErrorHandler().setPolicy( args.getErrorHandlerPolicy() );
 
-    AbcA::PropertyHeader ohdr( iName, args.getMetaData() );
-    m_property = iParent->createCompoundProperty( ohdr );
+    m_property = iParent->createCompoundProperty( iName, args.getMetaData() );
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }

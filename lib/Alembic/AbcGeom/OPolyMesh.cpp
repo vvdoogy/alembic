@@ -41,141 +41,207 @@ namespace Alembic {
 namespace AbcGeom {
 
 //-*****************************************************************************
-void OPolyMeshSchema::set( const Sample &iSamp,
-                           const Abc::OSampleSelector &iSS  )
+void OPolyMeshSchema::set( const Sample &iSamp )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "OPolyMeshSchema::set()" );
 
+    // do we need to create child bounds?
+    if ( iSamp.getChildBounds().hasVolume() && !m_childBounds )
+    {
+        m_childBounds = Abc::OBox3dProperty( this->getPtr(), ".childBnds",
+                                             m_positions.getTimeSampling() );
+
+        Abc::Box3d emptyBox;
+        emptyBox.makeEmpty();
+
+        size_t numSamples = m_positions.getNumSamples();
+
+        // set all the missing samples
+        for ( size_t i = 0; i < numSamples; ++i )
+        {
+            m_childBounds.set( emptyBox );
+        }
+    }
+
     // We could add sample integrity checking here.
-    if ( iSS.getIndex() == 0 )
+    if ( m_positions.getNumSamples() == 0 )
     {
         // First sample must be valid on all points.
         ABCA_ASSERT( iSamp.getPositions() &&
-                     iSamp.getIndices() &&
-                     iSamp.getCounts(),
+                     iSamp.getFaceIndices() &&
+                     iSamp.getFaceCounts(),
                      "Sample 0 must have valid data for all mesh components" );
 
-        m_positions.set( iSamp.getPositions(), iSS );
-        m_indices.set( iSamp.getIndices(), iSS );
-        m_counts.set( iSamp.getCounts(), iSS );
+        m_positions.set( iSamp.getPositions() );
+        m_indices.set( iSamp.getFaceIndices() );
+        m_counts.set( iSamp.getFaceCounts() );
 
-        m_childBounds.set( iSamp.getChildBounds(), iSS );
+        if (m_childBounds)
+        { m_childBounds.set( iSamp.getChildBounds() ); }
 
         if ( iSamp.getSelfBounds().isEmpty() )
         {
             // OTypedScalarProperty::set() is not referentially transparent,
             // so we need a a placeholder variable.
             Abc::Box3d bnds(
-                ComputeBoundsFromPositions( iSamp.getPositions() )
-                           );
-            m_selfBounds.set( bnds, iSS );
+                ComputeBoundsFromPositions( iSamp.getPositions() ) );
+            m_selfBounds.set( bnds );
         }
-        else { m_selfBounds.set( iSamp.getSelfBounds(), iSS ); }
+        else { m_selfBounds.set( iSamp.getSelfBounds() ); }
 
         if ( iSamp.getUVs().getVals() )
         {
             if ( iSamp.getUVs().getIndices() )
             {
                 // UVs are indexed
-                m_uvs = OV2fGeomParam( *this, "uv", true,
+                m_uvs = OV2fGeomParam( this->getPtr(), "uv", true,
                                        iSamp.getUVs().getScope(), 1,
-                                       this->getTimeSamplingType() );
+                                       this->getTimeSampling() );
             }
             else
             {
                 // UVs are not indexed
-                m_uvs = OV2fGeomParam( *this, "uv", false,
+                m_uvs = OV2fGeomParam( this->getPtr(), "uv", false,
                                        iSamp.getUVs().getScope(), 1,
-                                       this->getTimeSamplingType() );
+                                       this->getTimeSampling() );
             }
 
-            m_uvs.set( iSamp.getUVs(), iSS );
+            m_uvs.set( iSamp.getUVs() );
         }
         if ( iSamp.getNormals().getVals() )
         {
             if ( iSamp.getNormals().getIndices() )
             {
                 // normals are indexed
-                m_normals = ON3fGeomParam( *this, "N", true,
+                m_normals = ON3fGeomParam( this->getPtr(), "N", true,
                                            iSamp.getNormals().getScope(),
-                                           1, this->getTimeSamplingType() );
+                                           1, this->getTimeSampling() );
             }
             else
             {
                 // normals are not indexed
-                m_normals = ON3fGeomParam( *this, "N", false,
+                m_normals = ON3fGeomParam( this->getPtr(), "N", false,
                                            iSamp.getNormals().getScope(), 1,
-                                           this->getTimeSamplingType() );
+                                           this->getTimeSampling() );
             }
 
-            m_normals.set( iSamp.getNormals(), iSS );
+            m_normals.set( iSamp.getNormals() );
         }
     }
     else
     {
-        SetPropUsePrevIfNull( m_positions, iSamp.getPositions(), iSS );
-        SetPropUsePrevIfNull( m_indices, iSamp.getIndices(), iSS );
-        SetPropUsePrevIfNull( m_counts, iSamp.getCounts(), iSS );
-        SetPropUsePrevIfNull( m_childBounds, iSamp.getChildBounds(), iSS );
+        SetPropUsePrevIfNull( m_positions, iSamp.getPositions() );
+        SetPropUsePrevIfNull( m_indices, iSamp.getFaceIndices() );
+        SetPropUsePrevIfNull( m_counts, iSamp.getFaceCounts() );
+
+        if ( m_childBounds )
+        {
+            SetPropUsePrevIfNull( m_childBounds, iSamp.getChildBounds() );
+        }
 
         if ( iSamp.getSelfBounds().hasVolume() )
         {
-            m_selfBounds.set( iSamp.getSelfBounds(), iSS );
+            m_selfBounds.set( iSamp.getSelfBounds() );
         }
         else if ( iSamp.getPositions() )
         {
             Abc::Box3d bnds(
-                ComputeBoundsFromPositions( iSamp.getPositions() )
-                           );
-            m_selfBounds.set( bnds, iSS );
+                ComputeBoundsFromPositions( iSamp.getPositions() ) );
+            m_selfBounds.set( bnds );
         }
         else
         {
-            m_selfBounds.setFromPrevious( iSS );
+            m_selfBounds.setFromPrevious();
         }
 
         // OGeomParam will automatically use SetPropUsePrevIfNull internally
-        if ( m_uvs ) { m_uvs.set( iSamp.getUVs(), iSS ); }
-        if ( m_normals ) { m_normals.set( iSamp.getNormals(), iSS ); }
+        if ( m_uvs ) { m_uvs.set( iSamp.getUVs() ); }
+        if ( m_normals ) { m_normals.set( iSamp.getNormals() ); }
     }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 }
 
 //-*****************************************************************************
-void OPolyMeshSchema::setFromPrevious( const Abc::OSampleSelector &iSS )
+void OPolyMeshSchema::setFromPrevious()
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "OPolyMeshSchema::setFromPrevious" );
 
-    m_positions.setFromPrevious( iSS );
-    m_indices.setFromPrevious( iSS );
-    m_counts.setFromPrevious( iSS );
+    m_positions.setFromPrevious();
+    m_indices.setFromPrevious();
+    m_counts.setFromPrevious();
 
-    m_selfBounds.setFromPrevious( iSS );
-    m_childBounds.setFromPrevious( iSS );
+    m_selfBounds.setFromPrevious();
 
-    if ( m_uvs ) { m_uvs.setFromPrevious( iSS ); }
-    if ( m_normals ) { m_normals.setFromPrevious( iSS ); }
+    if (m_childBounds) { m_childBounds.setFromPrevious(); }
+
+    if ( m_uvs ) { m_uvs.setFromPrevious(); }
+    if ( m_normals ) { m_normals.setFromPrevious(); }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 }
 
 //-*****************************************************************************
-void OPolyMeshSchema::init( const AbcA::TimeSamplingType &iTst )
+void OPolyMeshSchema::setTimeSampling( uint32_t iIndex )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN(
+        "OPolyMeshSchema::setTimeSampling( uint32_t )" );
+
+    m_positions.setTimeSampling( iIndex );
+    m_indices.setTimeSampling( iIndex );
+    m_counts.setTimeSampling( iIndex );
+    m_selfBounds.setTimeSampling( iIndex );
+
+    if ( m_childBounds )
+    {
+        m_childBounds.setTimeSampling( iIndex );
+    }
+
+    if ( m_uvs )
+    {
+        m_uvs.setTimeSampling( iIndex );
+    }
+
+    if ( m_normals )
+    {
+        m_normals.setTimeSampling( iIndex );
+    }
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+}
+
+//-*****************************************************************************
+void OPolyMeshSchema::setTimeSampling( AbcA::TimeSamplingPtr iTime )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN(
+        "OPolyMeshSchema::setTimeSampling( TimeSamplingPtr )" );
+
+    if ( iTime )
+    {
+        uint32_t tsIndex = getObject().getArchive().addTimeSampling( *iTime );
+        setTimeSampling( tsIndex );
+    }
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+}
+
+//-*****************************************************************************
+void OPolyMeshSchema::init( uint32_t iTsIdx )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "OPolyMeshSchema::init()" );
 
     AbcA::MetaData mdata;
     SetGeometryScope( mdata, kVertexScope );
-    m_positions = Abc::OV3fArrayProperty( *this, "P", mdata, iTst );
 
-    m_indices = Abc::OInt32ArrayProperty( *this, ".faceIndices", iTst );
+    AbcA::CompoundPropertyWriterPtr _this = this->getPtr();
 
-    m_counts = Abc::OInt32ArrayProperty( *this, ".faceCounts", iTst );
+    m_positions = Abc::OV3fArrayProperty( _this, "P", mdata, iTsIdx );
 
-    m_selfBounds = Abc::OBox3dProperty( *this, ".selfBnds", iTst );
+    m_indices = Abc::OInt32ArrayProperty( _this, ".faceIndices", iTsIdx );
 
-    m_childBounds = Abc::OBox3dProperty( *this, ".childBnds", iTst );
+    m_counts = Abc::OInt32ArrayProperty( _this, ".faceCounts", iTsIdx );
+
+    m_selfBounds = Abc::OBox3dProperty( _this, ".selfBnds", iTsIdx );
 
     // UVs and Normals are created on first call to set()
 
@@ -189,7 +255,8 @@ Abc::OCompoundProperty OPolyMeshSchema::getArbGeomParams()
 
     if ( ! m_arbGeomParams )
     {
-        m_arbGeomParams = Abc::OCompoundProperty( *this, ".arbGeomParams" );
+        m_arbGeomParams = Abc::OCompoundProperty( this->getPtr(),
+                                                  ".arbGeomParams" );
     }
 
     return m_arbGeomParams;
@@ -198,6 +265,68 @@ Abc::OCompoundProperty OPolyMeshSchema::getArbGeomParams()
 
     Abc::OCompoundProperty ret;
     return ret;
+}
+
+//-*****************************************************************************
+bool
+OPolyMeshSchema::hasFaceSet( const std::string &iFaceSetName )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "OPolyMeshSchema::hasFaceSet ()" );
+
+    return (m_faceSets.find (iFaceSetName) != m_faceSets.end ());
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+
+    return false;
+}
+
+
+//-*****************************************************************************
+OFaceSet &
+OPolyMeshSchema::createFaceSet( const std::string &iFaceSetName )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "OPolyMeshSchema::createFaceSet ()" );
+
+    ABCA_ASSERT( m_faceSets.find (iFaceSetName) == m_faceSets.end (),
+                 "faceSet has already been created in polymesh." );
+
+    m_faceSets[iFaceSetName] = OFaceSet( this->getParent().getObject(),
+                                          iFaceSetName );
+
+    return m_faceSets[iFaceSetName];
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+
+    static OFaceSet emptyFaceSet;
+    return emptyFaceSet;
+}
+
+//-*****************************************************************************
+void OPolyMeshSchema::getFaceSetNames (std::vector <std::string> & oFaceSetNames)
+{
+
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "OPolyMeshSchema::getFaceSetNames()" );
+    for (std::map<std::string, OFaceSet>::const_iterator faceSetIter =
+        m_faceSets.begin(); faceSetIter != m_faceSets.end(); ++faceSetIter)
+    {
+        oFaceSetNames.push_back( faceSetIter->first );
+    }
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+}
+
+//-*****************************************************************************
+OFaceSet
+OPolyMeshSchema::getFaceSet( const std::string &iFaceSetName )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "OPolyMeshSchema::getFaceSet()" );
+
+    return m_faceSets[iFaceSetName];
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+
+    OFaceSet empty;
+    return empty;
 }
 
 } // End namespace AbcGeom

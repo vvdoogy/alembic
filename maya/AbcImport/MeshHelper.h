@@ -53,16 +53,14 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     Alembic::AbcGeom::ISubD & iNode, bool iInitialized);
 
-void connectToPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
-    std::vector<std::string> & oSampledPropNameList, MObject & iMeshObject);
-
-void connectToSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
-    std::vector<std::string> & oSampledPropNameList, MObject & iMeshObject);
-
 MObject createPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
-    MObject & iParent, std::vector<std::string> & oSampledPropNameList);
+    MObject & iParent);
 
 MObject createSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
-    MObject & iParent, std::vector<std::string> & oSampledPropNameList);
+    MObject & iParent);
+
+void disconnectMesh(MObject & iMeshObject,
+    std::vector<Alembic::Abc::IArrayProperty> & iSampledPropList,
+    std::size_t iFirstProp);
 
 #endif  // ABCIMPORT_MESHHELPER_H_
