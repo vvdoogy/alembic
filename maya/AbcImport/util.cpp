@@ -103,6 +103,29 @@ MStatus replaceDagObject(MObject & oldObject, MObject & newObject,
     return status;
 }
 
+void disconnectProps(MFnDependencyNode & iNode,
+    std::vector<Alembic::Abc::IArrayProperty> & iSampledPropList,
+    std::size_t iFirstProp)
+{
+    // get prop names and make sure they are disconnected before
+    // trying to connect to them
+    std::size_t numProps = iSampledPropList.size();
+    for (std::size_t i = iFirstProp; i < numProps; ++i)
+    {
+        std::string propName = iSampledPropList[i].getName();
+
+        // disconnect connections to animated props
+        MPlug dstPlug = iNode.findPlug(propName.c_str());
+
+        // make sure the long name matches
+        if (dstPlug.partialName(false, false, false, false, false, true) ==
+            propName.c_str())
+        {
+            disconnectAllPlugsTo(dstPlug);
+        }
+    }
+}
+
 MStatus disconnectAllPlugsTo(MPlug & dstPlug)
 {
     MStatus status = MS::kSuccess;
@@ -269,9 +292,9 @@ bool stripFileName(const MString & filePath, MString & fileName)
     str = str.substr(found+1);
 
     // str is now in the form of xxx.abc
+    found = str.find_first_of(".");
     str = str.substr(0, found);
     fileName = MString(str.c_str());
-
     return true;
 }
 
@@ -301,17 +324,23 @@ bool removeDangleAlembicNodes()
 }
 
 double getWeightAndIndex(double iFrame,
-    const Alembic::AbcCoreAbstract::v1::TimeSampling & iTime,
+    Alembic::AbcCoreAbstract::v1::TimeSamplingPtr iTime, size_t numSamps,
     int64_t & oIndex, int64_t & oCeilIndex)
 {
-    std::pair<int64_t, double> floorIndex = iTime.getFloorIndex(iFrame);
+    if (numSamps == 0)
+        numSamps = 1;
+
+    std::pair<int64_t, double> floorIndex =
+        iTime->getFloorIndex(iFrame, numSamps);
+
     oIndex = floorIndex.first;
     oCeilIndex = oIndex;
 
     if (fabs(iFrame - floorIndex.second) < 0.0001)
         return 0.0;
 
-    std::pair<int64_t, double> ceilIndex = iTime.getCeilIndex(iFrame);
+    std::pair<int64_t, double> ceilIndex =
+        iTime->getCeilIndex(iFrame, numSamps);
 
     if (oIndex == ceilIndex.first)
         return 0.0;

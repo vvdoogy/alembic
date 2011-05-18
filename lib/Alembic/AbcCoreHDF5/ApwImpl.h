@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class ApwImpl
@@ -58,7 +59,10 @@ protected:
     //-*************************************************************************
     ApwImpl( AbcA::CompoundPropertyWriterPtr iParent,
              hid_t iParentGroup,
-             PropertyHeaderPtr iHeader );
+             const std::string & iName,
+             const AbcA::MetaData & iMetaData,
+             const AbcA::DataType & iDataType,
+             uint32_t iTimeSamplingIndex );
 
     virtual AbcA::ArrayPropertyWriterPtr asArrayPtr();
     
@@ -100,7 +104,15 @@ public:
 protected:
     // Previous written array sample identifier!
     WrittenArraySampleIDPtr m_previousWrittenArraySampleID;
+
+private:
+    bool m_isScalarLike;
+
 };
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

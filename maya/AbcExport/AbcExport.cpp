@@ -40,6 +40,8 @@
 
 #include <maya/MFnPlugin.h>
 
+namespace AbcA = Alembic::AbcCoreAbstract;
+
 AbcExport::AbcExport()
 {
 }
@@ -221,7 +223,7 @@ MStatus AbcExport::doIt(const MArgList & args)
     if (argData.isFlagSet("selection"))
         useSelectionList = true;
 
-    double startEvaluationTime = FLT_MAX;
+    double startEvaluationTime = DBL_MAX;
     if (argData.isFlagSet("startAt"))
     {
         double startAt = 0.0;
@@ -487,19 +489,19 @@ MStatus AbcExport::doIt(const MArgList & args)
         transSamples = origSamples;
         geoSamples = origSamples;
 
-        Alembic::AbcCoreAbstract::v1::chrono_t fps24 = 1/24.0;
-        Alembic::AbcCoreAbstract::v1::TimeSamplingType transTime(fps24);
-        Alembic::AbcCoreAbstract::v1::TimeSamplingType geoTime(fps24);
+        AbcA::TimeSamplingPtr transTime(new AbcA::TimeSampling());
+        AbcA::TimeSamplingPtr geoTime = transTime;
+
+        if (origSamples.size() > 1)
+        {
+            transTime.reset( new AbcA::TimeSampling(util::spf(),
+                (*(origSamples.begin())) * util::spf()) );
+            geoTime = transTime;
+        }
 
         // post process, add extra motion blur samples
         if (numSamples > 1 && shutterOpen < shutterClose)
         {
-            transTime = Alembic::AbcCoreAbstract::v1::TimeSamplingType(
-                numSamples, fps24);
-
-            // if we are't subsampling the geometry, leave it as uniform
-            if (sampleGeo)
-                geoTime = transTime;
 
             std::set<double> offsetSamples;
             offsetSamples.insert(shutterOpen);
@@ -557,6 +559,23 @@ MStatus AbcExport::doIt(const MArgList & args)
                     }
                 }  // for offset
             }  // for samp
+
+            std::vector <double> timeSamps(numSamples);
+            samp = transSamples.begin();
+            for (int i = 0; i < numSamples; ++i)
+            {
+                timeSamps[i] = (*samp) * util::spf();
+                samp++;
+            }
+
+            transTime.reset( new AbcA::TimeSampling(
+                AbcA::TimeSamplingType(numSamples, util::spf()), timeSamps) );
+
+            // if we are't subsampling the geometry
+            // leave it as uniform per frame
+            if (sampleGeo)
+                geoTime = transTime;
+
         }  // if we need to apply motion blur
 
         AbcWriteJobPtr job(new AbcWriteJob(dagPath, fileName.c_str(),
@@ -612,7 +631,7 @@ MStatus AbcExport::doIt(const MArgList & args)
     // ================ end of argument parsing =========================
 
     // add extra evaluation run up, if necessary
-    if (startEvaluationTime != FLT_MAX && !allFrameRange.empty())
+    if (startEvaluationTime != DBL_MAX && !allFrameRange.empty())
     {
         double firstFrame = *allFrameRange.begin();
         for (double f = startEvaluationTime; f < firstFrame; ++f)
@@ -646,7 +665,6 @@ MStatus AbcExport::doIt(const MArgList & args)
         {
             bool lastFrame = (*j)->eval(*it);
 
-            //
             if (lastFrame)
             {
                 j = jobList.erase(j);

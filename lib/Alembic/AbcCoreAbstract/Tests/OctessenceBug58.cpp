@@ -37,14 +37,13 @@
 #include <Alembic/AbcCoreAbstract/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <Alembic/Util/All.h>
-#include <Alembic/MD5Hash/All.h>
 
 #include <iostream>
 
 //-*****************************************************************************
 namespace A5 = Alembic::AbcCoreHDF5;
 
-namespace AA = Alembic::AbcCoreAbstract::v1;
+namespace AA = Alembic::AbcCoreAbstract;
 
 //-*****************************************************************************
 void WriteTestArchive( const std::string &iArchiveName )

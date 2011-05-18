@@ -113,8 +113,8 @@ public:
     IPointsSchema( CPROP_PTR iParentObject,
                    const std::string &iName,
 
-                   const Abc::IArgument &iArg0 = Abc::IArgument(),
-                   const Abc::IArgument &iArg1 = Abc::IArgument() )
+                   const Abc::Argument &iArg0 = Abc::Argument(),
+                   const Abc::Argument &iArg1 = Abc::Argument() )
       : Abc::ISchema<PointsSchemaInfo>( iParentObject, iName,
                                           iArg0, iArg1 )
     {
@@ -125,15 +125,20 @@ public:
     //! schema name used.
     template <class CPROP_PTR>
     explicit IPointsSchema( CPROP_PTR iParentObject,
-                            const Abc::IArgument &iArg0 = Abc::IArgument(),
-                            const Abc::IArgument &iArg1 = Abc::IArgument() )
+                            const Abc::Argument &iArg0 = Abc::Argument(),
+                            const Abc::Argument &iArg1 = Abc::Argument() )
       : Abc::ISchema<PointsSchemaInfo>( iParentObject,
                                      iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
     }
 
-    //! Default copy constructor used.
+    //! Copy constructor.
+    IPointsSchema(const IPointsSchema& iCopy)
+    {
+        *this = iCopy;
+    }
+
     //! Default assignment operator used.
 
     //-*************************************************************************
@@ -152,33 +157,28 @@ public:
     //! regardless of the time sampling.
     bool isConstant() { return m_positions.isConstant() && m_ids.isConstant(); }
 
-    //! Time sampling type.
+    //! Time sampling Information.
     //!
-    AbcA::TimeSamplingType getTimeSamplingType() const
+    AbcA::TimeSamplingPtr getTimeSampling()
     {
-        return m_positions.getTimeSamplingType();
-    }
-
-    //! Time information.
-    //! ...
-    AbcA::TimeSampling getTimeSampling()
-    {
-        if ( !m_positions.getTimeSampling().isStatic() )
-        { return m_positions.getTimeSampling(); }
-        else { return m_ids.getTimeSampling(); }
+        if ( m_positions.valid() )
+            return m_positions.getTimeSampling();
+        return getObject().getArchive().getTimeSampling(0);
     }
 
     //-*************************************************************************
-    void get( Sample &iSample,
+    void get( Sample &oSample,
               const Abc::ISampleSelector &iSS = Abc::ISampleSelector() )
     {
         ALEMBIC_ABC_SAFE_CALL_BEGIN( "IPointsSchema::get()" );
 
-        m_positions.get( iSample.m_positions, iSS );
-        m_ids.get( iSample.m_ids, iSS );
+        m_positions.get( oSample.m_positions, iSS );
+        m_ids.get( oSample.m_ids, iSS );
 
-        m_selfBounds.get( iSample.m_selfBounds, iSS );
-        m_childBounds.get( iSample.m_childBounds, iSS );
+        m_selfBounds.get( oSample.m_selfBounds, iSS );
+
+        if ( m_childBounds && m_childBounds.getNumSamples() > 0 )
+        { m_childBounds.get( oSample.m_childBounds, iSS ); }
 
         // Could error check here.
 
@@ -229,8 +229,8 @@ public:
     ALEMBIC_OVERRIDE_OPERATOR_BOOL( IPointsSchema::valid() );
 
 protected:
-    void init( const Abc::IArgument &iArg0,
-               const Abc::IArgument &iArg1 );
+    void init( const Abc::Argument &iArg0,
+               const Abc::Argument &iArg1 );
 
     Abc::IV3fArrayProperty m_positions;
     Abc::IUInt64ArrayProperty m_ids;

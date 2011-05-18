@@ -41,6 +41,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class BaseCprImpl : public AbcA::CompoundPropertyReader
@@ -84,14 +85,28 @@ protected:
     struct SubProperty
     {
         PropertyHeaderPtr header;
-        WeakBprPtr made;
-    };
-    
-    typedef std::map<std::string,SubProperty> SubPropertiesMap;
 
-    PropertyHeaderPtrs m_propertyHeaders;
+        // extra data that doesn't quite fit into the property header
+        // but is stuff we only want to read once
+        uint32_t numSamples;
+        uint32_t firstChangedIndex;
+        uint32_t lastChangedIndex;
+        bool isScalarLike;
+
+        WeakBprPtr made;
+        std::string name;
+    };
+
+    typedef std::map<std::string, size_t> SubPropertiesMap;
+    typedef std::vector<SubProperty> SubPropertyVec;
+
+    SubPropertyVec m_propertyHeaders;
     SubPropertiesMap m_subProperties;
 };
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

@@ -77,13 +77,13 @@ void Example1_MeshOut()
     {
         creases.push_back( g_indices[i] );
         corners.push_back( g_indices[i] );
-        cornerSharpnesses.push_back( 1.0e38 );
+        cornerSharpnesses.push_back( 10.0 );
     }
 
     for ( size_t i = 0 ; i < 6 ; i++ )
     {
         creaseLengths.push_back( 4 );
-        creaseSharpnesses.push_back( 1.0e38 );
+        creaseSharpnesses.push_back( 0.5 );
     }
 
     mesh_samp.setCreases( creases, creaseLengths, creaseSharpnesses );
@@ -98,15 +98,30 @@ void Example1_MeshOut()
 
 
     // Set the sample.
-    mesh.set( mesh_samp, 0 );
+    mesh.set( mesh_samp );
 
     // change one of the schema's parameter's
     mesh_samp.setInterpolateBoundary( 1 );
-    mesh.set( mesh_samp, 1 );
+    mesh.set( mesh_samp );
 
     // test that the integer property doesn't latch to non-zero
     mesh_samp.setInterpolateBoundary( 0 );
-    mesh.set( mesh_samp, 2 );
+    mesh.set( mesh_samp );
+
+    C3f color_val( 1.0, 0.0, 0.0 );
+
+    OCompoundProperty arbParams = mesh.getArbGeomParams();
+    C3fArraySample val_samp( &color_val, 1 );
+
+    OC3fGeomParam color( arbParams, "color", false, kConstantScope, 1 );
+    OC3fGeomParam::Sample color_samp( val_samp, kConstantScope );
+
+    // write red
+    color.set( color_samp );
+
+    // now purple
+    color_val.z = 1.0;
+    color.set( color_samp );
 
     std::cout << "Writing: " << archive.getName() << std::endl;
 }
@@ -137,9 +152,26 @@ void Example1_MeshIn()
     // get the 1th sample by value
     ISubDSchema::Sample samp1 = mesh.getValue( 1 );
 
+    std::cout << "bounds: " << samp1.getSelfBounds().min << ", "
+              << samp1.getSelfBounds().max << std::endl;
+
     TESTING_ASSERT( samp1.getSelfBounds().min == V3d( -1.0, -1.0, -1.0 ) );
 
     TESTING_ASSERT( samp1.getSelfBounds().max == V3d( 1.0, 1.0, 1.0 ) );
+
+    for ( size_t i = 0 ; i < samp1.getCreaseSharpnesses()->size() ; ++i )
+    {
+        std::cout << "crease sharpness[" << i << "]: "
+                  << (*(samp1.getCreaseSharpnesses()))[i] << std::endl;
+        TESTING_ASSERT( 0.5 == (*(samp1.getCreaseSharpnesses()))[i] );
+    }
+
+    for ( size_t i = 0 ; i < samp1.getCornerSharpnesses()->size() ; ++i )
+    {
+        std::cout << "corner sharpness[" << i << "]: "
+                  << (*(samp1.getCornerSharpnesses()))[i] << std::endl;
+        TESTING_ASSERT( 10.0 == (*(samp1.getCornerSharpnesses()))[i] );
+    }
 
 
     // test the second sample has '1' as the interpolate boundary value
@@ -169,6 +201,21 @@ void Example1_MeshIn()
 
     std::cout << "0th vertex from the mesh sample with get method: "
               << samp2.getPositions()->get()[0] << std::endl;
+
+    ICompoundProperty arbattrs = mesh.getArbGeomParams();
+
+    // This better exist since we wrote custom attr called color to it
+    TESTING_ASSERT( arbattrs );
+    TESTING_ASSERT( IC3fGeomParam::matches(
+        arbattrs.getPropertyHeader(0).getMetaData() ) );
+    IC3fGeomParam color(arbattrs, "color");
+    TESTING_ASSERT( color.getValueProperty().isScalarLike() );
+
+    IC3fGeomParam::Sample cSamp0, cSamp1;
+    color.getExpanded(cSamp0, 0);
+    color.getExpanded(cSamp1, 1);
+    TESTING_ASSERT( (*(cSamp0.getVals()))[0] == C3f( 1.0, 0.0, 0.0 ) );
+    TESTING_ASSERT( (*(cSamp1.getVals()))[0] == C3f( 1.0, 0.0, 1.0 ) );
 }
 
 //-*****************************************************************************

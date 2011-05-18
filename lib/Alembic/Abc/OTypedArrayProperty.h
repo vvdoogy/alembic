@@ -102,17 +102,17 @@ public:
         COMPOUND_PTR iParent,
         const std::string &iName,
 
-        const OArgument &iArg0 = OArgument(),
-        const OArgument &iArg1 = OArgument(),
-        const OArgument &iArg2 = OArgument() );
+        const Argument &iArg0 = Argument(),
+        const Argument &iArg1 = Argument(),
+        const Argument &iArg2 = Argument() );
 
     //! Wrap an existing property. This will check to make sure
     //! it can wrap.
     OTypedArrayProperty(
         AbcA::ArrayPropertyWriterPtr iProp,
         WrapExistingFlag iWrapFlag,
-        const OArgument &iArg0 = OArgument(),
-        const OArgument &iArg1 = OArgument() );
+        const Argument &iArg0 = Argument(),
+        const Argument &iArg1 = Argument() );
 
     //-*************************************************************************
     // ARRAY PROPERTY FEATURES
@@ -120,10 +120,9 @@ public:
 
     //! Set a sample using a reference to a typed array sample-type,
     //! instead of a void* ArraySample
-    void set( const sample_type &iVal,
-              const OSampleSelector &iSS = OSampleSelector() )
+    void set( const sample_type &iVal )
     {
-        OArrayProperty::set( iVal, iSS );
+        OArrayProperty::set( iVal );
     }
 };
 
@@ -139,11 +138,11 @@ OTypedArrayProperty<TRAITS>::OTypedArrayProperty
     COMPOUND_PTR iParent,
     const std::string &iName,
 
-    const OArgument &iArg0,
-    const OArgument &iArg1,
-    const OArgument &iArg2 )
+    const Argument &iArg0,
+    const Argument &iArg1,
+    const Argument &iArg2 )
 {
-    OArguments args( GetErrorHandlerPolicy( iParent ) );
+    Arguments args( GetErrorHandlerPolicy( iParent ) );
     iArg0.setInto( args );
     iArg1.setInto( args );
     iArg2.setInto( args );
@@ -165,11 +164,18 @@ OTypedArrayProperty<TRAITS>::OTypedArrayProperty
     }
 
     // Create property.
-    AbcA::PropertyHeader ohdr( iName, AbcA::kArrayProperty,
-                               mdata,
-                               TRAITS::dataType(),
-                               args.getTimeSamplingType() );
-    m_property = parent->createArrayProperty( ohdr );
+    AbcA::TimeSamplingPtr tsPtr = args.getTimeSampling();
+    uint32_t tsIndex = args.getTimeSamplingIndex();
+
+    // if we specified a valid TimeSamplingPtr, use it to determine the index
+    // otherwise we'll use the index, which defaults to the intrinsic 0 index
+    if (tsPtr)
+    {
+        tsIndex = parent->getObject()->getArchive()->addTimeSampling(*tsPtr);
+    }
+
+    m_property = parent->createArrayProperty( iName, mdata, 
+        TRAITS::dataType(), tsIndex );
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
@@ -179,8 +185,8 @@ template<class TRAITS>
 inline OTypedArrayProperty<TRAITS>::OTypedArrayProperty(
     AbcA::ArrayPropertyWriterPtr iProperty,
     WrapExistingFlag iFlag,
-    const OArgument &iArg0,
-    const OArgument &iArg1 )
+    const Argument &iArg0,
+    const Argument &iArg1 )
   : OArrayProperty( iProperty,
                     iFlag,
                     GetErrorHandlerPolicy( iProperty, iArg0, iArg1 ) )

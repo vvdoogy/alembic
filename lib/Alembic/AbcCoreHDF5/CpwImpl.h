@@ -42,6 +42,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class CpwImpl
@@ -54,7 +55,8 @@ public:
     // Built from a compound property writer
     CpwImpl( AbcA::CompoundPropertyWriterPtr iParent,
              hid_t iParentGroup,
-             PropertyHeaderPtr iHeader );
+             const std::string & iName,
+             const AbcA::MetaData & iMeta );
 
 public:
     virtual ~CpwImpl();
@@ -76,6 +78,10 @@ protected:
     // The header which defines this property.
     PropertyHeaderPtr m_header;
 };
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

@@ -118,19 +118,19 @@ public:
             matches( iHeader.getMetaData(), iMatching );
     }
 
-    ITypedGeomParam() {}
+    ITypedGeomParam() {m_isIndexed = false;}
 
     template <class CPROP>
     ITypedGeomParam( CPROP iParent,
                      const std::string &iName,
-                     const Abc::IArgument &iArg0 = Abc::IArgument(),
-                     const Abc::IArgument &iArg1 = Abc::IArgument() );
+                     const Abc::Argument &iArg0 = Abc::Argument(),
+                     const Abc::Argument &iArg1 = Abc::Argument() );
 
     template <class PROP>
     ITypedGeomParam( PROP iThis,
                      WrapExistingFlag iWrapFlag,
-                     const Abc::IArgument &iArg0 = Abc::IArgument(),
-                     const Abc::IArgument &iArg1 = Abc::IArgument() );
+                     const Abc::Argument &iArg0 = Abc::Argument(),
+                     const Abc::Argument &iArg1 = Abc::Argument() );
 
     void getIndexed( sample_type &oSamp,
                      const Abc::ISampleSelector &iSS = Abc::ISampleSelector() );
@@ -170,7 +170,7 @@ public:
     GeometryScope getScope()
     { return GetGeometryScope( m_valProp.getMetaData() ); }
 
-    AbcA::TimeSampling getTimeSampling();
+    AbcA::TimeSamplingPtr getTimeSampling();
 
     const std::string &getName();
 
@@ -180,6 +180,7 @@ public:
 
     const AbcA::MetaData &getMetaData();
 
+    bool isConstant();
 
     void reset()
     {
@@ -196,6 +197,10 @@ public:
     }
 
     ALEMBIC_OPERATOR_BOOL( this_type::valid() );
+
+    prop_type getValueProperty() { return m_valProp; }
+
+    Abc::IUInt32ArrayProperty getIndexProperty() { return m_indices; }
 
 private:
     Abc::ErrorHandler &getErrorHandler() const
@@ -218,10 +223,10 @@ template <class TRAITS>
 template <class CPROP>
 ITypedGeomParam<TRAITS>::ITypedGeomParam( CPROP iParent,
                                           const std::string &iName,
-                                          const Abc::IArgument &iArg0,
-                                          const Abc::IArgument &iArg1 )
+                                          const Abc::Argument &iArg0,
+                                          const Abc::Argument &iArg1 )
 {
-    IArguments args( GetErrorHandlerPolicy( iParent ) );
+    Arguments args( GetErrorHandlerPolicy( iParent ) );
     iArg0.setInto( args );
     iArg1.setInto( args );
 
@@ -270,10 +275,10 @@ template <class TRAITS>
 template <class PROP>
 ITypedGeomParam<TRAITS>::ITypedGeomParam( PROP iThis,
                                           WrapExistingFlag iWrapFlag,
-                                          const Abc::IArgument &iArg0,
-                                          const Abc::IArgument &iArg1 )
+                                          const Abc::Argument &iArg0,
+                                          const Abc::Argument &iArg1 )
 {
-    IArguments args( GetErrorHandlerPolicy( iThis ) );
+    Arguments args( GetErrorHandlerPolicy( iThis ) );
     iArg0.setInto( args );
     iArg1.setInto( args );
 
@@ -314,7 +319,7 @@ ITypedGeomParam<TRAITS>::ITypedGeomParam( PROP iThis,
 //-*****************************************************************************
 template <class TRAITS>
 void
-ITypedGeomParam<TRAITS>::getIndexed( ITypedGeomParam<TRAITS>::Sample &oSamp,
+ITypedGeomParam<TRAITS>::getIndexed( typename ITypedGeomParam<TRAITS>::Sample &oSamp,
                                      const Abc::ISampleSelector &iSS )
 {
     m_valProp.get( oSamp.m_vals, iSS );
@@ -344,7 +349,7 @@ ITypedGeomParam<TRAITS>::getIndexed( ITypedGeomParam<TRAITS>::Sample &oSamp,
 //-*****************************************************************************
 template <class TRAITS>
 void
-ITypedGeomParam<TRAITS>::getExpanded( ITypedGeomParam<TRAITS>::Sample &oSamp,
+ITypedGeomParam<TRAITS>::getExpanded( typename ITypedGeomParam<TRAITS>::Sample &oSamp,
                                       const Abc::ISampleSelector &iSS )
 {
     typedef typename TRAITS::value_type value_type;
@@ -410,6 +415,26 @@ size_t ITypedGeomParam<TRAITS>::getNumSamples()
 
 //-*****************************************************************************
 template <class TRAITS>
+bool ITypedGeomParam<TRAITS>::isConstant()
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "ITypedGeomParam::isConstant()" );
+
+    if ( m_isIndexed )
+    {
+        return m_valProp.isConstant() && m_indices.isConstant();
+    }
+    else
+    {
+        return m_valProp.isConstant();
+    }
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+
+    return false;
+}
+
+//-*****************************************************************************
+template <class TRAITS>
 const std::string &ITypedGeomParam<TRAITS>::getName()
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ITypedGeomParam::getName()" );
@@ -449,22 +474,18 @@ const AbcA::MetaData &ITypedGeomParam<TRAITS>::getMetaData()
 
 //-*****************************************************************************
 template <class TRAITS>
-AbcA::TimeSampling ITypedGeomParam<TRAITS>::getTimeSampling()
+AbcA::TimeSamplingPtr ITypedGeomParam<TRAITS>::getTimeSampling()
 {
-    if ( m_indices && m_valProp )
+    if ( m_valProp )
     {
-        AbcA::TimeSamplingType itst =
-            m_indices.getTimeSampling().getTimeSamplingType();
-        AbcA::TimeSamplingType vtst =
-            m_valProp.getTimeSampling().getTimeSamplingType();
-
-        if ( itst.getNumSamplesPerCycle() > vtst.getNumSamplesPerCycle() )
-        { return m_indices.getTimeSampling(); }
-        else
-        { return m_valProp.getTimeSampling(); }
+        return m_valProp.getTimeSampling();
     }
-    else if ( m_indices ) { return m_indices.getTimeSampling(); }
-    else { return m_valProp.getTimeSampling(); }
+    else if ( m_indices )
+    {
+        return m_indices.getTimeSampling();
+    }
+
+    return AbcA::TimeSamplingPtr();
 }
 
 //-*****************************************************************************

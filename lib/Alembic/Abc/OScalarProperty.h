@@ -38,8 +38,7 @@
 
 #include <Alembic/Abc/Foundation.h>
 #include <Alembic/Abc/Base.h>
-#include <Alembic/Abc/OArgument.h>
-#include <Alembic/Abc/OSampleSelector.h>
+#include <Alembic/Abc/Argument.h>
 #include <Alembic/Abc/OBaseProperty.h>
 #include <Alembic/Abc/OCompoundProperty.h>
 
@@ -69,15 +68,15 @@ public:
     //! to use as a parent, from which the error handler policy for
     //! inheritance is also derived.  The remaining optional arguments
     //! can be used to override the ErrorHandlerPolicy, to specify
-    //! MetaData, and to specify time sampling type.
+    //! MetaData, and to specify time sampling or time sampling index.
     template <class OBJECT_PTR>
     OScalarProperty( OBJECT_PTR iParentObject,
                      const std::string &iName,
                      const AbcA::DataType &iDataType,
 
-                     const OArgument &iArg0 = OArgument(),
-                     const OArgument &iArg1 = OArgument(),
-                     const OArgument &iArg2 = OArgument() );
+                     const Argument &iArg0 = Argument(),
+                     const Argument &iArg1 = Argument(),
+                     const Argument &iArg2 = Argument() );
 
     //! This attaches an OScalarProperty wrapper around an existing
     //! ScalarPropertyWriterPtr, arguments are there to specify
@@ -120,12 +119,23 @@ public:
 
     //! Set a sample from the address of a datum.
     //! ...
-    void set( const void *iSample,
-              const OSampleSelector &iSS = OSampleSelector() );
+    void set( const void *iSample );
 
     //! Set a sample from the previous sample.
     //! ...
-    void setFromPrevious( const OSampleSelector &iSS );
+    void setFromPrevious( );
+
+    //! Changes the TimeSampling used by this property.
+    //! If the TimeSampling is changed to Acyclic and the number of samples
+    //! currently set is more than the number of times provided in the Acyclic
+    //! TimeSampling, an exception will be thrown.
+    void setTimeSampling( uint32_t iIndex );
+
+    //! Changes the TimeSampling used by this property.
+    //! If the TimeSampling is changed to Acyclic and the number of samples
+    //! currently set is more than the number of times provided in the Acyclic
+    //! TimeSampling, an exception will be thrown.
+    void setTimeSampling( AbcA::TimeSamplingPtr iTime );
 
     //! Return the parent compound property, handily wrapped in a
     //! OCompoundProperty wrapper.
@@ -138,9 +148,9 @@ private:
 
                ErrorHandler::Policy iParentPolicy,
 
-               const OArgument &iArg0,
-               const OArgument &iArg1,
-               const OArgument &iArg2 );
+               const Argument &iArg0,
+               const Argument &iArg1,
+               const Argument &iArg2 );
 };
 
 //-*****************************************************************************
@@ -152,9 +162,9 @@ template <class CPROP_PTR>
 inline OScalarProperty::OScalarProperty( CPROP_PTR iParentProp,
                                          const std::string &iName,
                                          const AbcA::DataType &iDataType,
-                                         const OArgument &iArg0,
-                                         const OArgument &iArg1,
-                                         const OArgument &iArg2 )
+                                         const Argument &iArg0,
+                                         const Argument &iArg1,
+                                         const Argument &iArg2 )
 {
     init( GetCompoundPropertyWriterPtr( iParentProp ),
           iName, iDataType,

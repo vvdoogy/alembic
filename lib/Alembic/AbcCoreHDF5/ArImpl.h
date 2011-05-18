@@ -41,6 +41,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class TopOrImpl;
@@ -68,6 +69,8 @@ public:
 
     virtual AbcA::ObjectReaderPtr getTop();
 
+    virtual AbcA::TimeSamplingPtr getTimeSampling( uint32_t iIndex );
+
     virtual AbcA::ArchiveReaderPtr asArchivePtr();
 
     virtual AbcA::ReadArraySampleCachePtr getReadArraySampleCachePtr()
@@ -81,14 +84,25 @@ public:
         m_readArraySampleCache = iPtr;
     }
 
+    virtual uint32_t getNumTimeSamplings()
+    {
+        return m_timeSamples.size();
+    }
+
 private:
     std::string m_fileName;
     hid_t m_file;
 
     TopOrImpl *m_top;
 
+    std::vector <  AbcA::TimeSamplingPtr > m_timeSamples;
+
     AbcA::ReadArraySampleCachePtr m_readArraySampleCache;
 };
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

@@ -43,7 +43,7 @@
 
 namespace Alembic {
 namespace AbcCoreAbstract {
-namespace v1 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 //! In order for an implementation to concretely provide a starting point
@@ -111,11 +111,30 @@ public:
     //! May sometimes be spoofed.
     virtual ArchiveWriterPtr asArchivePtr() = 0;
 
+    //! Adds the TimeSampling to the Archive TimeSampling pool.
+    //! If the TimeSampling already exists in the pool, the index for the match
+    //! should be returned.
+    //! index 0 is automatically reserved for uniform time sampling with a start
+    //! time of 0 and time per cycle of 1 (aka identity sampling)
+    virtual uint32_t addTimeSampling( const TimeSampling & iTs ) = 0;
+
+    //! Returns the TimeSampling at a given index.
+    //! index 0 is automatically reserved for uniform time sampling with a start
+    //! time of 0 and time per cycle of 1 (aka identity sampling)
+    virtual TimeSamplingPtr getTimeSampling( uint32_t iIndex ) = 0;
+
+    //! Returns the total number of TimeSamplingPtrs in the Archive
+    //! TimeSampling pool.
+    virtual uint32_t getNumTimeSamplings() = 0;
+
 private:
     int8_t m_compressionHint;
 };
 
-} // End namespace v1
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
+
 } // End namespace AbcCoreAbstract
 } // End namespace Alembic
 

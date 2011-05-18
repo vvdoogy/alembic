@@ -78,14 +78,14 @@ size_t ISubDSchema::getNumSamples()
         {
             max = std::max( max,
                             Abc::IArrayProperty(
-                                *this,
+                                this->getPtr(),
                                 ph.getName() ).getNumSamples() );
         }
         else if ( ph.isScalar() )
         {
             max = std::max( max,
                             Abc::IScalarProperty(
-                                *this,
+                                this->getPtr(),
                                 ph.getName() ).getNumSamples() );
         }
     }
@@ -94,105 +94,229 @@ size_t ISubDSchema::getNumSamples()
 }
 
 //-*****************************************************************************
-void ISubDSchema::get( ISubDSchema::Sample &iSample,
+void ISubDSchema::get( ISubDSchema::Sample &oSample,
                        const Abc::ISampleSelector &iSS )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ISubDSchema::get()" );
 
-    m_positions.get( iSample.m_positions, iSS );
-    m_faceIndices.get( iSample.m_faceIndices, iSS );
-    m_faceCounts.get( iSample.m_faceCounts, iSS );
+    m_positions.get( oSample.m_positions, iSS );
+    m_faceIndices.get( oSample.m_faceIndices, iSS );
+    m_faceCounts.get( oSample.m_faceCounts, iSS );
 
     m_faceVaryingInterpolateBoundary.get(
-        iSample.m_faceVaryingInterpolateBoundary, iSS );
+        oSample.m_faceVaryingInterpolateBoundary, iSS );
     m_faceVaryingPropagateCorners.get(
-        iSample.m_faceVaryingPropagateCorners, iSS );
-    m_interpolateBoundary.get( iSample.m_interpolateBoundary, iSS );
+        oSample.m_faceVaryingPropagateCorners, iSS );
+    m_interpolateBoundary.get( oSample.m_interpolateBoundary, iSS );
 
-    m_creaseIndices.get( iSample.m_creaseIndices, iSS );
-    m_creaseLengths.get( iSample.m_creaseLengths, iSS );
-    m_creaseSharpnesses.get( iSample.m_creaseSharpnesses, iSS );
+    m_selfBounds.get( oSample.m_selfBounds, iSS );
 
-    m_cornerIndices.get( iSample.m_cornerIndices, iSS );
-    m_cornerSharpnesses.get( iSample.m_cornerSharpnesses, iSS );
+    if ( m_creaseIndices )
+    { m_creaseIndices.get( oSample.m_creaseIndices, iSS ); }
 
-    m_holes.get( iSample.m_holes, iSS );
+    if ( m_creaseLengths )
+    { m_creaseLengths.get( oSample.m_creaseLengths, iSS ); }
 
-    m_subdScheme.get( iSample.m_subdScheme, iSS );
+    if ( m_creaseSharpnesses )
+    { m_creaseSharpnesses.get( oSample.m_creaseSharpnesses, iSS ); }
 
-    m_selfBounds.get( iSample.m_selfBounds, iSS );
-    m_childBounds.get( iSample.m_childBounds, iSS );
+    if ( m_cornerIndices )
+    { m_cornerIndices.get( oSample.m_cornerIndices, iSS ); }
+
+    if ( m_cornerSharpnesses )
+    { m_cornerSharpnesses.get( oSample.m_cornerSharpnesses, iSS ); }
+
+    if ( m_holes )
+    { m_holes.get( oSample.m_holes, iSS ); }
+
+    m_subdScheme.get( oSample.m_subdScheme, iSS );
+
+    if ( m_childBounds && m_childBounds.getNumSamples() > 0 )
+    { m_childBounds.get( oSample.m_childBounds, iSS ); }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 }
 
 //-*****************************************************************************
-void ISubDSchema::init( const Abc::IArgument &iArg0,
-                        const Abc::IArgument &iArg1 )
+void ISubDSchema::init( const Abc::Argument &iArg0,
+                        const Abc::Argument &iArg1 )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ISubDSchema::init()" );
 
-    Abc::IArguments args;
+    Abc::Arguments args;
     iArg0.setInto( args );
     iArg1.setInto( args );
 
-    m_positions = Abc::IV3fArrayProperty( *this, "P",
+    AbcA::CompoundPropertyReaderPtr _this = this->getPtr();
+
+    m_positions = Abc::IV3fArrayProperty( _this, "P",
                                           args.getSchemaInterpMatching() );
-    m_faceIndices = Abc::IInt32ArrayProperty( *this, ".faceIndices",
+    m_faceIndices = Abc::IInt32ArrayProperty( _this, ".faceIndices",
                                             args.getSchemaInterpMatching() );
-    m_faceCounts = Abc::IInt32ArrayProperty( *this, ".faceCounts",
+    m_faceCounts = Abc::IInt32ArrayProperty( _this, ".faceCounts",
                                            args.getSchemaInterpMatching() );
 
     m_faceVaryingInterpolateBoundary =
-        Abc::IInt32Property( *this, ".faceVaryingInterpolateBoundary",
+        Abc::IInt32Property( _this, ".faceVaryingInterpolateBoundary",
                            args.getSchemaInterpMatching() );
     m_faceVaryingPropagateCorners =
-        Abc::IInt32Property( *this, ".faceVaryingPropagateCorners",
+        Abc::IInt32Property( _this, ".faceVaryingPropagateCorners",
                            args.getSchemaInterpMatching() );
     m_interpolateBoundary =
-        Abc::IInt32Property( *this, ".interpolateBoundary",
+        Abc::IInt32Property( _this, ".interpolateBoundary",
                            args.getSchemaInterpMatching() );
 
-    m_creaseIndices = Abc::IInt32ArrayProperty( *this, ".creaseIndices",
-                                              args.getSchemaInterpMatching() );
-    m_creaseLengths =
-        Abc::IInt32ArrayProperty( *this, ".creaseLengths",
-                                args.getSchemaInterpMatching() );
-    m_creaseSharpnesses =
-        Abc::IFloatArrayProperty( *this, ".creaseSharpnesses",
-                                  args.getSchemaInterpMatching() );
+    // creases, corners, and holes optionally exist
+    if ( this->getPropertyHeader(".creaseIndices") != NULL)
+    {
+        m_creaseIndices = Abc::IInt32ArrayProperty( _this, ".creaseIndices",
+                                                    args.getSchemaInterpMatching() );
+    }
 
-    m_cornerIndices = Abc::IInt32ArrayProperty( *this, ".cornerIndices",
-                                              args.getSchemaInterpMatching() );
-    m_cornerSharpnesses =
-        Abc::IFloatArrayProperty( *this, ".cornerSharpnesses",
-                                  args.getSchemaInterpMatching() );
+    if ( this->getPropertyHeader(".creaseLengths") != NULL)
+    {
+        m_creaseLengths = Abc::IInt32ArrayProperty( _this, ".creaseLengths",
+                                                    args.getSchemaInterpMatching() );
+    }
 
+    if ( this->getPropertyHeader(".creaseSharpnesses") != NULL)
+    {
+        m_creaseSharpnesses =
+             Abc::IFloatArrayProperty( _this,
+                                       ".creaseSharpnesses",
+                                       args.getSchemaInterpMatching() );
+    }
 
-    m_holes = Abc::IInt32ArrayProperty( *this, ".holes",
+    if ( this->getPropertyHeader(".cornerIndices") != NULL)
+    {
+        m_cornerIndices =
+            Abc::IInt32ArrayProperty( _this, ".cornerIndices",
                                       args.getSchemaInterpMatching() );
+    }
 
-    m_subdScheme = Abc::IStringProperty( *this, ".scheme",
+    if ( this->getPropertyHeader(".cornerSharpnesses") != NULL)
+    {
+        m_cornerSharpnesses =
+            Abc::IFloatArrayProperty( _this, ".cornerSharpnesses",
+                                      args.getSchemaInterpMatching() );
+    }
+
+    if ( this->getPropertyHeader(".holes") != NULL)
+    {
+        m_holes =
+            Abc::IInt32ArrayProperty( _this, ".holes",
+                                      args.getSchemaInterpMatching() );
+    }
+
+    m_subdScheme = Abc::IStringProperty( _this, ".scheme",
                                          args.getSchemaInterpMatching() );
 
-    m_selfBounds = Abc::IBox3dProperty( *this, ".selfBnds", iArg0, iArg1 );
-    m_childBounds = Abc::IBox3dProperty( *this, ".childBnds", iArg0, iArg1 );
+    m_selfBounds = Abc::IBox3dProperty( _this, ".selfBnds", iArg0, iArg1 );
+
+    if ( this->getPropertyHeader(".childBnds") != NULL )
+    {
+        m_childBounds = Abc::IBox3dProperty( _this, ".childBnds", iArg0, iArg1);
+    }
 
     // none of the things below here are guaranteed to exist
     if ( this->getPropertyHeader( "uv" ) != NULL )
     {
-        m_uvs = IV2fGeomParam( *this, "uv", iArg0, iArg1 );
+        m_uvs = IV2fGeomParam( _this, "uv", iArg0, iArg1 );
     }
 
     if ( this->getPropertyHeader( ".arbGeomParams" ) != NULL )
     {
-        m_arbGeomParams = Abc::ICompoundProperty( *this, ".arbGeomParams",
+        m_arbGeomParams = Abc::ICompoundProperty( _this, ".arbGeomParams",
                                                   args.getErrorHandlerPolicy()
                                                 );
     }
 
+    m_faceSetsLoaded = false;
+
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
+}
+
+//-*****************************************************************************
+void ISubDSchema::getFaceSetNames (std::vector <std::string> & oFaceSetNames)
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "ISubDSchema::getFaceSetNames()" );
+
+    // iterate over childHeaders, and if header matches FaceSet add to our vec
+    IObject _thisObject = this->getParent().getObject();
+
+    if (!m_faceSetsLoaded)
+    {
+        size_t numChildren = _thisObject.getNumChildren();
+        for ( size_t childIndex = 0 ; childIndex < numChildren; childIndex++ )
+        {
+            ObjectHeader const & header = _thisObject.getChildHeader (childIndex);
+            if ( IFaceSet::matches( header ) )
+            {
+                // start out with an empty (invalid IFaceSet)
+                // accessor later on will create real IFaceSet object.
+                m_faceSets [header.getName ()] = IFaceSet ();
+            }
+        }
+        m_faceSetsLoaded = true;
+    }
+
+    for (std::map<std::string, IFaceSet>::const_iterator faceSetIter =
+        m_faceSets.begin(); faceSetIter != m_faceSets.end(); ++faceSetIter)
+    {
+        oFaceSetNames.push_back( faceSetIter->first );
+    }
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+}
+
+//-*****************************************************************************
+bool
+ISubDSchema::hasFaceSet( const std::string &faceSetName )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "ISubDSchema::hasFaceSet (faceSetName)" );
+
+    if (!m_faceSetsLoaded)
+    {
+        std::vector <std::string> dummy;
+        getFaceSetNames (dummy);
+    }
+
+    return (m_faceSets.find (faceSetName) != m_faceSets.end ());
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+
+    return false;
+}
+
+//-*****************************************************************************
+IFaceSet
+ISubDSchema::getFaceSet( const std::string &iFaceSetName )
+{
+
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "ISubDSchema::getFaceSet()" );
+
+    ABCA_ASSERT( this->hasFaceSet (iFaceSetName),
+        "The requested FaceSet name can't be found in SubD.");
+
+    if (!m_faceSetsLoaded)
+    {
+        std::vector <std::string> dummy;
+        this->getFaceSetNames (dummy);
+    }
+    if (!m_faceSets [iFaceSetName])
+    {
+        // We haven't yet loaded the faceSet, so create/load it
+        m_faceSets [iFaceSetName] = IFaceSet ( this->getParent().getObject(),
+                                               iFaceSetName );
+    }
+
+    return m_faceSets [iFaceSetName];
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+
+    IFaceSet empty;
+    return empty;
 }
 
 } // End namespace AbcGeom

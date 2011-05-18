@@ -51,19 +51,12 @@ ENDIF()
 # Declare the version
 SET( PROJECT_VERSION_MAJOR 0 )
 SET( PROJECT_VERSION_MINOR 9 )
-SET( PROJECT_VERSION_PATCH 2 )
+SET( PROJECT_VERSION_PATCH 3 )
 SET( PROJECT_VERSION
      ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} )
 SET( VERSION ${PROJECT_VERSION} )
 
 MESSAGE(STATUS "CMAKE SYSTEM NAME = ${CMAKE_SYSTEM_NAME}" )
-
-# Set some debug vs opt flags
-IF ( "${CMAKE_BUILD_TYPE}" MATCHES "Debug" )
-  ADD_DEFINITIONS( -DDEBUG=1 -UNDEBUG )
-ELSEIF ( "${CMAKE_BUILD_TYPE}" MATCHES "Release" )
-  ADD_DEFINITIONS( -DNDEBUG=1 -UDEBUG -O3 )
-ENDIF()
 
 # Windows flag
 SET( WINDOWS FALSE )
@@ -81,8 +74,24 @@ IF( "${CMAKE_SYSTEM_NAME}" MATCHES "Linux" )
   SET( LINUX TRUE )
 ENDIF()
 
+# Set some debug vs opt flags
+IF ( "${CMAKE_BUILD_TYPE}" MATCHES "Debug" )
+  ADD_DEFINITIONS( -DDEBUG=1 -UNDEBUG )
+ELSEIF ( "${CMAKE_BUILD_TYPE}" MATCHES "Release" )
+  ADD_DEFINITIONS( -DNDEBUG=1 -UDEBUG )
+  IF ( NOT WINDOWS )
+    ADD_DEFINITIONS( -O3 )
+  ENDIF()
+ENDIF()
+
 IF ( NOT WINDOWS )
-  SET( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-Wreturn-type -Werror" )
+  SET(EXTERNAL_MATH_LIBS "-lm")
+ELSE()
+  SET(EXTERNAL_MATH_LIBS "")
+ENDIF()
+
+IF ( NOT WINDOWS )
+  SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreturn-type -Werror" )
 ENDIF()
 
 IF( ${WINDOWS} )
@@ -93,6 +102,16 @@ ELSEIF( ${DARWIN} )
 ELSE()
   ADD_DEFINITIONS( -DPLATFORM_LINUX -DPLATFORM=LINUX )
 ENDIF()
+
+if (MSVC AND DEFINED BUILD_STATIC_LIBS AND BUILD_STATIC_LIBS)
+	MESSAGE(STATUS "Replacing /MD with /MT for compiles" )
+	foreach (MODE "_DEBUG" "_MINSIZEREL" "_RELEASE" "_RELWITHDEBINFO")
+		string(REPLACE "/MD" "/MT" TMP "${CMAKE_C_FLAGS${MODE}}")
+		set(CMAKE_C_FLAGS${MODE} "${TMP}" CACHE STRING "" FORCE)
+		string(REPLACE "/MD" "/MT" TMP "${CMAKE_CXX_FLAGS${MODE}}")
+		set(CMAKE_CXX_FLAGS${MODE} "${TMP}" CACHE STRING "" FORCE)
+	endforeach (MODE)
+endif ()
 
 #-******************************************************************************
 #-******************************************************************************
@@ -123,7 +142,7 @@ IF(BUILD_TESTING)
   MARK_AS_ADVANCED(BUILDNAME)
 ENDIF(BUILD_TESTING)
 
-IF(UNIX AND NOT WIN32)
+IF(UNIX AND NOT WINDOWS)
   FIND_PROGRAM(CMAKE_UNAME uname /bin /usr/bin /usr/local/bin )
   IF(CMAKE_UNAME)
     EXEC_PROGRAM(uname ARGS -m OUTPUT_VARIABLE CMAKE_SYSTEM_PROCESSOR)
@@ -158,8 +177,8 @@ FIND_PACKAGE(ZLIB REQUIRED)
 # OPEN GL STUFF
 #-******************************************************************************
 #-******************************************************************************
-FIND_PACKAGE( OpenGL REQUIRED )
-FIND_PACKAGE( GLUT REQUIRED )
+FIND_PACKAGE( OpenGL )
+FIND_PACKAGE( GLUT )
 
 IF ( ${WINDOWS} )
   # Do a windows OpenGL thing, whatever that may be
@@ -206,20 +225,6 @@ INCLUDE_DIRECTORIES( ${ALEMBIC_BOOST_INCLUDE_PATH} )
 
 INCLUDE( "./build/AlembicIlmBase.cmake" )
 INCLUDE_DIRECTORIES( ${ALEMBIC_ILMBASE_INCLUDE_DIRECTORY} )
-
-#-******************************************************************************
-#-******************************************************************************
-# OPEN EXR
-#-******************************************************************************
-#-******************************************************************************
-
-# Automatically include ILM Base Stuff.
-#INCLUDE( "./build/AlembicOpenEXR.cmake" )
-#IF ( ALEMBIC_OPENEXR_FOUND )
-#  INCLUDE_DIRECTORIES( ${ALEMBIC_OPENEXR_INCLUDE_PATH} )
-#ENDIF()
-
-
 
 # Include Python stuff
 INCLUDE("./build/AlembicPython.cmake")
@@ -268,6 +273,3 @@ ENDIF()
 ADD_SUBDIRECTORY( examples EXCLUDE_FROM_ALL )
 
 ENDIF()
-
-
-

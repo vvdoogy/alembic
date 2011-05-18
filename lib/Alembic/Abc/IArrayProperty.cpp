@@ -73,7 +73,20 @@ bool IArrayProperty::isConstant()
 }
 
 //-*****************************************************************************
-AbcA::TimeSampling IArrayProperty::getTimeSampling()
+bool IArrayProperty::isScalarLike()
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::isScalarLike()" );
+
+    return m_property->isScalarLike();
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+
+    // Not all error handlers throw, so return a default.
+    return false;
+}
+
+//-*****************************************************************************
+AbcA::TimeSamplingPtr IArrayProperty::getTimeSampling()
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::getTimeSampling()" );
 
@@ -82,7 +95,7 @@ AbcA::TimeSampling IArrayProperty::getTimeSampling()
     ALEMBIC_ABC_SAFE_CALL_END();
 
     // Not all error handlers throw, so return a default.
-    return AbcA::TimeSampling();
+    return AbcA::TimeSamplingPtr();
 }
 
 //-*****************************************************************************
@@ -91,8 +104,10 @@ void IArrayProperty::get( AbcA::ArraySamplePtr& oSamp,
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::get()" );
 
-    m_property->getSample( iSS.getIndex( m_property->getTimeSampling() ),
-                           oSamp );
+    m_property->getSample(
+        iSS.getIndex( m_property->getTimeSampling(),
+            m_property->getNumSamples() ),
+        oSamp );
 
     ALEMBIC_ABC_SAFE_CALL_END();
 }
@@ -103,8 +118,10 @@ bool IArrayProperty::getKey( AbcA::ArraySampleKey& oKey,
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::getKey()" );
 
-    return m_property->getKey( iSS.getIndex( m_property->getTimeSampling() ),
-                           oKey );
+    return m_property->getKey(
+        iSS.getIndex( m_property->getTimeSampling(),
+            m_property->getNumSamples() ),
+        oKey );
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
@@ -132,10 +149,10 @@ void IArrayProperty::init( AbcA::CompoundPropertyReaderPtr iParent,
                            const std::string &iName,
 
                            ErrorHandler::Policy iParentPolicy,
-                           const IArgument &iArg0,
-                           const IArgument &iArg1 )
+                           const Argument &iArg0,
+                           const Argument &iArg1 )
 {
-    IArguments args( iParentPolicy );
+    Arguments args( iParentPolicy );
     iArg0.setInto( args );
     iArg1.setInto( args );
 

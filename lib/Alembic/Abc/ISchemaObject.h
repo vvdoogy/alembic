@@ -84,12 +84,15 @@ public:
     static bool matches( const AbcA::MetaData &iMetaData,
                          SchemaInterpMatching iMatching = kStrictMatching )
     {
+
         if ( getSchemaTitle() == "" || iMatching == kNoMatching )
-        { return true; }
+        {
+            return true;
+        }
+
 
         if ( iMatching == kStrictMatching )
         {
-
             return iMetaData.get( "schemaObjTitle" ) == getSchemaObjTitle() ||
                 iMetaData.get( "schema" ) == getSchemaObjTitle();
         }
@@ -127,16 +130,16 @@ public:
     ISchemaObject( OBJECT_PTR iParentObject,
                    const std::string &iName,
 
-                   const IArgument &iArg0 = IArgument(),
-                   const IArgument &iArg1 = IArgument() );
+                   const Argument &iArg0 = Argument(),
+                   const Argument &iArg1 = Argument() );
 
     //! Wrap an existing schema object.
     //! ...
     template <class OBJECT_PTR>
     ISchemaObject( OBJECT_PTR iThisObject,
                    WrapExistingFlag iFlag,
-                   const IArgument &iArg0 = IArgument(),
-                   const IArgument &iArg1 = IArgument() );
+                   const Argument &iArg0 = Argument(),
+                   const Argument &iArg1 = Argument() );
 
     //-*************************************************************************
     // ABC BASE MECHANISMS
@@ -172,6 +175,15 @@ protected:
 // TEMPLATE AND INLINE FUNCTIONS
 //-*****************************************************************************
 
+inline ErrorHandler::Policy GetErrorHandlerPolicy( const Argument &iArg0,
+                                                   const Argument &iArg1 )
+{
+    Arguments args;
+    iArg0.setInto( args );
+    iArg1.setInto( args );
+    return args.getErrorHandlerPolicy();
+}
+
 //-*****************************************************************************
 template <class SCHEMA>
 template <class OBJECT_PTR>
@@ -179,11 +191,11 @@ ISchemaObject<SCHEMA>::ISchemaObject
 (
     OBJECT_PTR iParentObject,
     const std::string &iName,
-    const IArgument &iArg0,
-    const IArgument &iArg1 )
-  : IObject( iParentObject, iName, iArg0, iArg1 )
+    const Argument &iArg0,
+    const Argument &iArg1 )
+  : IObject( iParentObject, iName, GetErrorHandlerPolicy( iArg0, iArg1 ) )
 {
-    IArguments args;
+    Arguments args;
     iArg0.setInto( args );
     iArg1.setInto( args );
 
@@ -214,8 +226,8 @@ template<class OBJECT_PTR>
 inline ISchemaObject<SCHEMA>::ISchemaObject(
     OBJECT_PTR iObject,
     WrapExistingFlag iFlag,
-    const IArgument &iArg0,
-    const IArgument &iArg1 )
+    const Argument &iArg0,
+    const Argument &iArg1 )
   : IObject( iObject,
              iFlag,
              GetErrorHandlerPolicy( iObject,

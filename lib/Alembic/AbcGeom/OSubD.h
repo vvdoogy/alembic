@@ -37,8 +37,10 @@
 #ifndef _Alembic_AbcGeom_OSubD_h_
 #define _Alembic_AbcGeom_OSubD_h_
 
+#include <map>
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
+#include <Alembic/AbcGeom/OFaceSet.h>
 #include <Alembic/AbcGeom/OGeomParam.h>
 
 namespace Alembic {
@@ -117,17 +119,17 @@ public:
         // misc subd stuff
         int32_t getFaceVaryingInterpolateBoundary() const
         { return m_faceVaryingInterpolateBoundary; }
-        void setFaceVaryingInterpolateBoundary( int i )
+        void setFaceVaryingInterpolateBoundary( int32_t i )
         { m_faceVaryingInterpolateBoundary = i; }
 
         int32_t getFaceVaryingPropagateCorners() const
         { return m_faceVaryingPropagateCorners; }
-        void setFaceVaryingPropagateCorners( int i )
+        void setFaceVaryingPropagateCorners( int32_t i )
         { m_faceVaryingPropagateCorners = i; }
 
         int32_t getInterpolateBoundary() const
         { return m_interpolateBoundary; }
-        void setInterpolateBoundary( int i )
+        void setInterpolateBoundary( int32_t i )
         { m_interpolateBoundary = i; }
 
         // creases
@@ -236,6 +238,8 @@ public:
         }
 
     protected:
+        friend class OSubDSchema;
+
         Abc::V3fArraySample m_positions;
         Abc::Int32ArraySample m_faceIndices;
         Abc::Int32ArraySample m_faceCounts;
@@ -245,16 +249,16 @@ public:
         int32_t m_interpolateBoundary;
 
         // Creases
-        Abc::Int32ArraySample    m_creaseIndices;
-        Abc::Int32ArraySample    m_creaseLengths;
-        Abc::FloatArraySample  m_creaseSharpnesses;
+        Abc::Int32ArraySample m_creaseIndices;
+        Abc::Int32ArraySample m_creaseLengths;
+        Abc::FloatArraySample m_creaseSharpnesses;
 
         // Corners
-        Abc::Int32ArraySample    m_cornerIndices;
-        Abc::FloatArraySample  m_cornerSharpnesses;
+        Abc::Int32ArraySample m_cornerIndices;
+        Abc::FloatArraySample m_cornerSharpnesses;
 
         // Holes
-        Abc::Int32ArraySample    m_holes;
+        Abc::Int32ArraySample m_holes;
 
         // subdivision scheme
         std::string m_subdScheme;
@@ -295,41 +299,75 @@ public:
     OSubDSchema( CPROP_PTR iParentObject,
                      const std::string &iName,
 
-                     const Abc::OArgument &iArg0 = Abc::OArgument(),
-                     const Abc::OArgument &iArg1 = Abc::OArgument(),
-                     const Abc::OArgument &iArg2 = Abc::OArgument() )
+                     const Abc::Argument &iArg0 = Abc::Argument(),
+                     const Abc::Argument &iArg1 = Abc::Argument(),
+                     const Abc::Argument &iArg2 = Abc::Argument() )
       : Abc::OSchema<SubDSchemaInfo>( iParentObject, iName,
-                                   iArg0, iArg1, iArg2 )
+                                      iArg0, iArg1, iArg2 )
     {
+
+        AbcA::TimeSamplingPtr tsPtr =
+            Abc::GetTimeSampling( iArg0, iArg1, iArg2 );
+        uint32_t tsIndex =
+            Abc::GetTimeSamplingIndex( iArg0, iArg1, iArg2 );
+
+        // if we specified a valid TimeSamplingPtr, use it to determine the
+        // index otherwise we'll use the index, which defaults to the intrinsic
+        // 0 index
+        if (tsPtr)
+        {
+            tsIndex = iParentObject->getObject()->getArchive(
+                )->addTimeSampling(*tsPtr);
+        }
+
         // Meta data and error handling are eaten up by
         // the super type, so all that's left is time sampling.
-        init( Abc::GetTimeSamplingType( iArg0, iArg1, iArg2 ) );
+        init( tsIndex );
     }
 
     template <class CPROP_PTR>
     explicit OSubDSchema( CPROP_PTR iParentObject,
-                          const Abc::OArgument &iArg0 = Abc::OArgument(),
-                          const Abc::OArgument &iArg1 = Abc::OArgument(),
-                          const Abc::OArgument &iArg2 = Abc::OArgument() )
+                          const Abc::Argument &iArg0 = Abc::Argument(),
+                          const Abc::Argument &iArg1 = Abc::Argument(),
+                          const Abc::Argument &iArg2 = Abc::Argument() )
       : Abc::OSchema<SubDSchemaInfo>( iParentObject,
-                                   iArg0, iArg1, iArg2 )
+                                      iArg0, iArg1, iArg2 )
     {
+        AbcA::TimeSamplingPtr tsPtr =
+            Abc::GetTimeSampling( iArg0, iArg1, iArg2 );
+        uint32_t tsIndex =
+            Abc::GetTimeSamplingIndex( iArg0, iArg1, iArg2 );
+
+        // if we specified a valid TimeSamplingPtr, use it to determine the
+        // index otherwise we'll use the index, which defaults to the intrinsic
+        // 0 index
+        if (tsPtr)
+        {
+            tsIndex = iParentObject->getObject()->getArchive(
+                )->addTimeSampling(*tsPtr);
+        }
+
         // Meta data and error handling are eaten up by
         // the super type, so all that's left is time sampling.
-        init( Abc::GetTimeSamplingType( iArg0, iArg1, iArg2 ) );
+        init( tsIndex );
     }
 
-    //! Default copy constructor used.
+    //! Copy constructor.
+    OSubDSchema(const OSubDSchema& iCopy)
+    {
+        *this = iCopy;
+    }
+
     //! Default assignment operator used.
 
     //-*************************************************************************
     // SCHEMA STUFF
     //-*************************************************************************
 
-    //! Return the time sampling type, which is stored on each of the
+    //! Return the time sampling, which is stored on each of the
     //! sub properties.
-    AbcA::TimeSamplingType getTimeSamplingType() const
-    { return m_positions.getTimeSamplingType(); }
+    AbcA::TimeSamplingPtr getTimeSampling() const
+    { return m_positions.getTimeSampling(); }
 
     //-*************************************************************************
     // SAMPLE STUFF
@@ -342,13 +380,14 @@ public:
 
     //! Set a sample! Sample zero has to have non-degenerate
     //! positions, indices and counts.
-    void set( const Sample &iSamp,
-              const Abc::OSampleSelector &iSS = Abc::OSampleSelector() );
+    void set( const Sample &iSamp );
 
     //! Set from previous sample. Will apply to each of positions,
     //! indices, and counts.
-    void setFromPrevious( const Abc::OSampleSelector &iSS );
+    void setFromPrevious( );
 
+    void setTimeSampling( uint32_t iIndex );
+    void setTimeSampling( AbcA::TimeSamplingPtr iTime );
 
     Abc::OCompoundProperty getArbGeomParams();
 
@@ -383,6 +422,7 @@ public:
         m_uvs.reset();
 
         m_arbGeomParams.reset();
+        m_faceSets.clear ();
 
         Abc::OSchema<SubDSchemaInfo>::reset();
     }
@@ -397,12 +437,20 @@ public:
                  m_faceCounts.valid() );
     }
 
+    // FaceSet stuff
+    OFaceSet & createFaceSet( const std::string &iFaceSetName );
+    //! Appends the names of any FaceSets for this SubD.
+    void getFaceSetNames( std::vector <std::string> & oFaceSetNames );
+    OFaceSet getFaceSet( const std::string &iFaceSetName );
+    bool hasFaceSet( const std::string &iFaceSetName );
+
+
     //! unspecified-bool-type operator overload.
     //! ...
     ALEMBIC_OVERRIDE_OPERATOR_BOOL( OSubDSchema::valid() );
 
 protected:
-    void init( const AbcA::TimeSamplingType &iTst );
+    void init( uint32_t iTsIdx );
 
     Abc::OV3fArrayProperty m_positions;
     Abc::OInt32ArrayProperty m_faceIndices;
@@ -437,6 +485,16 @@ protected:
 
     // arbitrary geometry parameters
     Abc::OCompoundProperty m_arbGeomParams;
+
+private:
+    void initCreases(uint32_t iNumSamples);
+    void initCorners(uint32_t iNumSamples);
+    void initHoles(uint32_t iNumSamples);
+
+    // FaceSets created on this SubD
+    std::map <std::string, OFaceSet>  m_faceSets;
+
+    friend class OFaceSetSchema;;
 };
 
 //-*****************************************************************************

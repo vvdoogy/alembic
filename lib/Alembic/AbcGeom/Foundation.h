@@ -69,45 +69,62 @@ enum XformOperationType
     kScaleOperation = 0,
     kTranslateOperation = 1,
     kRotateOperation = 2,
-    kMatrixOperation = 3
+    kMatrixOperation = 3,
+    kXYZRotateOperation = 4
+};
+
+//-*****************************************************************************
+//! \brief Enum that indicates the type of 2d operation for cameras.
+//! This enum is used when encoding and decoding the 2d filmback data for
+//! cameras.
+enum FilmBackXformOperationType
+{
+    kScaleFilmBackOperation = 0,
+    kTranslateFilmBackOperation = 1,
+    kMatrixFilmBackOperation = 2
 };
 
 //-*****************************************************************************
 //! This utility function sets an array prorperty sample using "set" if
 //! the sample is non-null, otherwise calls setFromPrevious.
 template <class PROP, class SAMP>
-inline void SetPropUsePrevIfNull( PROP iProp, SAMP iSamp,
-                                  const Abc::OSampleSelector &iSS )
+inline void SetPropUsePrevIfNull( PROP iProp, SAMP iSamp )
 {
-    if ( iSamp ) { iProp.set( iSamp, iSS ); }
-    else { iProp.setFromPrevious( iSS ); }
+    if ( iProp )
+    {
+        // really only valid with array properties
+        assert( iProp.isArray() );
+
+        if ( iSamp ) { iProp.set( iSamp ); }
+        else { iProp.setFromPrevious(); }
+    }
 }
 
 template <>
 inline void SetPropUsePrevIfNull<Abc::OStringProperty, std::string>(
-    Abc::OStringProperty iProp, std::string iSamp,
-    const Abc::OSampleSelector &iSS )
+    Abc::OStringProperty iProp, std::string iSamp )
 {
-    if ( iSamp != "" ) { iProp.set( iSamp, iSS ); }
-    else { iProp.setFromPrevious( iSS ); }
+    if ( ! iProp ) { return; }
+    if ( iSamp != "" ) { iProp.set( iSamp ); }
+    else { iProp.setFromPrevious(); }
 }
 
 template <>
 inline void SetPropUsePrevIfNull<Abc::OWstringProperty, Alembic::Util::wstring>(
-    Abc::OWstringProperty iProp, Alembic::Util::wstring iSamp,
-    const Abc::OSampleSelector &iSS )
+    Abc::OWstringProperty iProp, Alembic::Util::wstring iSamp )
 {
-    if ( iSamp != L"" ) { iProp.set( iSamp, iSS ); }
-    else { iProp.setFromPrevious( iSS ); }
+    if ( ! iProp ) { return; }
+    if ( iSamp != L"" ) { iProp.set( iSamp ); }
+    else { iProp.setFromPrevious(); }
 }
 
 template <>
 inline void SetPropUsePrevIfNull<Abc::OBox3dProperty, Abc::Box3d>(
-    Abc::OBox3dProperty iProp, Abc::Box3d iSamp,
-    const Abc::OSampleSelector &iSS )
+    Abc::OBox3dProperty iProp, Abc::Box3d iSamp )
 {
-    if ( iSamp.hasVolume() ) { iProp.set( iSamp, iSS ); }
-    else { iProp.setFromPrevious( iSS ); }
+    if ( ! iProp ) { return; }
+    if ( iSamp.hasVolume() ) { iProp.set( iSamp ); }
+    else { iProp.setFromPrevious(); }
 }
 
 //-*****************************************************************************
@@ -125,6 +142,19 @@ static Abc::Box3d ComputeBoundsFromPositions( const ARRAYSAMP &iSamp )
 
     return ret;
 }
+
+//-*****************************************************************************
+//! used in xform rotation conversion
+inline double DegreesToRadians( double iDegrees )
+{
+    return ( iDegrees * M_PI ) / 180.0;
+}
+
+inline double RadiansToDegrees( double iRadians )
+{
+    return iRadians * ( 180.0 / M_PI );
+}
+
 
 } // End namespace AbcGeom
 } // End namespace Alembic

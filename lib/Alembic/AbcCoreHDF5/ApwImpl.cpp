@@ -40,24 +40,34 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 ApwImpl::ApwImpl( AbcA::CompoundPropertyWriterPtr iParent,
                   hid_t iParentGroup,
-                  PropertyHeaderPtr iHeader )
+                  const std::string & iName,
+                  const AbcA::MetaData & iMetaData,
+                  const AbcA::DataType & iDataType,
+                  uint32_t iTimeSamplingIndex )
   : SimplePwImpl<AbcA::ArrayPropertyWriter,
                  ApwImpl,
                  const AbcA::ArraySample &,
                  AbcA::ArraySample::Key>( iParent,
                                           iParentGroup,
-                                          iHeader )
+                                          iName,
+                                          iMetaData,
+                                          iDataType,
+                                          iTimeSamplingIndex,
+                                          AbcA::kArrayProperty )
 {
     if ( m_header->getPropertyType() != AbcA::kArrayProperty )
     {
         ABCA_THROW( "Attempted to create a ArrayPropertyWriter from a "
                     "non-array property type" );
     }
-    
+
+    m_isScalarLike = true;
+
     // The WrittenArraySampleID is invalid by default.
     assert( !m_previousWrittenArraySampleID );
 }
@@ -66,7 +76,10 @@ ApwImpl::ApwImpl( AbcA::CompoundPropertyWriterPtr iParent,
 //-*****************************************************************************
 ApwImpl::~ApwImpl()
 {
-    // Nothing now.
+    WritePropertyInfo( m_parentGroup, m_header->getName(),
+        m_header->getPropertyType(), m_header->getDataType(), m_isScalarLike,
+        m_timeSamplingIndex, m_nextSampleIndex, m_firstChangedIndex,
+        m_lastChangedIndex );
 }
 
 
@@ -91,10 +104,14 @@ void ApwImpl::writeSample( hid_t iGroup,
         ", does not match the DataType of the Array property: " <<
         m_header->getDataType());
 
+    // if we haven't written this already, m_isScalarLike will be true
+    if (m_isScalarLike && iSamp.getDimensions().numPoints() != 1)
+    {
+        m_isScalarLike = false;
+    }
+
     // Write the sample.
-    // This distinguishes between string, wstring, and regular
-    // arrays.
-    // CJH: Should it not?
+    // This distinguishes between string, wstring, and regular arrays.
     m_previousWrittenArraySampleID =
         WriteArray( GetWrittenArraySampleMap( awp ),
                     iGroup, iSampleName,
@@ -104,5 +121,6 @@ void ApwImpl::writeSample( hid_t iGroup,
                     awp->getCompressionHint() );
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

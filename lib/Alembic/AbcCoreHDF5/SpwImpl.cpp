@@ -42,16 +42,26 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*************************************************************************
 SpwImpl::SpwImpl( AbcA::CompoundPropertyWriterPtr iParent,
                   hid_t iParentGroup,
-                  PropertyHeaderPtr iHeader )
+                  const std::string & iName,
+                  const AbcA::MetaData & iMetaData,
+                  const AbcA::DataType & iDataType,
+                  uint32_t iTimeSamplingIndex )
   : SimplePwImpl<AbcA::ScalarPropertyWriter,
                  SpwImpl,
                  const void *,
-                 ScalarSampleKey>( iParent, iParentGroup, iHeader )
-  , m_previousSample( iHeader->getDataType() )
+                 ScalarSampleKey>( iParent,
+                                   iParentGroup,
+                                   iName,
+                                   iMetaData,
+                                   iDataType,
+                                   iTimeSamplingIndex,
+                                   AbcA::kScalarProperty )
+  , m_previousSample( iDataType )
 {
     if ( m_header->getPropertyType() != AbcA::kScalarProperty )
     {
@@ -61,10 +71,12 @@ SpwImpl::SpwImpl( AbcA::CompoundPropertyWriterPtr iParent,
 }
 
 //-*****************************************************************************
-// Just here to support debugging, if necessary. ScalarSample deletes itself.
 SpwImpl::~SpwImpl()
 {
-    // Nothing
+    WritePropertyInfo( m_parentGroup, m_header->getName(),
+        m_header->getPropertyType(), m_header->getDataType(), true,
+        m_timeSamplingIndex, m_nextSampleIndex, m_firstChangedIndex,
+        m_lastChangedIndex );
 }
 
 //-*****************************************************************************
@@ -83,13 +95,15 @@ void SpwImpl::copyPreviousSample( hid_t iGroup,
     
     // Write the sample.
     const AbcA::DataType &dtype = m_header->getDataType();
+    uint8_t extent = dtype.getExtent();
+
     if ( dtype.getPod() == kStringPOD )
     {
         const std::string *strings
             = reinterpret_cast<const std::string *>(
                 m_previousSample.getData() );
         
-        if ( dtype.getExtent() == 1 )
+        if ( extent == 1 )
         {
             WriteString( iGroup, iSampleName, *strings );
         }
@@ -104,7 +118,7 @@ void SpwImpl::copyPreviousSample( hid_t iGroup,
             = reinterpret_cast<const std::wstring *>(
                 m_previousSample.getData() );
         
-        if ( dtype.getExtent() == 1 )
+        if ( extent == 1 )
         {
             WriteWstring( iGroup, iSampleName, *wstrings );
         }
@@ -117,10 +131,21 @@ void SpwImpl::copyPreviousSample( hid_t iGroup,
     {
         assert( m_fileDataType >= 0 );
         assert( m_nativeDataType >= 0 );
-        WriteScalar( iGroup, iSampleName,
-                     m_fileDataType,
-                     m_nativeDataType,
-                     m_previousSample.getData() );
+        if (extent == 1)
+        {
+            WriteScalar( iGroup, iSampleName,
+                         m_fileDataType,
+                         m_nativeDataType,
+                         m_previousSample.getData() );
+        }
+        else
+        {
+            WriteSmallArray( iGroup, iSampleName,
+                         m_fileDataType,
+                         m_nativeDataType,
+                         extent,
+                         m_previousSample.getData() );
+        }
     }
 }
 
@@ -139,7 +164,8 @@ void SpwImpl::writeSample( hid_t iGroup,
 
     // And now just copy previous sample.
     copyPreviousSample( iGroup, iSampleName, iSampleIndex );
-}   
+}
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

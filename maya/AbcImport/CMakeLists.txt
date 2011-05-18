@@ -36,9 +36,10 @@
 
 PROJECT( ABC_IMPORT_MAYA_MODULE )
 
-SET( H_FILES 
+SET( H_FILES
   AbcImport.h
   AlembicNode.h
+  CameraHelper.h
   CreateSceneHelper.h
   MeshHelper.h
   NodeIteratorVisitorHelper.h
@@ -47,9 +48,10 @@ SET( H_FILES
   XformHelper.h
 )
 
-SET( CXX_FILES 
+SET( CXX_FILES
   AbcImport.cpp
   AlembicNode.cpp
+  CameraHelper.cpp
   CreateSceneHelper.cpp
   main.cpp
   MeshHelper.cpp
@@ -61,12 +63,11 @@ SET( CXX_FILES
 
 SET( SOURCE_FILES ${CXX_FILES} ${H_FILES} )
 
-SET( CORE_LIBS 
+SET( CORE_LIBS
   AlembicAbcGeom
   AlembicAbc
   AlembicAbcCoreHDF5
   AlembicAbcCoreAbstract
-  AlembicMD5Hash
   AlembicUtil )
 
 INCLUDE_DIRECTORIES( ${ALEMBIC_HDF5_INCLUDE_PATH} )
@@ -76,10 +77,10 @@ ADD_MAYA_CXX_PLUGIN( AbcImport ${SOURCE_FILES} )
 TARGET_LINK_LIBRARIES( AbcImport
   ${MAYA_LIBRARIES}
   ${CORE_LIBS}
-  ${ALEMBIC_HDF5_LIBS} 
+  ${ALEMBIC_HDF5_LIBS}
   ${ALEMBIC_ILMBASE_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
-  ${ZLIB_LIBRARIES} m )
+  ${ZLIB_LIBRARIES} ${EXTERNAL_MATH_LIBS} )
 
 INSTALL( TARGETS AbcImport
          DESTINATION maya/plug-ins )

@@ -43,7 +43,7 @@
 
 namespace Alembic {
 namespace AbcCoreAbstract {
-namespace v1 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 //! The BasePropertyWriter is the base class for all properties,
@@ -113,12 +113,12 @@ public:
     const DataType &getDataType() const
     { return getHeader().getDataType(); }
 
-    //! Non-compound properties have a TimeSamplingType. It is an error
+    //! Non-compound properties have a TimeSampling. It is an error
     //! to call this function for CompoundProperties, and an exception will
     //! be thrown. This is a convenience function which just returns the
     //! TimeSamplingType from the header that was used in creation.
-    TimeSamplingType getTimeSamplingType() const
-    { return getHeader().getTimeSamplingType(); }
+    TimeSamplingPtr getTimeSampling() const
+    { return getHeader().getTimeSampling(); }
     
     //! All properties have an object that owns them, and in order to
     //! ensure the object stays alive as long as the properties do, they
@@ -152,7 +152,10 @@ public:
     virtual CompoundPropertyWriterPtr asCompoundPtr();
 };
 
-} // End namespace v1
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
+
 } // End namespace AbcCoreAbstract
 } // End namespace Alembic
 

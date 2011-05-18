@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 WrittenArraySampleMap& GetWrittenArraySampleMap(
@@ -65,12 +66,6 @@ void
 WriteMetaData( hid_t iParent,
                const std::string &iName,
                const AbcA::MetaData &iMetaData );
-
-//-*****************************************************************************
-void
-WritePropertyHeaderExceptTime( hid_t iParent,
-                               const std::string &iName,
-                               const AbcA::PropertyHeader &iHeader );
 
 //-*****************************************************************************
 void
@@ -116,13 +111,26 @@ WriteArray( WrittenArraySampleMap &iMap,
             int iCompressionLevel );
 
 //-*****************************************************************************
-void WriteSampling( WrittenArraySampleMap &iMap,
-                    hid_t iGroup,
-                    const std::string &iName,
-                    const AbcA::TimeSamplingType &iTsmpType,
-                    uint32_t iNumSamples,
-                    uint32_t iNumUniqueSamples,
-                    const chrono_t *iTimes );
+void
+WritePropertyInfo( hid_t iGroup,
+                   const std::string &iName,
+                   AbcA::PropertyType iPropertyType,
+                   const AbcA::DataType &iDataType,
+                   bool isScalarLike,
+                   uint32_t iTimeSamplingIndex,
+                   uint32_t iNumSamples,
+                   uint32_t iFirstChangedIndex,
+                   uint32_t iLastChangedIndex );
+
+//-*****************************************************************************
+void
+WriteTimeSampling( hid_t iGroup,
+                   const std::string &iName,
+                   const AbcA::TimeSampling &iTsmp );
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcCoreHDF5
 } // End namespace Alembic

@@ -39,10 +39,11 @@ SET( H_FILES
      Drawable.h
      Foundation.h
      GLCamera.h
+     ICurvesDrw.h
+     INuPatchDrw.h
      IObjectDrw.h
      IPointsDrw.h
      IPolyMeshDrw.h
-     ISimpleXformDrw.h
      ISubDDrw.h
      IXformDrw.h
      MeshDrwHelper.h
@@ -52,10 +53,11 @@ SET( H_FILES
 
 SET( CXX_FILES
      GLCamera.cpp
+     ICurvesDrw.cpp
+     INuPatchDrw.cpp
      IObjectDrw.cpp
      IPointsDrw.cpp
      IPolyMeshDrw.cpp
-     ISimpleXformDrw.cpp
      ISubDDrw.cpp
      IXformDrw.cpp
      MeshDrwHelper.cpp
@@ -70,7 +72,6 @@ SET( THIS_LIBS
      AlembicAbc
      AlembicAbcCoreHDF5
      AlembicAbcCoreAbstract
-     AlembicMD5Hash
      AlembicGLUtil
      AlembicUtil
      ${ALEMBIC_HDF5_LIBS}
@@ -78,7 +79,7 @@ SET( THIS_LIBS
      ${ALEMBIC_ILMBASE_LIBS}
      ${Boost_PROGRAM_OPTIONS_LIBRARY}
      ${CMAKE_THREAD_LIBS_INIT}
-     ${ZLIB_LIBRARIES} m )
+     ${ZLIB_LIBRARIES} ${EXTERNAL_MATH_LIBS} )
 
 ADD_EXECUTABLE( SimpleAbcViewer ${SOURCE_FILES} )
 TARGET_LINK_LIBRARIES( SimpleAbcViewer ${THIS_LIBS} )
