@@ -1,0 +1,272 @@
+//-*****************************************************************************
+//
+// Copyright (c) 2009-2011,
+//  Sony Pictures Imageworks Inc. and
+//  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
+//
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+// *       Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+// *       Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+// *       Neither the name of Sony Pictures Imageworks, nor
+// Industrial Light & Magic, nor the names of their contributors may be used
+// to endorse or promote products derived from this software without specific
+// prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+//-*****************************************************************************
+
+#include "MayaNurbsCurveWriter.h"
+#include "MayaUtility.h"
+#include "MayaTransformWriter.h"
+
+namespace
+{
+    // get all the nurbs curves from below the given dagpath.
+    // the curve group is considered animated if at least one curve is animated
+
+    void collectNurbsCurves(const MDagPath &dagPath, MDagPathArray &dagPaths,
+        bool & oIsAnimated)
+    {
+        MStatus stat;
+
+        MItDag itDag(MItDag::kDepthFirst, MFn::kNurbsCurve, &stat);
+        stat = itDag.reset(dagPath, MItDag::kDepthFirst, MFn::kNurbsCurve);
+
+        if (stat == MS::kSuccess)
+        {
+            for (;!itDag.isDone();itDag.next())
+            {
+                MDagPath curvePath;
+                stat = itDag.getPath(curvePath);
+                if (stat == MS::kSuccess)
+                {
+                    MObject curve = curvePath.node();
+
+                    if ( !util::isIntermediate(curve) &&
+                        curve.hasFn(MFn::kNurbsCurve) )
+                    {
+                        dagPaths.append(curvePath);
+                    }
+                    // don't bother checking the animated state if the curve
+                    // wasn't appended to the list
+                    else
+                    {
+                        continue;
+                    }
+                    // with the flag set to true, check the DagPath and it's
+                    // parent
+                    if (util::isAnimated(curve, true))
+                    {
+                        oIsAnimated = true;
+                    }
+                }
+            }
+        }
+    }  // end of function collectNurbsCurves
+}
+
+MayaNurbsCurveWriter::MayaNurbsCurveWriter(MDagPath & iDag,
+    Alembic::Abc::OObject & iParent, uint32_t iTimeIndex, bool iIsCurveGrp,
+    bool iWriteVisibility, bool iForceStatic) :
+    mIsAnimated(false), mRootDagPath(iDag), mIsCurveGrp(iIsCurveGrp)
+{
+    MStatus stat;
+    MFnDependencyNode fnDepNode(iDag.node(), &stat);
+    MString name = fnDepNode.name();
+
+    if (mIsCurveGrp)
+    {
+        collectNurbsCurves(mRootDagPath, mNurbsCurves, mIsAnimated);
+
+        // if no curves were found bail early
+        if (mNurbsCurves.length() == 0)
+            return;
+    }
+    else
+    {
+        MObject curve = iDag.node();
+
+        if (util::isAnimated(curve))
+            mIsAnimated = true;
+    }
+
+    Alembic::AbcGeom::OCurves obj(iParent, name.asChar(), iTimeIndex);
+    mSchema = obj.getSchema();
+
+    Alembic::Abc::OCompoundProperty cp = mSchema.getArbGeomParams();
+
+    mAttrs = AttributesWriterPtr(new AttributesWriter(cp, iDag,
+        iTimeIndex, iWriteVisibility, iForceStatic));
+
+    write();
+}
+
+unsigned int MayaNurbsCurveWriter::getNumCVs()
+{
+    return mCVCount;
+}
+
+unsigned int MayaNurbsCurveWriter::getNumCurves()
+{
+    if (mIsCurveGrp)
+        return mNurbsCurves.length();
+    else
+        return 1;
+}
+
+bool MayaNurbsCurveWriter::isAnimated() const
+{
+    return mIsAnimated;
+}
+
+void MayaNurbsCurveWriter::write()
+{
+    Alembic::AbcGeom::OCurvesSchema::Sample samp;
+
+    MStatus stat;
+    mCVCount = 0;
+
+    // if inheritTransform is on and the curve group is animated,
+    // bake the cv positions in the world space
+    MMatrix exclusiveMatrixInv = mRootDagPath.exclusiveMatrixInverse(&stat);
+
+    std::size_t numCurves = 1;
+
+    if (mIsCurveGrp)
+        numCurves = mNurbsCurves.length();
+
+    std::vector<Alembic::Util::uint32_t> nVertices(numCurves);
+    std::vector<float> points;
+    std::vector<float> width;
+
+    MMatrix transformMatrix;
+    bool useConstWidth = false;
+
+    MFnDependencyNode dep(mRootDagPath.transform());
+    MPlug constWidthPlug = dep.findPlug("constantwidth");
+
+    if (!constWidthPlug.isNull())
+    {
+        useConstWidth = true;
+        width.push_back(constWidthPlug.asFloat());
+    }
+
+    for (size_t i = 0; i < numCurves; i++)
+    {
+        MFnNurbsCurve curve;
+        if (mIsCurveGrp)
+        {
+            curve.setObject(mNurbsCurves[i]);
+            MMatrix inclusiveMatrix = mNurbsCurves[i].inclusiveMatrix(&stat);
+            transformMatrix = inclusiveMatrix*exclusiveMatrixInv;
+        }
+        else
+            curve.setObject(mRootDagPath.node());
+
+        if (i == 0)
+        {
+            if (curve.form() == MFnNurbsCurve::kOpen)
+            {
+                samp.setWrap(Alembic::AbcGeom::kNonPeriodic);
+            }
+            else
+            {
+                samp.setWrap(Alembic::AbcGeom::kPeriodic);
+            }
+
+            if (curve.degree() == 3)
+            {
+                samp.setType(Alembic::AbcGeom::kCubic);
+            }
+            else
+            {
+                samp.setType(Alembic::AbcGeom::kLinear);
+            }
+        }
+
+        Alembic::Util::uint32_t numCVs = curve.numCVs(&stat);
+        nVertices[i] = numCVs;
+        mCVCount += numCVs;
+
+        MPointArray cvArray;
+        stat = curve.getCVs(cvArray, MSpace::kObject);
+        for (size_t j = 0; j < numCVs; j++)
+        {
+            MPoint transformdPt;
+            if (mIsCurveGrp)
+                transformdPt = cvArray[j]*transformMatrix;
+            else
+                transformdPt = cvArray[j];
+
+            points.push_back(transformdPt.x);
+            points.push_back(transformdPt.y);
+            points.push_back(transformdPt.z);
+        }
+
+        // width
+        MPlug widthPlug = curve.findPlug("width");
+
+        if (!useConstWidth && !widthPlug.isNull())
+        {
+            MObject widthObj;
+            MStatus status = widthPlug.getValue(widthObj);
+            MFnDoubleArrayData fnDoubleArrayData(widthObj, &status);
+            MDoubleArray doubleArrayData = fnDoubleArrayData.array();
+            size_t arraySum = doubleArrayData.length();
+            size_t correctVecLen = arraySum;
+            //if (samp.getForm() == 0)
+            //    correctVecLen += 1;
+            if (arraySum == correctVecLen)
+            {
+                for (size_t i = 0; i < arraySum; i++)
+                {
+                    width.push_back(doubleArrayData[i]);
+                }
+            }
+            else
+            {
+                MString msg = "Curve ";
+                msg += curve.partialPathName();
+                msg += " has incorrect size for the width vector.";
+                msg += "\nUsing default constantwidth.";
+                MGlobal::displayWarning(msg);
+
+                width.clear();
+                width.push_back(0.1);
+                useConstWidth = true;
+            }
+        }
+        else
+        {
+            // pick a default value
+            width.clear();
+            width.push_back(0.1);
+            useConstWidth = true;
+        }
+    }
+
+    samp.setCurvesNumVertices(Alembic::Abc::UInt32ArraySample(nVertices));
+    samp.setPositions(Alembic::Abc::V3fArraySample(
+        (const Imath::V3f *)&points.front(), points.size() / 3 ));
+    samp.setWidths(Alembic::Abc::FloatArraySample(width));
+    mSchema.set(samp);
+}
