@@ -54,7 +54,7 @@ SET( CXX_FILES
 
   ONuPatch.cpp
   INuPatch.cpp
-  
+
   OPoints.cpp
   IPoints.cpp
 
@@ -90,12 +90,13 @@ SET( H_FILES
   ICurves.h
   OCurves.h
 
+  FaceSetExclusivity.h
   OFaceSet.h
   IFaceSet.h
 
   ONuPatch.h
   INuPatch.h
-  
+
   OGeomParam.h
   IGeomParam.h
 

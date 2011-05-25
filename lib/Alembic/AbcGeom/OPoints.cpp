@@ -172,8 +172,7 @@ Abc::OCompoundProperty OPointsSchema::getArbGeomParams()
 
     if ( ! m_arbGeomParams )
     {
-        m_arbGeomParams = Abc::OCompoundProperty( *this,
-                                                  ".arbGeomParams" );
+        m_arbGeomParams = Abc::OCompoundProperty( *this, ".arbGeomParams" );
     }
 
     return m_arbGeomParams;

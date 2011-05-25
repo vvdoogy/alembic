@@ -85,6 +85,4 @@ class MayaMeshWriter
     Alembic::AbcGeom::OSubDSchema       mSubDSchema;
 };
 
-typedef boost::shared_ptr < MayaMeshWriter > MayaMeshWriterPtr;
-
 #endif  // _AbcExport_MayaMeshWriter_h_

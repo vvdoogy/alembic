@@ -41,6 +41,11 @@
 namespace Abc = Alembic::Abc;
 using namespace Abc;
 
+using Alembic::AbcCoreAbstract::chrono_t;
+using Alembic::AbcCoreAbstract::index_t;
+using Alembic::Util::uint32_t;
+using Alembic::Util::float32_t;
+
 //-*****************************************************************************
 void simpleTestOut()
 {
@@ -154,7 +159,7 @@ void simpleTestOut()
         std::vector<std::string> emptyStanza;
         jabber.set( emptyStanza );
     }
-    
+
 
     OFloatProperty radius( clampto, "radius" );
     radius.set( 217.0f );
@@ -226,7 +231,7 @@ void simpleTestIn()
                   << pointySamp->size() << std::endl;
     }
 
-    
+
     //-*************************************************************************
     // STRING PROPERTIES
     //-*************************************************************************
@@ -268,7 +273,7 @@ void simpleTestIn()
             }
         }
     }
-    
+
     IFloatProperty radius( clampto, "radius" );
 
     std::cout << "Num clanker samples: "

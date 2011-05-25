@@ -77,7 +77,7 @@ public:
     //! to use as a parent, from which the error handler policy for
     //! inheritance is also derived.  The remaining optional arguments
     //! can be used to override the ErrorHandlerPolicy, to specify
-    //! MetaData, and to set TimeSamplingType.
+    //! MetaData, and to set TimeSampling.
     template <class CPROP_PTR>
     OXformSchema( CPROP_PTR iParentObject,
                   const std::string &iName,
