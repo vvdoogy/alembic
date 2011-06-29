@@ -1,7 +1,7 @@
 //-*****************************************************************************
 //
 // Copyright (c) 2009-2011,
-//  Sony Pictures Imageworks Inc. and
+//  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
 // All rights reserved.
@@ -16,7 +16,7 @@
 // in the documentation and/or other materials provided with the
 // distribution.
 // *       Neither the name of Sony Pictures Imageworks, nor
-// Industrial Light & Magic, nor the names of their contributors may be used
+// Industrial Light & Magic nor the names of their contributors may be used
 // to endorse or promote products derived from this software without specific
 // prior written permission.
 //
@@ -34,60 +34,21 @@
 //
 //-*****************************************************************************
 
-#include <Alembic/AbcGeom/CurveType.h>
 
-namespace Alembic {
-namespace AbcGeom {
+#ifndef ABCIMPORT_NURBSSURFACEHELPER_H_
+#define ABCIMPORT_NURBSSURFACEHELPER_H_
 
-//-*****************************************************************************
-std::string GetBasisNameFromBasisType( const BasisType basis )
-{
-    switch ( basis )
-    {
-    case kBezierBasis:
-        return "bezier";
+#include <maya/MObject.h>
 
-    case kBsplineBasis:
-        return "b-spline";
+#include <vector>
 
-    case kCatmullromBasis:
-        return "catmull-rom";
+#include <Alembic/AbcGeom/INuPatch.h>
 
-    case kHermiteBasis:
-        return "hermite";
+MObject createNurbs(double iFrame, Alembic::AbcGeom::INuPatch & iNode,
+    MObject & iParent);
 
-    case kPowerBasis:
-        return "power";
+MObject readNurbs(double iFrame, Alembic::AbcGeom::INuPatch & iNode,
+    MObject & iObject);
 
-    default:
-        return "none";
-    }
-}
+#endif  // ABCIMPORT_NURBSSURFACEHELPER_H_
 
-//-*****************************************************************************
-int GetStepFromBasisType( const BasisType basis )
-{
-    switch ( basis )
-    {
-    case kBezierBasis:
-        return 3;
-
-    case kBsplineBasis:
-        return 1;
-
-    case kCatmullromBasis:
-        return 1;
-
-    case kHermiteBasis:
-        return 2;
-
-    case kPowerBasis:
-        return 4;
-
-    default:
-        return 1;
-    }
-}
-
-}
-}

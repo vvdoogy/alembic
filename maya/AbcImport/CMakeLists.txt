@@ -41,9 +41,11 @@ SET( H_FILES
   AlembicNode.h
   CameraHelper.h
   CreateSceneHelper.h
+  LocatorHelper.h
   MeshHelper.h
   NodeIteratorVisitorHelper.h
   NurbsCurveHelper.h
+  NurbsSurfaceHelper.h
   PointHelper.h
   util.h
   XformHelper.h
@@ -55,8 +57,10 @@ SET( CXX_FILES
   CameraHelper.cpp
   CreateSceneHelper.cpp
   main.cpp
+  LocatorHelper.cpp
   MeshHelper.cpp
   NurbsCurveHelper.cpp
+  NurbsSurfaceHelper.cpp
   NodeIteratorVisitorHelper.cpp
   PointHelper.cpp
   util.cpp

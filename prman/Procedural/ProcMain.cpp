@@ -58,17 +58,43 @@ void WalkObject( IObject parent, const ObjectHeader &ohead, ProcArgs &args,
 
     if ( IXform::matches( ohead ) )
     {
-        IXform xform( parent, ohead.getName() );
-        ProcessXform( xform, args );
-
-        nextParentObject = xform;
+        if ( args.excludeXform )
+        {
+            nextParentObject = IObject( parent, ohead.getName() );
+        }
+        else
+        {
+            IXform xform( parent, ohead.getName() );
+            ProcessXform( xform, args );
+            
+            nextParentObject = xform;
+        }
     }
     else if ( ISubD::matches( ohead ) )
     {
+        std::string faceSetName;
+        
         ISubD subd( parent, ohead.getName() );
-        ProcessSubD( subd, args );
+        
+        //if we haven't reached the end of a specified -objectpath,
+        //check to see if the next token is a faceset name.
+        //If it is, send the name to ProcessSubD for addition of
+        //"hole" tags for the non-matching faces
+        if ( I != E )
+        {
+            if ( subd.getSchema().hasFaceSet( *I ) )
+            {
+                faceSetName = *I;
+            }
+        }
 
-        nextParentObject = subd;
+        ProcessSubD( subd, args, faceSetName );
+
+        //if we found a matching faceset, don't traverse below
+        if ( faceSetName.empty() )
+        {
+            nextParentObject = subd;
+        }
     }
     else if ( IPolyMesh::matches( ohead ) )
     {
@@ -76,6 +102,31 @@ void WalkObject( IObject parent, const ObjectHeader &ohead, ProcArgs &args,
         ProcessPolyMesh( polymesh, args );
 
         nextParentObject = polymesh;
+    }
+    else if ( INuPatch::matches( ohead ) )
+    {
+        INuPatch patch( parent, ohead.getName() );
+        ProcessNuPatch( patch, args );
+        
+        nextParentObject = patch;
+    }
+    else if ( IPoints::matches( ohead ) )
+    {
+        IPoints points( parent, ohead.getName() );
+        ProcessPoints( points, args );
+        
+        nextParentObject = points;
+    }
+    else if ( ICurves::matches( ohead ) )
+    {
+        ICurves curves( parent, ohead.getName() );
+        ProcessCurves( curves, args );
+        
+        nextParentObject = curves;
+    }
+    else if ( IFaceSet::matches( ohead ) )
+    {
+        //don't complain about discovering a faceset upon traversal
     }
     else
     {

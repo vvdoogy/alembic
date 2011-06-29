@@ -79,12 +79,12 @@ public:
     //! can be used to override the ErrorHandlerPolicy, to specify
     //! MetaData, and to set TimeSampling.
     template <class CPROP_PTR>
-    OXformSchema( CPROP_PTR iParentObject,
+    OXformSchema( CPROP_PTR iParent,
                   const std::string &iName,
                   const Abc::Argument &iArg0 = Abc::Argument(),
                   const Abc::Argument &iArg1 = Abc::Argument(),
                   const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<XformSchemaInfo>( iParentObject, iName,
+      : Abc::OSchema<XformSchemaInfo>( iParent, iName,
                                        iArg0, iArg1, iArg2 )
     {
         // Meta data and error handling are eaten up by
@@ -97,11 +97,9 @@ public:
 
         if ( tsPtr )
         {
-            tsIndex = iParentObject->getObject()->getArchive()->
+            tsIndex = iParent->getObject()->getArchive()->
                 addTimeSampling( *tsPtr );
         }
-
-        m_timeSamplingIndex = tsIndex;
 
         init( tsIndex );
     }
@@ -109,11 +107,11 @@ public:
     //! This constructor does the same as the above, but uses the default
     //! name from the XformSchemaInfo struct.
     template <class CPROP_PTR>
-    explicit OXformSchema( CPROP_PTR iParentObject,
+    explicit OXformSchema( CPROP_PTR iParent,
                            const Abc::Argument &iArg0 = Abc::Argument(),
                            const Abc::Argument &iArg1 = Abc::Argument(),
                            const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<XformSchemaInfo>( iParentObject,
+      : Abc::OSchema<XformSchemaInfo>( iParent,
                                        iArg0, iArg1, iArg2 )
     {
         // Meta data and error handling are eaten up by
@@ -126,11 +124,9 @@ public:
 
         if ( tsPtr )
         {
-            tsIndex = iParentObject->getObject()->getArchive()->
+            tsIndex = iParent->getObject()->getArchive()->
                 addTimeSampling( *tsPtr );
         }
-
-        m_timeSamplingIndex = tsIndex;
 
         init( tsIndex );
     }
@@ -165,6 +161,11 @@ public:
     //! Set from previous sample. Will hold the animated channels.
     void setFromPrevious();
 
+    void setTimeSampling( uint32_t iIndex );
+    void setTimeSampling( AbcA::TimeSamplingPtr iTime );
+
+    Abc::OCompoundProperty getArbGeomParams();
+
     //-*************************************************************************
     // ABC BASE MECHANISMS
     // These functions are used by Abc to deal with errors, rewrapping,
@@ -176,7 +177,6 @@ public:
     void reset()
     {
         m_childBounds.reset();
-        m_timeSamplingIndex = 0;
         m_inherits.reset();
         m_ops.reset();
         m_vals.reset();
@@ -185,8 +185,6 @@ public:
 
         m_staticChans.clear();
         m_staticChans.resize( 0 );
-        m_opVec.clear();
-        m_opVec.resize( 0 );
 
         super_type::reset();
     }
@@ -221,8 +219,6 @@ protected:
 
     Abc::OBox3dProperty m_childBounds;
 
-    AbcA::index_t m_timeSamplingIndex;
-
     AbcA::ScalarPropertyWriterPtr m_ops;
 
     AbcA::BasePropertyWriterPtr m_vals;
@@ -239,9 +235,9 @@ protected:
 
     std::vector<bool> m_staticChans;
 
-    std::vector<Alembic::Util::uint8_t> m_opVec;
-
     bool m_isIdentity;
+
+    Abc::OCompoundProperty m_arbGeomParams;
 };
 
 //-*****************************************************************************

@@ -44,30 +44,23 @@
 #include "MayaNurbsCurveWriter.h"
 #include "MayaPointPrimitiveWriter.h"
 #include "MayaTransformWriter.h"
-
-/*
-#include "MayaNurbsSurfaceWriter.h"
-#include "MayaCameraWriter.h"
-#include "MayaLightWriter.h"
 #include "MayaLocatorWriter.h"
-*/
+#include "MayaNurbsSurfaceWriter.h"
 
 #include "MayaUtility.h"
 
 typedef boost::shared_ptr < MayaMeshWriter >
     MayaMeshWriterPtr;
-//typedef boost::shared_ptr < MayaNurbsSurfaceWriter >
-//    MayaNurbsSurfaceWriterPtr;
 typedef boost::shared_ptr < MayaNurbsCurveWriter >
     MayaNurbsCurveWriterPtr;
-//typedef boost::shared_ptr < MayaCameraWriter >
-//    MayaCameraWriterPtr;
-//typedef boost::shared_ptr < MayaLightWriter >
-//    MayaLightWriterPtr;
-//typedef boost::shared_ptr < MayaLocatorWriter >
-//    MayaLocatorWriterPtr;
+typedef boost::shared_ptr < MayaCameraWriter >
+    MayaCameraWriterPtr;
+typedef boost::shared_ptr < MayaLocatorWriter >
+    MayaLocatorWriterPtr;
 typedef boost::shared_ptr < MayaPointPrimitiveWriter >
     MayaPointPrimitiveWriterPtr;
+typedef boost::shared_ptr < MayaNurbsSurfaceWriter >
+    MayaNurbsSurfaceWriterPtr;
 
 struct AbcWriteJobStatistics
 {
@@ -107,10 +100,11 @@ struct AbcWriteJobStatistics
         mTransStaticNum = 0;
         mTransAnimNum = 0;
 
+        mLocatorStaticNum = 0;
+        mLocatorAnimNum = 0;
+
         mCameraStaticNum = 0;
         mCameraAnimNum = 0;
-
-        mGenericNum = 0;
     }
 
     // for the statistic string
@@ -148,32 +142,23 @@ struct AbcWriteJobStatistics
     size_t mTransStaticNum;
     size_t mTransAnimNum;
 
+    size_t mLocatorStaticNum;
+    size_t mLocatorAnimNum;
+
     size_t mCameraStaticNum;
     size_t mCameraAnimNum;
-
-    size_t mGenericNum;
 };
 
 class AbcWriteJob
 {
   public:
 
-    AbcWriteJob(const util::ShapeSet & iDagPath,
-        const char * iFileName,
-        bool iUseSelectionList,
-        bool iWorldSpace,
-        bool iWriteVisibility,
-        bool iWriteUVs,
+    AbcWriteJob(const char * iFileName,
         std::set<double> & iTransFrames,
-        Alembic::AbcCoreAbstract::v1::TimeSamplingPtr iTransTime,
+        Alembic::AbcCoreAbstract::TimeSamplingPtr iTransTime,
         std::set<double> & iShapeFrames,
-        Alembic::AbcCoreAbstract::v1::TimeSamplingPtr iShapeTime,
-        std::string & iMelPerFrameCallback,
-        std::string & iMelPostCallback,
-        std::string & iPythonPerFrameCallback,
-        std::string & iPythonPostCallback,
-        std::string & iPrefixFilter,
-        std::set< std::string > & iAttribs);
+        Alembic::AbcCoreAbstract::TimeSamplingPtr iShapeTime,
+        const JobArgs & iArgs);
 
     ~AbcWriteJob();
 
@@ -182,16 +167,11 @@ class AbcWriteJob
 
   private:
     typedef boost::variant<
-
-    /*
-        MayaNurbsSurfaceWriterPtr,
-        MayaLightWriterPtr,
-        MayaLocatorWriterPtr,
-    */
-
         MayaCameraWriterPtr,
         MayaMeshWriterPtr,
         MayaNurbsCurveWriterPtr,
+        MayaNurbsSurfaceWriterPtr,
+        MayaLocatorWriterPtr,
         MayaPointPrimitiveWriterPtr > MayaNodePtr;
 
     void perFrameCallback(double iFrame);
@@ -218,41 +198,18 @@ class AbcWriteJob
     // helper dag path for recursive calculations
     MDagPath mCurDag;
 
-    // list of root transform dag paths
-    util::ShapeSet mDagPath;
-
     // the root world node of the scene
     Alembic::Abc::OArchive mRoot;
 
     std::string mFileName;
 
-    // whether or not we are writing nodes based on selection
-    bool mUseSelectionList;
-
-    // whether our root transforms (in mDagPath) should also have
-    // all of it's ancestors
-    bool mWorldSpace;
-
-    // whether or not to write visibility in a Katana-esque way
-    // if false then visibility state will not be written out
-    bool mWriteVisibility;
-
-    // whether or not to bake current uv set of polygons and subD meshs to file
-    bool mWriteUVs;
-
     MSelectionList mSList;
     std::set<double> mShapeFrames;
-    Alembic::AbcCoreAbstract::v1::TimeSamplingPtr mShapeTime;
-    uint32_t mShapeTimeIndex;
+    Alembic::AbcCoreAbstract::TimeSamplingPtr mShapeTime;
+    Alembic::Util::uint32_t mShapeTimeIndex;
     std::set<double> mTransFrames;
-    Alembic::AbcCoreAbstract::v1::TimeSamplingPtr mTransTime;
-    uint32_t mTransTimeIndex;
-
-    // convenience booleans used mainly during setup
-    // indicates whether the shapes and transforms
-    // only have 1 sample in their list
-    bool mShapesStatic;
-    bool mTransStatic;
+    Alembic::AbcCoreAbstract::TimeSamplingPtr mTransTime;
+    Alembic::Util::uint32_t mTransTimeIndex;
 
     // when eval is called and the time is the first frame
     // then we run the setup
@@ -265,17 +222,8 @@ class AbcWriteJob
     Alembic::Abc::OBox3dProperty mBoxProp;
     unsigned int mBoxIndex;
 
-    // for the callbacks
-    std::string mMelPerFrameCallback;
-    std::string mMelPostCallback;
-    std::string mPythonPerFrameCallback;
-    std::string mPythonPostCallback;
-
-    // filtering for attributes
-    std::string mFilter;
-    std::set<std::string> mAttribs;
-
     AbcWriteJobStatistics mStats;
+    JobArgs mArgs;
 };
 
 typedef boost::shared_ptr < AbcWriteJob > AbcWriteJobPtr;

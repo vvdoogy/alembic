@@ -100,7 +100,7 @@ bool endsWithArbAttr(const std::string & iStr)
 
 void createPropertyFromNumeric(MFnNumericData::Type iType, const MObject& iAttr,
     const MPlug& iPlug, Abc::OCompoundProperty & iParent,
-    uint32_t iTimeIndex,
+    Alembic::Util::uint32_t iTimeIndex,
     AbcGeom::GeometryScope iScope,
     std::vector < PlugAndObjArray > & oArrayVec)
 {
@@ -821,7 +821,7 @@ bool attributeToPropertyPair(const MObject& iAttr, const MPlug& iPlug,
     }
     else if (iAttr.hasFn(MFn::kEnumAttribute))
     {
-        int16_t val = iPlug.asShort();
+        Alembic::Util::int16_t val = iPlug.asShort();
         AbcA::ArraySample samp(&val, oProp.getDataType(),
             Alembic::Util::Dimensions(1));
         oProp.set(samp);
@@ -833,7 +833,7 @@ bool attributeToPropertyPair(const MObject& iAttr, const MPlug& iPlug,
 
 void createPropertyFromMFnAttr(const MObject& iAttr, const MPlug& iPlug,
     Abc::OCompoundProperty & iParent,
-    uint32_t iTimeIndex,
+    Alembic::Util::uint32_t iTimeIndex,
     AbcGeom::GeometryScope iScope,
     std::vector < PlugAndObjArray > & oArrayVec)
 {
@@ -1004,24 +1004,17 @@ void createPropertyFromMFnAttr(const MObject& iAttr, const MPlug& iPlug,
 
 }
 
-std::string * AttributesWriter::mFilter = NULL;
-std::set<std::string> * AttributesWriter::mAttribs = NULL;
-
 AttributesWriter::AttributesWriter(
-    Abc::OCompoundProperty & iParent,
+    Alembic::Abc::OCompoundProperty & iParent,
+    Alembic::Abc::OObject & iParentObj,
     const MFnDagNode & iNode,
-    uint32_t iTimeIndex,
-    bool iWriteVisibility,
-    bool iForceStatic)
+    Alembic::Util::uint32_t iTimeIndex,
+    const JobArgs & iArgs)
 {
     PlugAndObjScalar visPlug;
 
     unsigned int attrCount = iNode.attributeCount();
     unsigned int i;
-
-    int filtLen = 0;
-    if (mFilter != NULL)
-        filtLen = mFilter->length();
 
     std::vector< PlugAndObjArray > staticPlugObjArrayVec;
 
@@ -1042,33 +1035,21 @@ AttributesWriter::AttributesWriter(
         // we handle visibility in a special way
         if (propStr == "visibility")
         {
-            if (iWriteVisibility)
+            if (iArgs.writeVisibility)
             {
                 visPlug.plug = plug;
                 visPlug.obj = attr;
+                visPlug.propParent = iParentObj;
             }
             continue;
         }
 
-        // skip it if it doesn't start with our filter, or it ends with our
-        // special case attrs or it is a child attr and the parent is a
-        // kData* and it is not in our attribute set
-        if ( propStr.find("[") != std::string::npos || ((filtLen == 0 ||
-            propStr.compare(0, filtLen, *mFilter) != 0 ||
-            endsWithArbAttr(propStr) ||
-            (plug.isChild() && isDataAttr(plug.parent())) ) &&
-            (!mAttribs || mAttribs->find(propStr) == mAttribs->end())) )
+        if (!iParent.valid() || !matchFilterOrAttribs(plug, iArgs))
         {
             continue;
         }
 
-        int sampType = 0;
-
-        // if we aren't forcing everything to be static
-        if (!iForceStatic)
-        {
-            sampType = util::getSampledType(plug);
-        }
+        int sampType = util::getSampledType(plug);
 
         MPlug scopePlug = iNode.findPlug(propName + cAttrScope);
         AbcGeom::GeometryScope scope = AbcGeom::kUnknownScope;
@@ -1083,7 +1064,7 @@ AttributesWriter::AttributesWriter(
             // static
             case 0:
             {
-                createPropertyFromMFnAttr(attr, plug, iParent, iTimeIndex,
+                createPropertyFromMFnAttr(attr, plug, iParent, 0,
                     scope, staticPlugObjArrayVec);
             }
             break;
@@ -1142,14 +1123,17 @@ AttributesWriter::AttributesWriter(
     {
         int retVis = util::getVisibilityType(visPlug.plug);
 
+        // visible will go on the top most compound
+        Abc::OCompoundProperty parent = visPlug.propParent.getProperties();
+
         switch (retVis)
         {
             // static visibility 0 case
             case 1:
             {
-                int8_t visVal = 0;
+                Alembic::Util::int8_t visVal = 0;
 
-                Abc::OCharProperty bp(iParent, "visible");
+                Abc::OCharProperty bp(parent, "visible");
                 bp.set(visVal);
             }
             break;
@@ -1157,36 +1141,27 @@ AttributesWriter::AttributesWriter(
             // animated visibility 0 case
             case 2:
             {
-                int8_t visVal = 0;
+                Alembic::Util::int8_t visVal = 0;
 
-                if (!iForceStatic)
-                {
-                    Abc::OCharProperty bp(iParent, "visible", iTimeIndex);
-                    bp.set(visVal);
-                    visPlug.prop = bp;
-                    mAnimVisibility = visPlug;
-                }
-                // force static case
-                else
-                {
-                    Abc::OCharProperty bp(iParent, "visible");
-                    bp.set(visVal);
-                }
+                Abc::OCharProperty bp(parent, "visible", iTimeIndex);
+                bp.set(visVal);
+                visPlug.prop = bp;
+                mAnimVisibility = visPlug;
             }
             break;
 
             // animated visibility 1 case
             case 3:
             {
-                // dont add if we are forcing static
-                if (!iForceStatic)
+                // dont add if we are forcing static (no frame range specified)
+                if (iTimeIndex == 0)
                 {
                     break;
                 }
 
                 mAnimVisibility = visPlug;
-                int8_t visVal = -1;
-                Abc::OCharProperty bp(iParent, "visible", iTimeIndex);
+                Alembic::Util::int8_t visVal = -1;
+                Abc::OCharProperty bp(parent, "visible", iTimeIndex);
                 bp.set(visVal);
                 visPlug.prop = bp;
                 mAnimVisibility = visPlug;
@@ -1201,8 +1176,77 @@ AttributesWriter::AttributesWriter(
     }
 }
 
+bool AttributesWriter::matchFilterOrAttribs(const MPlug & iPlug,
+    const JobArgs & iArgs)
+{
+
+    MString propName = iPlug.partialName(0, 0, 0, 0, 0, 1);
+    std::string name = propName.asChar();
+
+    if (name.find("[") != std::string::npos)
+    {
+        return false;
+    }
+
+    std::vector<std::string>::const_iterator f;
+    std::vector<std::string>::const_iterator fEnd =
+        iArgs.prefixFilters.end();
+    for (f = iArgs.prefixFilters.begin(); f != fEnd; ++f)
+    {
+        // check the prefilter and ignore those that match but end with
+        // arb attr
+        if (f->length() > 0 &&
+            name.compare(0, f->length(), *f) == 0 &&
+            !endsWithArbAttr(name) &&
+            ( !iPlug.isChild() || !isDataAttr(iPlug.parent()) ))
+        {
+            return true;
+        }
+    }
+
+    // check our specific list of attributes
+    if (iArgs.attribs.find(name) != iArgs.attribs.end())
+    {
+        return true;
+    }
+
+    return false;
+}
+
+bool AttributesWriter::hasAnyAttr(const MFnDagNode & iNode,
+    const JobArgs & iArgs)
+{
+    unsigned int attrCount = iNode.attributeCount();
+    unsigned int i;
+
+    std::vector< PlugAndObjArray > staticPlugObjArrayVec;
+
+    for (i = 0; i < attrCount; i++)
+    {
+        MObject attr = iNode.attribute(i);
+        MFnAttribute mfnAttr(attr);
+        MPlug plug = iNode.findPlug(attr, true);
+
+        // if it is not readable, then bail without any more checking
+        if (!mfnAttr.isReadable() || plug.isNull())
+        {
+            continue;
+        }
+
+        if (matchFilterOrAttribs(plug, iArgs))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 AttributesWriter::~AttributesWriter()
 {
+    // if this happens to be set, clear it out before propParent goes out
+    // of scope to work around issue 171
+    mAnimVisibility.prop.reset();
 }
 
 bool AttributesWriter::isAnimated()
@@ -1235,7 +1279,7 @@ void AttributesWriter::write()
 
     if (!mAnimVisibility.plug.isNull())
     {
-        int8_t visVal = -1;
+        Alembic::Util::int8_t visVal = -1;
         if (!mAnimVisibility.plug.asBool())
         {
             visVal = 0;

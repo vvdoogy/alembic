@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -34,57 +34,34 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcCoreHDF5_ReadWrite_h_
-#define _Alembic_AbcCoreHDF5_ReadWrite_h_
+#ifndef _AbcExport_MayaNurbsSurfaceWriter_h_
+#define _AbcExport_MayaNurbsSurfaceWriter_h_
 
-#include <Alembic/AbcCoreAbstract/All.h>
+#include "Foundation.h"
+#include "AttributesWriter.h"
+#include "MayaTransformWriter.h"
 
-namespace Alembic {
-namespace AbcCoreHDF5 {
-namespace ALEMBIC_VERSION_NS {
+#include <Alembic/AbcGeom/ONuPatch.h>
 
-//-*****************************************************************************
-//! Will return a shared pointer to the archive writer
-//! There is only one way to create an archive writer in AbcCoreHDF5.
-struct WriteArchive
+class MayaNurbsSurfaceWriter
 {
-    ::Alembic::AbcCoreAbstract::ArchiveWriterPtr
-    operator()( const std::string &iFileName,
-                const ::Alembic::AbcCoreAbstract::MetaData &iMetaData )
-        const;
+  public:
+
+    MayaNurbsSurfaceWriter(MDagPath & iDag, Alembic::Abc::OObject & iParent,
+        Alembic::Util::uint32_t iTimeIndex, const JobArgs & iArgs);
+    void write();
+    bool isAnimated() const;
+    unsigned int getNumCVs();
+    AttributesWriterPtr getAttrs() {return mAttrs;};
+
+  private:
+
+    bool mIsSurfaceAnimated;
+    bool mIsTrimCurveAnimated;
+    MDagPath mDagPath;
+
+    AttributesWriterPtr mAttrs;
+    Alembic::AbcGeom::ONuPatchSchema mSchema;
 };
 
-//-*****************************************************************************
-//! AbcCoreHDF5 Provides a Cache implementation, that we expose here.
-//! It takes no arguments.
-//! This would only be used if you wished to create a global cache separately
-//! from an archive - this is actually fairly common, though, which is why
-//! it is exposed here.
-::Alembic::AbcCoreAbstract::ReadArraySampleCachePtr
-CreateCache( void );
-
-//-*****************************************************************************
-//! Will return a shared pointer to the archive reader
-//! This version creates a cache associated with the archive.
-struct ReadArchive
-{
-    // Make our own cache.
-    ::Alembic::AbcCoreAbstract::ArchiveReaderPtr
-    operator()( const std::string &iFileName ) const;
-
-    // Take the given cache.
-    ::Alembic::AbcCoreAbstract::ArchiveReaderPtr
-    operator()( const std::string &iFileName,
-                ::Alembic::AbcCoreAbstract::ReadArraySampleCachePtr iCache )
-        const;
-};
-
-} // End namespace ALEMBIC_VERSION_NS
-
-using namespace ALEMBIC_VERSION_NS;
-
-} // End namespace AbcCoreHDF5
-} // End namespace Alembic
-
-#endif
-
+#endif  // _AbcExport_MayaNurbsSurfaceWriter_h_

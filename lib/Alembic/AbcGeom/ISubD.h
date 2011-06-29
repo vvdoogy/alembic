@@ -58,7 +58,7 @@ public:
         typedef Sample this_type;
 
         //! Users never create this data directly
-        Sample() {}
+        Sample() { reset(); }
 
         // main stuff
         Abc::V3fArraySamplePtr getPositions() const { return m_positions; }
@@ -192,12 +192,12 @@ public:
     //! can be used to override the ErrorHandlerPolicy and to specify
     //! schema interpretation matching.
     template <class CPROP_PTR>
-    ISubDSchema( CPROP_PTR iParentObject,
+    ISubDSchema( CPROP_PTR iParent,
                  const std::string &iName,
 
                  const Abc::Argument &iArg0 = Abc::Argument(),
                  const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<SubDSchemaInfo>( iParentObject, iName,
+      : Abc::ISchema<SubDSchemaInfo>( iParent, iName,
                                       iArg0, iArg1 )
     {
         init(  iArg0, iArg1 );
@@ -206,10 +206,10 @@ public:
     //! Same constructor as above, but use the default schema name, ie,
     //! ".geom".
     template <class CPROP_PTR>
-    explicit ISubDSchema( CPROP_PTR iParentObject,
+    explicit ISubDSchema( CPROP_PTR iParent,
                           const Abc::Argument &iArg0 = Abc::Argument(),
                           const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<SubDSchemaInfo>( iParentObject,
+      : Abc::ISchema<SubDSchemaInfo>( iParent,
                                       iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
@@ -276,10 +276,34 @@ public:
         return smp;
     }
 
-    Abc::IV3fArrayProperty getPositions()
-    {
-        return m_positions;
-    }
+    Abc::IInt32ArrayProperty getFaceCounts() { return m_faceCounts; }
+    Abc::IInt32ArrayProperty getFaceIndices() { return m_faceIndices; }
+    Abc::IV3fArrayProperty getPositions() { return m_positions; }
+
+    Abc::IInt32Property getFaceVaryingInterpolateBoundary()
+    { return m_faceVaryingInterpolateBoundary; }
+
+    Abc::IInt32Property getFaceVaryingPropagateCorners()
+    { return m_faceVaryingPropagateCorners; }
+
+    Abc::IInt32Property getInterpolateBoundary()
+    { return m_interpolateBoundary; }
+
+    Abc::IBox3dProperty getSelfBounds() { return m_selfBounds; }
+    Abc::IBox3dProperty getChildBounds() { return m_childBounds; }
+
+    Abc::IInt32ArrayProperty getCreaseIndices() { return m_creaseIndices; }
+    Abc::IInt32ArrayProperty getCreaseLengths() { return m_creaseLengths; }
+    Abc::IFloatArrayProperty getCreaseSharpnesses()
+    { return m_creaseSharpnesses; }
+
+    Abc::IInt32ArrayProperty getCornerIndices() { return m_cornerIndices; }
+    Abc::IFloatArrayProperty getCornerSharpnesses()
+    { return m_cornerSharpnesses; }
+
+    Abc::IInt32ArrayProperty getHoles() { return m_holes; }
+
+    Abc::IStringProperty getSubdivisionScheme() { return m_subdScheme; }
 
     IV2fGeomParam &getUVs() { return m_uvs; }
 

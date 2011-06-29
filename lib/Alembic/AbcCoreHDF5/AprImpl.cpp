@@ -42,15 +42,15 @@ namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 AprImpl::AprImpl( AbcA::CompoundPropertyReaderPtr iParent,
-    hid_t iParentGroup,
-    PropertyHeaderPtr iHeader,
-    bool iIsScalarLike,
-    uint32_t iNumSamples,
-    uint32_t iFirstChangedIndex,
-    uint32_t iLastChangedIndex )
-    : SimplePrImpl<AbcA::ArrayPropertyReader, AprImpl, AbcA::ArraySamplePtr&>
-        ( iParent, iParentGroup, iHeader, iNumSamples, iFirstChangedIndex,
-          iLastChangedIndex )
+                  hid_t iParentGroup,
+                  PropertyHeaderPtr iHeader,
+                  bool iIsScalarLike,
+                  uint32_t iNumSamples,
+                  uint32_t iFirstChangedIndex,
+                  uint32_t iLastChangedIndex )
+  : SimplePrImpl<AbcA::ArrayPropertyReader, AprImpl, AbcA::ArraySamplePtr&>
+    ( iParent, iParentGroup, iHeader, iNumSamples, iFirstChangedIndex,
+      iLastChangedIndex )
 {
     if ( m_header->getPropertyType() != AbcA::kArrayProperty )
     {
@@ -71,6 +71,50 @@ AbcA::ArrayPropertyReaderPtr AprImpl::asArrayPtr()
 bool AprImpl::isScalarLike()
 {
     return m_isScalarLike;
+}
+
+//-*****************************************************************************
+void AprImpl::getDimensions( index_t iSampleIndex, Dimensions & oDim )
+{
+    iSampleIndex = verifySampleIndex( iSampleIndex );
+
+    std::string sampleName = getSampleName( m_header->getName(), iSampleIndex );
+    hid_t parent = -1;
+
+    if ( iSampleIndex == 0 )
+    {
+        parent = m_parentGroup;
+    }
+    else
+    {
+        // Create the subsequent samples group.
+        if ( m_samplesIGroup < 0 )
+        {
+            std::string samplesIName =  m_header->getName() + ".smpi";
+            ABCA_ASSERT( GroupExists( m_parentGroup, samplesIName ),
+                         "Invalid property: " << m_header->getName()
+                         << ", missing smpi" );
+
+            m_samplesIGroup = H5Gopen2( m_parentGroup,
+                                        samplesIName.c_str(),
+                                        H5P_DEFAULT );
+            ABCA_ASSERT( m_samplesIGroup >= 0,
+                         "Invalid property: " << m_header->getName()
+                         << ", invalid smpi group" );
+        }
+        parent = m_samplesIGroup;
+    }
+
+    std::string dimName = sampleName + ".dims";
+    if ( H5Aexists( parent, dimName.c_str() ) )
+    {
+        ReadDimensions( parent, dimName, oDim );
+    }
+    else
+    {
+        ReadDataSetDimensions( parent, sampleName,
+                               m_header->getDataType().getExtent(), oDim );
+    }
 }
 
 //-*****************************************************************************
@@ -95,8 +139,8 @@ void AprImpl::readSample( hid_t iGroup,
 
 //-*****************************************************************************
 bool AprImpl::readKey( hid_t iGroup,
-                          const std::string &iSampleName,
-                          AbcA::ArraySampleKey& oKey )
+                       const std::string &iSampleName,
+                       AbcA::ArraySampleKey& oKey )
 {
     assert( iGroup >= 0 );
 
@@ -110,7 +154,7 @@ bool AprImpl::readKey( hid_t iGroup,
     {
         hid_t dspaceId = H5Dget_space( dsetId );
         ABCA_ASSERT( dspaceId >= 0, "Could not get dataspace for dataSet: "
-            << iSampleName );
+                     << iSampleName );
         DspaceCloser dspaceCloser( dspaceId );
 
         oKey.readPOD = m_header->getDataType().getPod();

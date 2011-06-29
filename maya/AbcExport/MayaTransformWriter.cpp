@@ -39,7 +39,7 @@
 
 void addTranslate(const MFnDependencyNode & iTrans,
     MString parentName, MString xName, MString yName, MString zName,
-    uint8_t iHint, bool inverse, bool forceStatic,
+    Alembic::Util::uint8_t iHint, bool inverse, bool forceStatic,
     Alembic::AbcGeom::XformSample & oSample,
     std::vector < AnimChan > & oAnimChanList)
 {
@@ -139,17 +139,15 @@ void addTranslate(const MFnDependencyNode & iTrans,
 // use these indices
 void addRotate(const MFnDependencyNode & iTrans,
     MString parentName, const MString* iNames, const unsigned int* iOrder,
-    uint8_t iHint, bool forceStatic, bool forceAnimated,
+    Alembic::Util::uint8_t iHint, bool forceStatic, bool forceAnimated,
     Alembic::AbcGeom::XformSample & oSample,
     std::vector < AnimChan > & oAnimChanList)
 {
-    Alembic::AbcGeom::XformOp op(Alembic::AbcGeom::kRotateOperation, iHint);
-
-    // for the rotation axis
-    static const float rotVecs[3][3] = {
-         {1.0, 0.0, 0.0},
-         {0.0, 1.0, 0.0},
-         {0.0, 0.0, 1.0}
+    // for each possible rotation axis
+    static const Alembic::AbcGeom::XformOperationType rots[3] = {
+         Alembic::AbcGeom::kRotateXOperation,
+         Alembic::AbcGeom::kRotateYOperation,
+         Alembic::AbcGeom::kRotateZOperation
     };
 
     // this is to handle the case where there is a connection to the parent
@@ -189,11 +187,8 @@ void addRotate(const MFnDependencyNode & iTrans,
         double plugVal = plug.asDouble();
 
 
-        // setup the rotation vec
-        op.setChannelValue(0, rotVecs[index][0]);
-        op.setChannelValue(1, rotVecs[index][1]);
-        op.setChannelValue(2, rotVecs[index][2]);
-        op.setChannelValue(3, Alembic::AbcGeom::RadiansToDegrees(plugVal));
+        Alembic::AbcGeom::XformOp op(rots[index], iHint);
+        op.setChannelValue(0, Alembic::AbcGeom::RadiansToDegrees(plugVal));
 
         // the sampled case
         if (samp != 0)
@@ -202,7 +197,7 @@ void addRotate(const MFnDependencyNode & iTrans,
             chan.plug = plug;
             chan.scale = Alembic::AbcGeom::RadiansToDegrees(1.0);
             chan.opNum = oSample.getNumOps();
-            chan.channelNum = 3;
+            chan.channelNum = 0;
             oAnimChanList.push_back(chan);
         }
         // non sampled, XYZ axis and the angle is 0, do not add to the stack
@@ -396,24 +391,34 @@ void addScale(const MFnDependencyNode & iTrans,
 }
 
 MayaTransformWriter::MayaTransformWriter(Alembic::AbcGeom::OObject & iParent,
-    MDagPath & iDag, uint32_t iTimeIndex, bool iAddWorld,
-    bool iWriteVisibility, bool iForceStatic)
+    MDagPath & iDag, Alembic::Util::uint32_t iTimeIndex, const JobArgs & iArgs)
 {
 
     if (iDag.hasFn(MFn::kJoint))
     {
         MFnIkJoint joint(iDag);
-        Alembic::AbcGeom::OXform obj(iParent, joint.name().asChar(),
+        MString jointName = joint.name();
+        if (iArgs.stripNamespace)
+        {
+            jointName = util::stripNamespaces(jointName);
+        }
+
+        Alembic::AbcGeom::OXform obj(iParent, jointName.asChar(),
             iTimeIndex);
         mSchema = obj.getSchema();
 
-        Alembic::Abc::OCompoundProperty cp = obj.getProperties();
-        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, joint,
-            iTimeIndex, iWriteVisibility, iForceStatic));
-
-        if (!iAddWorld)
+        Alembic::Abc::OCompoundProperty cp;
+        if (AttributesWriter::hasAnyAttr(joint, iArgs))
         {
-            pushTransformStack(joint, iForceStatic);
+            cp = mSchema.getArbGeomParams();
+        }
+
+        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, joint,
+            iTimeIndex, iArgs));
+
+        if (!iArgs.worldSpace)
+        {
+            pushTransformStack(joint, iTimeIndex == 0);
 
             // need to look at inheritsTransform
             MFnDagNode dagNode(iDag);
@@ -438,17 +443,27 @@ MayaTransformWriter::MayaTransformWriter(Alembic::AbcGeom::OObject & iParent,
     else
     {
         MFnTransform trans(iDag);
-        Alembic::AbcGeom::OXform obj(iParent, trans.name().asChar(),
+        MString transName = trans.name();
+        if (iArgs.stripNamespace)
+        {
+            transName = util::stripNamespaces(transName);
+        }
+        Alembic::AbcGeom::OXform obj(iParent, transName.asChar(),
             iTimeIndex);
         mSchema = obj.getSchema();
 
-        Alembic::Abc::OCompoundProperty cp = obj.getProperties();
-        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, trans,
-            iTimeIndex, iWriteVisibility, iForceStatic));
-
-        if (!iAddWorld)
+        Alembic::Abc::OCompoundProperty cp;
+        if (AttributesWriter::hasAnyAttr(trans, iArgs))
         {
-            pushTransformStack(trans, iForceStatic);
+            cp = mSchema.getArbGeomParams();
+        }
+
+        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, trans,
+            iTimeIndex, iArgs));
+
+        if (!iArgs.worldSpace)
+        {
+            pushTransformStack(trans, iTimeIndex == 0);
 
             // need to look at inheritsTransform
             MFnDagNode dagNode(iDag);
@@ -509,12 +524,12 @@ MayaTransformWriter::MayaTransformWriter(Alembic::AbcGeom::OObject & iParent,
         if (iCur->hasFn(MFn::kJoint))
         {
             MFnIkJoint joint(*iCur);
-            pushTransformStack(joint, iForceStatic);
+            pushTransformStack(joint, iTimeIndex == 0);
         }
         else
         {
             MFnTransform trans(*iCur);
-            pushTransformStack(trans, iForceStatic);
+            pushTransformStack(trans, iTimeIndex == 0);
         }
     }
 
@@ -522,12 +537,12 @@ MayaTransformWriter::MayaTransformWriter(Alembic::AbcGeom::OObject & iParent,
     if (iCur->hasFn(MFn::kJoint))
     {
         MFnIkJoint joint(*iCur);
-        pushTransformStack(joint, iForceStatic);
+        pushTransformStack(joint, iTimeIndex == 0);
     }
     else
     {
         MFnTransform trans(*iCur);
-        pushTransformStack(trans, iForceStatic);
+        pushTransformStack(trans, iTimeIndex == 0);
     }
 
     // need to look at inheritsTransform
@@ -551,35 +566,54 @@ MayaTransformWriter::MayaTransformWriter(Alembic::AbcGeom::OObject & iParent,
 }
 
 MayaTransformWriter::MayaTransformWriter(MayaTransformWriter & iParent,
-    MDagPath & iDag, uint32_t iTimeIndex, bool iWriteVisibility,
-    bool iForceStatic)
+    MDagPath & iDag, Alembic::Util::uint32_t iTimeIndex, const JobArgs & iArgs)
 {
     if (iDag.hasFn(MFn::kJoint))
     {
         MFnIkJoint joint(iDag);
+        MString jointName = joint.name();
+        if (iArgs.stripNamespace)
+        {
+            jointName = util::stripNamespaces(jointName);
+        }
 
-        Alembic::AbcGeom::OXform obj(iParent.getObject(), joint.name().asChar(),
+        Alembic::AbcGeom::OXform obj(iParent.getObject(), jointName.asChar(),
             iTimeIndex);
         mSchema = obj.getSchema();
 
-        Alembic::Abc::OCompoundProperty cp = obj.getProperties();
-        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, joint,
-            iTimeIndex, iWriteVisibility, iForceStatic));
+        Alembic::Abc::OCompoundProperty cp;
+        if (AttributesWriter::hasAnyAttr(joint, iArgs))
+        {
+            cp = mSchema.getArbGeomParams();
+        }
 
-        pushTransformStack(joint, iForceStatic);
+        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, joint,
+            iTimeIndex, iArgs));
+
+        pushTransformStack(joint, iTimeIndex == 0);
     }
     else
     {
         MFnTransform trans(iDag);
-        Alembic::AbcGeom::OXform obj(iParent.getObject(), trans.name().asChar(),
+        MString transName = trans.name();
+        if (iArgs.stripNamespace)
+        {
+            transName = util::stripNamespaces(transName);
+        }
+        Alembic::AbcGeom::OXform obj(iParent.getObject(), transName.asChar(),
             iTimeIndex);
         mSchema = obj.getSchema();
 
-        Alembic::Abc::OCompoundProperty cp = obj.getProperties();
-        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, trans,
-            iTimeIndex, iWriteVisibility, iForceStatic));
+        Alembic::Abc::OCompoundProperty cp;
+        if (AttributesWriter::hasAnyAttr(trans, iArgs))
+        {
+            cp = mSchema.getArbGeomParams();
+        }
 
-        pushTransformStack(trans, iForceStatic);
+        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, trans,
+            iTimeIndex, iArgs));
+
+        pushTransformStack(trans, iTimeIndex == 0);
     }
 
 

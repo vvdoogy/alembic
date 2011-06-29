@@ -60,8 +60,10 @@
 #include "AlembicNode.h"
 #include "CreateSceneHelper.h"
 #include "CameraHelper.h"
+#include "LocatorHelper.h"
 #include "MeshHelper.h"
 #include "NurbsCurveHelper.h"
+#include "NurbsSurfaceHelper.h"
 #include "PointHelper.h"
 #include "XformHelper.h"
 
@@ -83,6 +85,7 @@ MObject AlembicNode::mOutNurbsCurveGrpArrayAttr;
 MObject AlembicNode::mOutNurbsSurfaceArrayAttr;
 MObject AlembicNode::mOutTransOpArrayAttr;
 MObject AlembicNode::mOutPropArrayAttr;
+MObject AlembicNode::mOutLocatorPosScaleArrayAttr;
 
 MStatus AlembicNode::initialize()
 {
@@ -195,6 +198,15 @@ MStatus AlembicNode::initialize()
     status = tAttr.setUsesArrayDataBuilder(true);
     status = addAttribute(mOutNurbsCurveGrpArrayAttr);
 
+    // sampled locator
+    mOutLocatorPosScaleArrayAttr = nAttr.create("outLoc", "olo",
+        MFnNumericData::kDouble, 0.0, &status);
+    status = nAttr.setStorable(false);
+    status = nAttr.setWritable(false);
+    status = nAttr.setArray(true);
+    status = nAttr.setUsesArrayDataBuilder(true);
+    status = addAttribute(mOutLocatorPosScaleArrayAttr);
+
     // sampled transform operations
     mOutTransOpArrayAttr = nAttr.create("transOp", "to",
         MFnNumericData::kDouble, 0.0, &status);
@@ -248,6 +260,7 @@ MStatus AlembicNode::initialize()
     status = attributeAffects(mTimeAttr, mOutTransOpArrayAttr);
     status = attributeAffects(mTimeAttr, mOutCameraArrayAttr);
     status = attributeAffects(mTimeAttr, mOutPropArrayAttr);
+    status = attributeAffects(mTimeAttr, mOutLocatorPosScaleArrayAttr);
 
     return status;
 }
@@ -272,7 +285,7 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
         // no caching!
         Alembic::Abc::IArchive archive(Alembic::AbcCoreHDF5::ReadArchive(),
             fileName.asChar(), Alembic::Abc::ErrorHandler::Policy(),
-            Alembic::AbcCoreAbstract::v1::ReadArraySampleCachePtr());
+            Alembic::AbcCoreAbstract::ReadArraySampleCachePtr());
 
         if (!archive.valid())
         {
@@ -294,7 +307,7 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
         mSubDInitialized = false;
         mPolyInitialized = false;
 
-        CreateSceneVisitor visitor(inputTime, MObject::kNullObj, 
+        CreateSceneVisitor visitor(inputTime, MObject::kNullObj,
             CreateSceneVisitor::NONE, "");
 
         visitor.walk(archive);
@@ -344,7 +357,22 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
             for (unsigned int i = 0; i < propSize; i++)
             {
                 MDataHandle handle = outArrayHandle.outputValue();
-                readProp(mCurTime, mData.mPropList[i], handle);
+                if (mData.mPropList[i].mArray.valid())
+                {
+                    readProp(mCurTime, mData.mPropList[i].mArray, handle);
+                }
+                // meant for special properties (like visible)
+                else
+                {
+                    if (mData.mPropList[i].mScalar.getName() == "visible")
+                    {
+                        Alembic::Util::int8_t visVal = 1;
+                        mData.mPropList[i].mScalar.get(&visVal,
+                            Alembic::Abc::ISampleSelector(mCurTime,
+                                Alembic::Abc::ISampleSelector::kNearIndex ));
+                        handle.setBool(visVal != 0);
+                    }
+                }
                 outArrayHandle.next();
             }
             outArrayHandle.setAllClean();
@@ -371,8 +399,6 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
             MPlug arrayPlug(thisMObject(), mOutTransOpArrayAttr);
 
             MDataHandle outHandle;
-
-            unsigned int angleHandleIndex = 0;
             unsigned int outHandleIndex = 0;
 
             for (unsigned int i = 0; i < xformSize; i++)
@@ -391,6 +417,53 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
 
                 unsigned int sampleSize = sampleList.size();
 
+                for (unsigned int j = 0; j < sampleSize; j++)
+                {
+                    // only use the handle if it matches the index.
+                    // The index wont line up in the sparse case so we
+                    // can just skip that element.
+                    if (outArrayHandle.elementIndex() == outHandleIndex++)
+                    {
+                        outHandle = outArrayHandle.outputValue(&status);
+                    }
+                    else
+                        continue;
+
+                    outArrayHandle.next();
+                    outHandle.set(sampleList[j]);
+                }
+            }
+            outArrayHandle.setAllClean();
+        }
+    }
+    else if (plug == mOutLocatorPosScaleArrayAttr )
+    {
+        if (mOutRead[8])
+        {
+            dataBlock.setClean(plug);
+            return MS::kSuccess;
+        }
+
+        mOutRead[8] = true;
+
+        unsigned int locSize = mData.mLocList.size();
+
+        if (locSize > 0)
+        {
+            MArrayDataHandle outArrayHandle =
+                dataBlock.outputValue(mOutLocatorPosScaleArrayAttr, &status);
+
+            MPlug arrayPlug(thisMObject(), mOutLocatorPosScaleArrayAttr);
+
+            MDataHandle outHandle;
+            unsigned int outHandleIndex = 0;
+
+            for (unsigned int i = 0; i < locSize; i++)
+            {
+                std::vector< double > sampleList;
+                read(mCurTime, mData.mLocList[i], sampleList);
+
+                unsigned int sampleSize = sampleList.size();
                 for (unsigned int j = 0; j < sampleSize; j++)
                 {
                     // only use the handle if it matches the index.
@@ -640,7 +713,7 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
 
         mOutRead[5] = true;
 
-        unsigned int nSurfaceSize = 0; //mData.mNurbsList.size();
+        unsigned int nSurfaceSize = mData.mNurbsList.size();
 
         if (nSurfaceSize > 0)
         {
@@ -661,7 +734,7 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                 MObject obj = outHandle.data();
                 if (obj.hasFn(MFn::kNurbsSurface))
                 {
-                    //read(mCrame, mData.mNurbsList[j], obj);
+                    readNurbs(mCurTime, mData.mNurbsList[j], obj);
                     outHandle.set(obj);
                 }
             }

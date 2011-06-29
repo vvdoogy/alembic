@@ -43,7 +43,9 @@ SET( H_FILES
   Foundation.h
   MayaCameraWriter.h
   MayaMeshWriter.h
+  MayaLocatorWriter.h
   MayaNurbsCurveWriter.h
+  MayaNurbsSurfaceWriter.h
   MayaPointPrimitiveWriter.h
   MayaTransformWriter.h
   MayaUtility.h
@@ -55,7 +57,9 @@ SET( CXX_FILES
   AttributesWriter.cpp
   MayaCameraWriter.cpp
   MayaMeshWriter.cpp
+  MayaLocatorWriter.cpp
   MayaNurbsCurveWriter.cpp
+  MayaNurbsSurfaceWriter.cpp
   MayaPointPrimitiveWriter.cpp
   MayaTransformWriter.cpp
   MayaUtility.cpp

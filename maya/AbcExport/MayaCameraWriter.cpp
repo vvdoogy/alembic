@@ -37,8 +37,8 @@
 #include "MayaCameraWriter.h"
 
 MayaCameraWriter::MayaCameraWriter(MDagPath & iDag,
-    Alembic::Abc::OObject & iParent, uint32_t iTimeIndex, bool iWriteVisibility,
-    bool iForceStatic) :
+    Alembic::Abc::OObject & iParent, Alembic::Util::uint32_t iTimeIndex,
+    const JobArgs & iArgs) :
     mIsAnimated(false),
     mDagPath(iDag),
     mUseRenderShutter(false),
@@ -52,12 +52,17 @@ MayaCameraWriter::MayaCameraWriter(MDagPath & iDag,
         MGlobal::displayError( "MFnCamera() failed for MayaCameraWriter" );
     }
 
-    Alembic::AbcGeom::OCamera obj(iParent, cam.name().asChar(), iTimeIndex);
+    MString name = cam.name();
+    if (iArgs.stripNamespace)
+    {
+        name = util::stripNamespaces(name);
+    }
+    Alembic::AbcGeom::OCamera obj(iParent, name.asChar(), iTimeIndex);
     mSchema = obj.getSchema();
 
 
     MObject cameraObj = iDag.node();
-    if (!iForceStatic && util::isAnimated(cameraObj))
+    if (iTimeIndex != 0 && util::isAnimated(cameraObj))
         mIsAnimated = true;
 
     MObject renderObj;
@@ -82,10 +87,15 @@ MayaCameraWriter::MayaCameraWriter(MDagPath & iDag,
         }
     }
 
-    Alembic::Abc::OCompoundProperty cp = mSchema.getArbGeomParams();
+    Alembic::Abc::OCompoundProperty cp;
+    if (AttributesWriter::hasAnyAttr(cam, iArgs))
+    {
+        cp = mSchema.getArbGeomParams();
+    }
 
-    mAttrs = AttributesWriterPtr(new AttributesWriter(cp, cam,
-        iTimeIndex, iWriteVisibility, iForceStatic));
+    mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, cam,
+        iTimeIndex, iArgs));
+
     write();
 }
 

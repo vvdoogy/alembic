@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -34,27 +34,26 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcGeom_Tests_CurvesData_h_
-#define _Alembic_AbcGeom_Tests_CurvesData_h_
 
-#include <Alembic/AbcGeom/All.h>
+#ifndef ABCIMPORT_LOCATORHELPER_H_
+#define ABCIMPORT_LOCATORHELPER_H_
 
-using Alembic::Util::float32_t;
-using Alembic::Util::int32_t;
+#include <maya/MObject.h>
 
-//-*****************************************************************************
-// This data is used by both the PolyMesh and SubD tests.
-extern const size_t g_numCurves;
-extern const size_t g_totalVerts;
-extern const int32_t g_numVerts[];
-extern const float32_t g_verts[];
+#include <vector>
+#include <string>
 
-extern const size_t g_numWidths;
-extern const float32_t g_widths[];
+#include <Alembic/AbcGeom/IXform.h>
 
-extern const float32_t g_uvs[];
+class MDagPath;
 
+MObject create(Alembic::AbcGeom::IXform & iLocator,
+               MObject & iParent,
+               Alembic::Abc::IScalarProperty & iLocProp,
+               MDagPath & oCurrentDagNode);
 
-//-*******************************
+void read(double iFrame,
+          Alembic::AbcGeom::IXform & iLocator,
+          std::vector< double > & oArray);
 
-#endif
+#endif  // ABCIMPORT_LOCATORHELPER_H_

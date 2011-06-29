@@ -43,8 +43,8 @@ namespace
     // get all the nurbs curves from below the given dagpath.
     // the curve group is considered animated if at least one curve is animated
 
-    void collectNurbsCurves(const MDagPath &dagPath, MDagPathArray &dagPaths,
-        bool & oIsAnimated)
+    void collectNurbsCurves(const MDagPath &dagPath, bool iExcludeInvisible,
+        MDagPathArray &dagPaths, bool & oIsAnimated)
     {
         MStatus stat;
 
@@ -62,7 +62,8 @@ namespace
                     MObject curve = curvePath.node();
 
                     if ( !util::isIntermediate(curve) &&
-                        curve.hasFn(MFn::kNurbsCurve) )
+                        curve.hasFn(MFn::kNurbsCurve) &&
+                        (!iExcludeInvisible || util::isRenderable(curve)) )
                     {
                         dagPaths.append(curvePath);
                     }
@@ -72,6 +73,7 @@ namespace
                     {
                         continue;
                     }
+
                     // with the flag set to true, check the DagPath and it's
                     // parent
                     if (util::isAnimated(curve, true))
@@ -85,8 +87,8 @@ namespace
 }
 
 MayaNurbsCurveWriter::MayaNurbsCurveWriter(MDagPath & iDag,
-    Alembic::Abc::OObject & iParent, uint32_t iTimeIndex, bool iIsCurveGrp,
-    bool iWriteVisibility, bool iForceStatic) :
+    Alembic::Abc::OObject & iParent, Alembic::Util::uint32_t iTimeIndex,
+    bool iIsCurveGrp, const JobArgs & iArgs) :
     mIsAnimated(false), mRootDagPath(iDag), mIsCurveGrp(iIsCurveGrp)
 {
     MStatus stat;
@@ -95,7 +97,8 @@ MayaNurbsCurveWriter::MayaNurbsCurveWriter(MDagPath & iDag,
 
     if (mIsCurveGrp)
     {
-        collectNurbsCurves(mRootDagPath, mNurbsCurves, mIsAnimated);
+        collectNurbsCurves(mRootDagPath, iArgs.excludeInvisible,
+            mNurbsCurves, mIsAnimated);
 
         // if no curves were found bail early
         if (mNurbsCurves.length() == 0)
@@ -105,17 +108,27 @@ MayaNurbsCurveWriter::MayaNurbsCurveWriter(MDagPath & iDag,
     {
         MObject curve = iDag.node();
 
-        if (util::isAnimated(curve))
+        if (iTimeIndex != 0 && util::isAnimated(curve))
             mIsAnimated = true;
+    }
+
+    if (iArgs.stripNamespace)
+    {
+        name = util::stripNamespaces(name);
     }
 
     Alembic::AbcGeom::OCurves obj(iParent, name.asChar(), iTimeIndex);
     mSchema = obj.getSchema();
 
-    Alembic::Abc::OCompoundProperty cp = mSchema.getArbGeomParams();
+    Alembic::Abc::OCompoundProperty cp;
+    if (AttributesWriter::hasAnyAttr(iDag, iArgs))
+    {
+        cp = mSchema.getArbGeomParams();
+    }
 
-    mAttrs = AttributesWriterPtr(new AttributesWriter(cp, iDag,
-        iTimeIndex, iWriteVisibility, iForceStatic));
+    mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, iDag,
+        iTimeIndex, iArgs));
+
 
     write();
 }
@@ -154,7 +167,7 @@ void MayaNurbsCurveWriter::write()
     if (mIsCurveGrp)
         numCurves = mNurbsCurves.length();
 
-    std::vector<Alembic::Util::uint32_t> nVertices(numCurves);
+    std::vector<Alembic::Util::int32_t> nVertices(numCurves);
     std::vector<float> points;
     std::vector<float> width;
 
@@ -203,7 +216,7 @@ void MayaNurbsCurveWriter::write()
             }
         }
 
-        Alembic::Util::uint32_t numCVs = curve.numCVs(&stat);
+        Alembic::Util::int32_t numCVs = curve.numCVs(&stat);
         nVertices[i] = numCVs;
         mCVCount += numCVs;
 
@@ -233,8 +246,6 @@ void MayaNurbsCurveWriter::write()
             MDoubleArray doubleArrayData = fnDoubleArrayData.array();
             size_t arraySum = doubleArrayData.length();
             size_t correctVecLen = arraySum;
-            //if (samp.getForm() == 0)
-            //    correctVecLen += 1;
             if (arraySum == correctVecLen)
             {
                 for (size_t i = 0; i < arraySum; i++)
@@ -264,9 +275,14 @@ void MayaNurbsCurveWriter::write()
         }
     }
 
-    samp.setCurvesNumVertices(Alembic::Abc::UInt32ArraySample(nVertices));
+    Alembic::AbcGeom::GeometryScope scope = Alembic::AbcGeom::kVertexScope;
+    if (useConstWidth)
+        scope = Alembic::AbcGeom::kConstantScope;
+
+    samp.setCurvesNumVertices(Alembic::Abc::Int32ArraySample(nVertices));
     samp.setPositions(Alembic::Abc::V3fArraySample(
         (const Imath::V3f *)&points.front(), points.size() / 3 ));
-    samp.setWidths(Alembic::Abc::FloatArraySample(width));
+    samp.setWidths(Alembic::AbcGeom::OFloatGeomParam::Sample(
+        Alembic::Abc::FloatArraySample(width), scope) );
     mSchema.set(samp);
 }
