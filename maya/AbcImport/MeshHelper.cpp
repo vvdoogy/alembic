@@ -92,7 +92,7 @@ namespace
             return;
 
         // no interpolation for now
-        int64_t index, ceilIndex;
+        Alembic::AbcCoreAbstract::index_t index, ceilIndex;
         double alpha = getWeightAndIndex(iFrame, iUVs.getTimeSampling(),
             iUVs.getNumSamples(), index, ceilIndex);
 
@@ -189,7 +189,7 @@ namespace
             return;
         }
 
-        int64_t index, ceilIndex;
+        Alembic::AbcCoreAbstract::index_t index, ceilIndex;
         double alpha = getWeightAndIndex(iFrame,
             iNormals.getTimeSampling(), iNormals.getNumSamples(),
             index, ceilIndex);
@@ -367,7 +367,7 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     Alembic::AbcGeom::IPolyMeshSchema schema = iNode.getSchema();
     Alembic::AbcGeom::MeshTopologyVariance ttype = schema.getTopologyVariance();
 
-    int64_t index, ceilIndex;
+    Alembic::AbcCoreAbstract::index_t index, ceilIndex;
     double alpha = getWeightAndIndex(iFrame,
         schema.getTimeSampling(), schema.getNumSamples(), index, ceilIndex);
 
@@ -428,7 +428,7 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     Alembic::AbcGeom::ISubDSchema schema = iNode.getSchema();
     Alembic::AbcGeom::MeshTopologyVariance ttype = schema.getTopologyVariance();
 
-    int64_t index, ceilIndex;
+    Alembic::AbcCoreAbstract::index_t index, ceilIndex;
     double alpha = getWeightAndIndex(iFrame,
         schema.getTimeSampling(), schema.getNumSamples(), index, ceilIndex);
 
@@ -478,7 +478,7 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 }
 
 void disconnectMesh(MObject & iMeshObject,
-    std::vector<Alembic::Abc::IArrayProperty> & iSampledPropList,
+    std::vector<Prop> & iSampledPropList,
     std::size_t iFirstProp)
 {
     MFnMesh fnMesh;
@@ -518,7 +518,7 @@ MObject createPoly(double iFrame, Alembic::AbcGeom::IPolyMesh & iNode,
     }
     else
     {
-        int64_t index, ceilIndex;
+        Alembic::AbcCoreAbstract::index_t index, ceilIndex;
         double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(),
             schema.getNumSamples(), index, ceilIndex);
 
@@ -566,7 +566,7 @@ MObject createSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
 {
     Alembic::AbcGeom::ISubDSchema schema = iNode.getSchema();
 
-    int64_t index, ceilIndex;
+    Alembic::AbcCoreAbstract::index_t index, ceilIndex;
     double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(),
         schema.getNumSamples(), index, ceilIndex);
 
@@ -633,6 +633,7 @@ MObject createSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
         fnMesh.addAttribute(attrObj,  MFnDependencyNode::kLocalDynamicAttr);
     }
 
+#if MAYA_API_VERSION >= 201100
     Alembic::Abc::Int32ArraySamplePtr holes = samp.getHoles();
     if (holes && !holes->size() == 0)
     {
@@ -650,6 +651,7 @@ MObject createSubD(double iFrame, Alembic::AbcGeom::ISubD & iNode,
             printWarning(warn);
         }
     }
+#endif
 
     Alembic::Abc::FloatArraySamplePtr creases = samp.getCreaseSharpnesses();
     if (creases && !creases->size() == 0)

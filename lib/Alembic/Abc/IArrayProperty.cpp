@@ -106,7 +106,7 @@ void IArrayProperty::get( AbcA::ArraySamplePtr& oSamp,
 
     m_property->getSample(
         iSS.getIndex( m_property->getTimeSampling(),
-            m_property->getNumSamples() ),
+                      m_property->getNumSamples() ),
         oSamp );
 
     ALEMBIC_ABC_SAFE_CALL_END();
@@ -114,19 +114,33 @@ void IArrayProperty::get( AbcA::ArraySamplePtr& oSamp,
 
 //-*****************************************************************************
 bool IArrayProperty::getKey( AbcA::ArraySampleKey& oKey,
-                          const ISampleSelector &iSS )
+                             const ISampleSelector &iSS )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::getKey()" );
 
     return m_property->getKey(
         iSS.getIndex( m_property->getTimeSampling(),
-            m_property->getNumSamples() ),
+                      m_property->getNumSamples() ),
         oKey );
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
     // for error handler that don't throw
     return false;
+}
+
+//-*****************************************************************************
+void IArrayProperty::getDimensions( Util::Dimensions & oDim,
+                                    const ISampleSelector &iSS )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::getDimensions()" );
+
+    m_property->getDimensions(
+        iSS.getIndex( m_property->getTimeSampling(),
+                      m_property->getNumSamples() ),
+        oDim );
+
+    ALEMBIC_ABC_SAFE_CALL_END();
 }
 
 //-*****************************************************************************

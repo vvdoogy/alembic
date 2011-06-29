@@ -42,13 +42,141 @@ namespace Alembic {
 namespace AbcGeom {
 
 //-*****************************************************************************
+inline void SetPropUsePrevIfNull( Abc::OInt32Property iProp, int32_t iVal )
+{
+    if ( ! iProp ) { return; }
+
+    if ( iVal != ABC_GEOM_NUPATCH_NULL_INT_VALUE )
+    {
+        iProp.set( iVal );
+    }
+    else
+    {
+        iProp.setFromPrevious();
+    }
+}
+
+//-*****************************************************************************
 void ONuPatchSchema::set( const ONuPatchSchema::Sample &iSamp  )
 {
 
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ONuPatchSchema::set()" );
 
-    // TODO: do this the 'simple' way. always create the trim curves
-    // properties within the init, add a boolean property hasTrimCurve.
+    // do we need to create child bounds?
+    if ( iSamp.getChildBounds().hasVolume() && !m_childBounds)
+    {
+        m_childBounds = Abc::OBox3dProperty( *this, ".childBnds",
+                                             this->getTimeSampling() );
+        Abc::Box3d emptyBox;
+        emptyBox.makeEmpty();
+
+        size_t numSamples = m_positions.getNumSamples();
+
+        // set all the missing samples
+        for ( size_t i = 0; i < numSamples; ++i )
+        {
+            m_childBounds.set( emptyBox );
+        }
+    }
+
+    // do we need to create uvs?
+    if ( iSamp.getUVs() && !m_uvs )
+    {
+        OV2fGeomParam::Sample empty;
+
+        if ( iSamp.getUVs().getIndices() )
+        {
+            // UVs are indexed
+            m_uvs = OV2fGeomParam( this->getPtr(), "uv", true,
+                                   empty.getScope(), 1,
+                                   this->getTimeSampling() );
+        }
+        else
+        {
+            // UVs are not indexed
+            m_uvs = OV2fGeomParam( this->getPtr(), "uv", false,
+                                   empty.getScope(), 1,
+                                   this->getTimeSampling() );
+        }
+
+        size_t numSamples = m_positions.getNumSamples();
+
+        // set all the missing samples
+        for ( size_t i = 0; i < numSamples; ++i )
+        {
+            m_uvs.set( empty );
+        }
+    }
+
+    // do we need to create normals?
+    if ( iSamp.getNormals() && !m_normals )
+    {
+
+        ON3fGeomParam::Sample empty;
+
+        if ( iSamp.getNormals().getIndices() )
+        {
+            // normals are indexed
+            m_normals = ON3fGeomParam( this->getPtr(), "N", true,
+                empty.getScope(), 1, this->getTimeSampling() );
+        }
+        else
+        {
+            // normals are not indexed
+            m_normals = ON3fGeomParam( this->getPtr(), "N", false,
+                                        empty.getScope(), 1,
+                                        this->getTimeSampling() );
+        }
+
+        size_t numSamples = m_positions.getNumSamples();
+
+        // set all the missing samples
+        for ( size_t i = 0; i < numSamples; ++i )
+        {
+            m_normals.set( empty );
+        }
+    }
+
+    if ( iSamp.hasTrimCurve() && !m_trimNumLoops )
+    {
+        AbcA::CompoundPropertyWriterPtr _this = this->getPtr();
+        Alembic::Abc::Int32ArraySample emptyIntSamp;
+        Alembic::Abc::FloatArraySample emptyFloatSamp;
+
+        AbcA::TimeSamplingPtr tsPtr = this->getTimeSampling();
+
+        // trim curves
+        m_trimNumLoops = Abc::OInt32Property( _this, "trim_nloops", tsPtr );
+        m_trimNumCurves = Abc::OInt32ArrayProperty( _this, "trim_ncurves",
+                                                     tsPtr );
+        m_trimNumVertices = Abc::OInt32ArrayProperty( _this, "trim_n", tsPtr );
+        m_trimOrder = Abc::OInt32ArrayProperty( _this, "trim_order", tsPtr );
+        m_trimKnot = Abc::OFloatArrayProperty( _this, "trim_knot", tsPtr );
+        m_trimMin = Abc::OFloatArrayProperty( _this, "trim_min", tsPtr );
+        m_trimMax = Abc::OFloatArrayProperty( _this, "trim_max", tsPtr );
+        m_trimU = Abc::OFloatArrayProperty( _this, "trim_u", tsPtr );
+        m_trimV = Abc::OFloatArrayProperty( _this, "trim_v", tsPtr );
+        m_trimW = Abc::OFloatArrayProperty( _this, "trim_w", tsPtr );
+
+        size_t numSamples = m_positions.getNumSamples();
+
+        // set all the missing samples
+        for ( size_t i = 0; i < numSamples; ++i )
+        {
+            m_trimNumLoops.set( 0 );
+
+            m_trimNumCurves.set( emptyIntSamp );
+            m_trimNumVertices.set( emptyIntSamp );
+            m_trimOrder.set( emptyIntSamp );
+            m_trimKnot.set( emptyFloatSamp );
+            m_trimMin.set( emptyFloatSamp );
+            m_trimMax.set( emptyFloatSamp );
+            m_trimU.set( emptyFloatSamp );
+            m_trimV.set( emptyFloatSamp );
+            m_trimW.set( emptyFloatSamp );
+        }
+    }
+
 
     // We could add sample integrity checking here.
     if ( m_positions.getNumSamples() == 0 )
@@ -66,57 +194,30 @@ void ONuPatchSchema::set( const ONuPatchSchema::Sample &iSamp  )
         m_uKnot.set( iSamp.getUKnot() );
         m_vKnot.set( iSamp.getVKnot() );
 
-        // set optional properties
-        if ( iSamp.getUVs().getVals() )
+        if ( m_trimNumLoops )
         {
-            if ( iSamp.getUVs().getIndices() )
-            {
-                // UVs are indexed
-                m_uvs = OV2fGeomParam( this->getPtr(), "uv", true,
-                                       iSamp.getUVs().getScope(), 1,
-                                       this->getTimeSampling() );
-            }
-            else
-            {
-                // UVs are not indexed
-                m_uvs = OV2fGeomParam( this->getPtr(), "uv", false,
-                                       iSamp.getUVs().getScope(), 1,
-                                       this->getTimeSampling() );
-            }
+            m_trimNumLoops.set( iSamp.getTrimNumLoops() );
 
+            m_trimNumCurves.set( iSamp.getTrimNumCurves() );
+            m_trimNumVertices.set( iSamp.getTrimNumVertices() );
+            m_trimOrder.set( iSamp.getTrimOrder() );
+            m_trimKnot.set( iSamp.getTrimKnot() );
+            m_trimMin.set( iSamp.getTrimMin() );
+            m_trimMax.set( iSamp.getTrimMax() );
+            m_trimU.set( iSamp.getTrimU() );
+            m_trimV.set( iSamp.getTrimV() );
+            m_trimW.set( iSamp.getTrimW() );
+        }
+
+        if ( m_uvs )
+        {
             m_uvs.set( iSamp.getUVs() );
         }
 
-        if ( iSamp.getNormals().getVals() )
+        if ( m_normals )
         {
-            if ( iSamp.getNormals().getIndices() )
-            {
-                // normals are indexed
-                m_normals = ON3fGeomParam( this->getPtr(), "N", true,
-                iSamp.getUVs().getScope(), 1, this->getTimeSampling() );
-            }
-            else
-            {
-                // normals are not indexed
-                m_normals = ON3fGeomParam( this->getPtr(), "N", false,
-                                            iSamp.getUVs().getScope(), 1,
-                                            this->getTimeSampling() );
-            }
-
             m_normals.set( iSamp.getNormals() );
         }
-
-        m_trimNumLoops.set( iSamp.getTrimNumLoops() );
-
-        m_trimNumCurves.set( iSamp.getTrimNumCurves() );
-        m_trimNumVertices.set( iSamp.getTrimNumVertices() );
-        m_trimOrder.set( iSamp.getTrimOrder() );
-        m_trimKnot.set( iSamp.getTrimKnot() );
-        m_trimMin.set( iSamp.getTrimMin() );
-        m_trimMax.set( iSamp.getTrimMax() );
-        m_trimU.set( iSamp.getTrimU() );
-        m_trimV.set( iSamp.getTrimV() );
-        m_trimW.set( iSamp.getTrimW() );
 
         // set bounds
         if ( iSamp.getChildBounds().hasVolume() )
@@ -163,51 +264,15 @@ void ONuPatchSchema::set( const ONuPatchSchema::Sample &iSamp  )
         if ( m_trimNumLoops )
         {
             SetPropUsePrevIfNull( m_trimNumLoops, iSamp.getTrimNumLoops() );
-        }
-
-        if ( m_trimNumCurves )
-        {
             SetPropUsePrevIfNull( m_trimNumCurves, iSamp.getTrimNumCurves() );
-        }
-
-        if ( m_trimNumVertices )
-        {
             SetPropUsePrevIfNull( m_trimNumVertices,
                                     iSamp.getTrimNumVertices() );
-        }
-
-        if ( m_trimOrder )
-        {
             SetPropUsePrevIfNull( m_trimOrder, iSamp.getTrimOrder() );
-        }
-
-        if ( m_trimKnot )
-        {
             SetPropUsePrevIfNull( m_trimKnot, iSamp.getTrimKnot() );
-        }
-
-        if ( m_trimMin )
-        {
             SetPropUsePrevIfNull( m_trimMin, iSamp.getTrimMin() );
-        }
-
-        if ( m_trimMax )
-        {
             SetPropUsePrevIfNull( m_trimMax, iSamp.getTrimMax() );
-        }
-
-        if ( m_trimU )
-        {
             SetPropUsePrevIfNull( m_trimU, iSamp.getTrimU() );
-        }
-
-        if ( m_trimV )
-        {
             SetPropUsePrevIfNull( m_trimV, iSamp.getTrimV() );
-        }
-
-        if ( m_trimW )
-        {
             SetPropUsePrevIfNull( m_trimW, iSamp.getTrimW() );
         }
 
@@ -252,19 +317,22 @@ void ONuPatchSchema::setFromPrevious( )
     // handle option properties
     if ( m_uvs ) { m_uvs.setFromPrevious(); }
     if ( m_normals ) { m_normals.setFromPrevious(); }
-    
+
     // handle trim curves.
-    m_trimNumLoops.setFromPrevious();
-    m_trimNumCurves.setFromPrevious();
-    m_trimNumVertices.setFromPrevious();
-    m_trimOrder.setFromPrevious();
-    m_trimKnot.setFromPrevious();
-    m_trimMin.setFromPrevious();
-    m_trimMax.setFromPrevious();
-    m_trimU.setFromPrevious();
-    m_trimV.setFromPrevious();
-    m_trimW.setFromPrevious();
-    
+    if ( m_trimNumLoops )
+    {
+        m_trimNumLoops.setFromPrevious();
+        m_trimNumCurves.setFromPrevious();
+        m_trimNumVertices.setFromPrevious();
+        m_trimOrder.setFromPrevious();
+        m_trimKnot.setFromPrevious();
+        m_trimMin.setFromPrevious();
+        m_trimMax.setFromPrevious();
+        m_trimU.setFromPrevious();
+        m_trimV.setFromPrevious();
+        m_trimW.setFromPrevious();
+    }
+
     ALEMBIC_ABC_SAFE_CALL_END();
 }
 
@@ -280,30 +348,14 @@ void ONuPatchSchema::init( const AbcA::index_t iTsIdx )
 
     // initialize any required properties
     m_positions = Abc::OV3fArrayProperty( _this, "P", mdata, iTsIdx );
-    m_numU = Abc::OUInt64Property( _this, "nu", mdata, iTsIdx );
-    m_numV = Abc::OUInt64Property( _this, "nv", mdata, iTsIdx );
-    m_uOrder = Abc::OUInt64Property( _this, "uOrder", mdata, iTsIdx );
-    m_vOrder = Abc::OUInt64Property( _this, "vOrder", mdata, iTsIdx );
-    m_uKnot = Abc::OFloatArrayProperty( _this, "uKnot", mdata, iTsIdx );
-    m_vKnot = Abc::OFloatArrayProperty( _this, "vKnot", mdata, iTsIdx );
-
-    // trim curves
-    m_trimNumLoops = Abc::OUInt64Property( _this, "trim_nloops", iTsIdx );
-    m_trimNumCurves = Abc::OUInt64ArrayProperty( _this, "trim_ncurves",
-                                                iTsIdx );
-    m_trimNumVertices = Abc::OUInt64ArrayProperty( _this, "trim_n", iTsIdx );
-    m_trimOrder = Abc::OUInt64ArrayProperty( _this, "trim_order", iTsIdx );
-    m_trimKnot = Abc::OFloatArrayProperty( _this, "trim_knot", iTsIdx );
-    m_trimMin = Abc::OFloatArrayProperty( _this, "trim_min", iTsIdx );
-    m_trimMax = Abc::OFloatArrayProperty( _this, "trim_max", iTsIdx );
-    m_trimU = Abc::OFloatArrayProperty( _this, "trim_u", iTsIdx );
-    m_trimV = Abc::OFloatArrayProperty( _this, "trim_v", iTsIdx );
-    m_trimW = Abc::OFloatArrayProperty( _this, "trim_w", iTsIdx );
+    m_numU = Abc::OInt32Property( _this, "nu", iTsIdx );
+    m_numV = Abc::OInt32Property( _this, "nv", iTsIdx );
+    m_uOrder = Abc::OInt32Property( _this, "uOrder", iTsIdx );
+    m_vOrder = Abc::OInt32Property( _this, "vOrder", iTsIdx );
+    m_uKnot = Abc::OFloatArrayProperty( _this, "uKnot", iTsIdx );
+    m_vKnot = Abc::OFloatArrayProperty( _this, "vKnot", iTsIdx );
 
     m_selfBounds = Abc::OBox3dProperty( _this, ".selfBnds", iTsIdx );
-    m_childBounds = Abc::OBox3dProperty( _this, ".childBnds", iTsIdx );
-
-    // UVs and Normals are created on first call to set()
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }

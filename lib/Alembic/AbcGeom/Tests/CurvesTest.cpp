@@ -37,10 +37,6 @@
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-
 // We include some global mesh data to test with from an external source
 // to keep this example code clean.
 #include <Alembic/AbcGeom/Tests/CurvesData.h>
@@ -59,29 +55,25 @@ using namespace Alembic::AbcGeom; // Contains Abc, AbcCoreAbstract
 // a single animated Transform with a single static PolyMesh as its child.
 //-*****************************************************************************
 //-*****************************************************************************
-void Example1_CurvesOut()
+
+void doSample( OCurves &iCurves )
 {
-    OArchive archive( Alembic::AbcCoreHDF5::WriteArchive(),
-                      "curves1.abc" );
 
-    OCurves myCurves( OObject( archive, kTop ),
-                      "reallly_long_curves_name");
+    OCurvesSchema &curves = iCurves.getSchema();
 
-    OCurvesSchema &curves = myCurves.getSchema();
+    OFloatGeomParam::Sample widthSample(
+        FloatArraySample( (const float *)g_widths, g_numWidths ),
+        kVertexScope );
 
-    FloatArraySample widthSample( FloatArraySample( (const float *)g_widths,
-                                                    4));
+    OV2fGeomParam::Sample uvSample(
+        V2fArraySample( (const V2f *)g_uvs, g_totalVerts ),
+        kVertexScope );
 
-    V2fArraySample uvSample( V2fArraySample( (const V2f *)g_uvs,
-                                12));
 
-    std::cout << "original size " << widthSample.size() << std::endl;
-    std::cout << "uz original size " << uvSample.size() << std::endl;
-
-    std::cout << "creating sample" << std::endl;
+    std::cout << "creating sample " << curves.getNumSamples() << std::endl;
     OCurvesSchema::Sample curves_sample(
         V3fArraySample( ( const V3f * ) g_verts, g_totalVerts ),
-        UInt32ArraySample( g_numVerts, g_numCurves),
+        Int32ArraySample( g_numVerts, g_numCurves),
         kCubic,
         kNonPeriodic,
         widthSample,
@@ -93,7 +85,23 @@ void Example1_CurvesOut()
     // Set the sample.
     curves.set( curves_sample );
 
-    std::cout << "done settings sample" << std::endl;
+    std::cout << "curves now have " << curves.getNumSamples() << " samples"
+              << std::endl;
+
+}
+
+void Example1_CurvesOut()
+{
+    OArchive archive( Alembic::AbcCoreHDF5::WriteArchive(),
+                      "curves1.abc" );
+
+    OCurves myCurves( OObject( archive, kTop ),
+                      "reallly_long_curves_name");
+
+    for ( size_t i = 0 ; i < 5 ; ++i )
+    {
+        doSample( myCurves );
+    }
 
     // Alembic objects close themselves automatically when they go out
     // of scope. So - we don't have to do anything to finish
@@ -123,9 +131,12 @@ void Example1_CurvesIn()
     TESTING_ASSERT( curvesSample.getSelfBounds().max == V3d( 1.0, 1.0, 1.0 ) );
 
     // test other attributes
-    //TESTING_ASSERT( curvesSample.getPositions() -> size() == 12);
+    TESTING_ASSERT( curvesSample.getPositions() -> size() == 12);
 
-    //TESTING_ASSERT( curvesSample.getWidths() -> size() == 2);
+    IFloatGeomParam::Sample widthSample;
+    curves.getWidths().getExpanded( widthSample );
+    TESTING_ASSERT( widthSample.getVals()->size() == 12);
+    TESTING_ASSERT( widthSample.getScope() == kVertexScope );
 
 
 }
@@ -154,6 +165,5 @@ int main( int argc, char *argv[] )
 
     Example1_CurvesIn();
 
-    //Time_Sampled_Mesh_Test0();
     return 0;
 }

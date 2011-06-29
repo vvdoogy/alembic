@@ -48,18 +48,21 @@ class AttributesWriter
     // fills in the property maps for both static and sampled, and does
     // the initial write at iFrame for sampled data
     AttributesWriter(Alembic::Abc::OCompoundProperty & iParent,
+        Alembic::Abc::OObject & iParentObj,
         const MFnDagNode & iNode,
-        uint32_t iTimeIndex,
-        bool iWriteVisibility,
-        bool iForceStatic);
+        Alembic::Util::uint32_t iTimeIndex,
+        const JobArgs & iArgs);
 
     ~AttributesWriter();
 
     void write();
     bool isAnimated();
 
-    static std::string * mFilter;
-    static std::set<std::string> * mAttribs;
+    static bool matchFilterOrAttribs(const MPlug & iPlug,
+        const JobArgs & iArgs);
+
+    static bool hasAnyAttr(const MFnDagNode & iNode,
+        const JobArgs & iArgs);
 
   private:
 

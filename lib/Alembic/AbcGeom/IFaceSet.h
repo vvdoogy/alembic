@@ -58,7 +58,7 @@ public:
         typedef Sample this_type;
 
         //! Users never create this data directly
-        Sample() {}
+        Sample() { reset(); }
 
         // main stuff
         Abc::Int32ArraySamplePtr getFaces() const { return m_faces; }
@@ -121,12 +121,12 @@ public:
     //! can be used to override the ErrorHandlerPolicy and to specify
     //! schema interpretation matching.
     template <class CPROP_PTR>
-    IFaceSetSchema( CPROP_PTR iParentObject,
+    IFaceSetSchema( CPROP_PTR iParent,
                  const std::string &iName,
 
                  const Abc::Argument &iArg0 = Abc::Argument(),
                  const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<FaceSetSchemaInfo>( iParentObject, iName,
+      : Abc::ISchema<FaceSetSchemaInfo>( iParent, iName,
                                       iArg0, iArg1 )
     {
         init(  iArg0, iArg1 );
@@ -135,10 +135,10 @@ public:
     //! Same constructor as above, but use the default schema name, ie,
     //! ".geom".
     template <class CPROP_PTR>
-    explicit IFaceSetSchema( CPROP_PTR iParentObject,
+    explicit IFaceSetSchema( CPROP_PTR iParent,
                           const Abc::Argument &iArg0 = Abc::Argument(),
                           const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<FaceSetSchemaInfo>( iParentObject,
+      : Abc::ISchema<FaceSetSchemaInfo>( iParent,
                                       iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
@@ -170,7 +170,7 @@ public:
 
 
     //! if isConstant() is true, the mesh contains no time-varying values
-    bool isConstant() { return (m_facesProperty.isConstant () 
+    bool isConstant() { return (m_facesProperty.isConstant ()
         && m_visibilityProperty.isConstant ()); }
 
     //-*************************************************************************
@@ -200,6 +200,16 @@ public:
     }
 
     FaceSetExclusivity getFaceExclusivity();
+
+    Abc::IBox3dProperty getSelfBounds()
+    {
+        return m_selfBoundsProperty;
+    }
+
+    Abc::IBox3dProperty getChildBounds()
+    {
+        return m_childBoundsProperty;
+    }
 
     ICompoundProperty getArbGeomParams() { return m_arbGeomParams; }
 

@@ -77,7 +77,6 @@ std::size_t XformSample::addOp( XformOp iOp, const Abc::V3d &iVal )
         m_setWithOpStack = 1;
 
         m_ops.push_back( iOp );
-        m_opsArray.push_back( iOp.getOpEncoding() );
 
         return m_ops.size() - 1;
     }
@@ -118,7 +117,6 @@ std::size_t XformSample::addOp( XformOp iOp, const Abc::V3d &iAxis,
         m_setWithOpStack = 1;
 
         m_ops.push_back( iOp );
-        m_opsArray.push_back( iOp.getOpEncoding() );
 
         return m_ops.size() - 1;
     }
@@ -155,7 +153,6 @@ std::size_t XformSample::addOp( XformOp iOp,
         m_setWithOpStack = 1;
 
         m_ops.push_back( iOp );
-        m_opsArray.push_back( iOp.getOpEncoding() );
 
         return m_ops.size() - 1;
     }
@@ -196,7 +193,6 @@ std::size_t XformSample::addOp( XformOp iOp, const Abc::M44d &iVal )
         m_setWithOpStack = 1;
 
         m_ops.push_back( iOp );
-        m_opsArray.push_back( iOp.getOpEncoding() );
 
         return m_ops.size() - 1;
     }
@@ -229,7 +225,6 @@ std::size_t XformSample::addOp( const XformOp &iOp )
         m_setWithOpStack = 1;
 
         m_ops.push_back( iOp );
-        m_opsArray.push_back( iOp.getOpEncoding() );
 
         return m_ops.size() - 1;
     }
@@ -270,15 +265,9 @@ const XformOp &XformSample::operator[]( const std::size_t &iIndex ) const
 }
 
 //-*****************************************************************************
-const std::vector<Alembic::Util::uint8_t> &XformSample::getOpsArray() const
-{
-    return m_opsArray;
-}
-
-//-*****************************************************************************
 std::size_t XformSample::getNumOps() const
 {
-    return m_opsArray.size();
+    return m_ops.size();
 }
 
 //-*****************************************************************************
@@ -335,7 +324,6 @@ void XformSample::setTranslation( const Abc::V3d &iTrans )
         m_setWithOpStack = 2;
 
         m_ops.push_back( op );
-        m_opsArray.push_back( op.getOpEncoding() );
     }
     else
     {
@@ -373,7 +361,6 @@ void XformSample::setRotation( const Abc::V3d &iAxis,
         m_setWithOpStack = 2;
 
         m_ops.push_back( op );
-        m_opsArray.push_back( op.getOpEncoding() );
     }
     else
     {
@@ -394,7 +381,7 @@ void XformSample::setRotation( const Abc::V3d &iAxis,
 //-*****************************************************************************
 void XformSample::setScale( const Abc::V3d &iScale )
 {
-    XformOp op( kScaleOperation, kSingleRotateHint );
+    XformOp op( kScaleOperation, kScaleHint );
 
     for ( size_t i = 0 ; i < 3 ; ++i )
     {
@@ -409,7 +396,6 @@ void XformSample::setScale( const Abc::V3d &iScale )
         m_setWithOpStack = 2;
 
         m_ops.push_back( op );
-        m_opsArray.push_back( op.getOpEncoding() );
     }
     else
     {
@@ -430,7 +416,7 @@ void XformSample::setScale( const Abc::V3d &iScale )
 //-*****************************************************************************
 void XformSample::setXRotation( const double iAngleInDegrees )
 {
-    XformOp op( kRotateXOperation, kSingleRotateHint );
+    XformOp op( kRotateXOperation, kRotateHint );
 
     op.setChannelValue( 0, iAngleInDegrees );
 
@@ -442,7 +428,6 @@ void XformSample::setXRotation( const double iAngleInDegrees )
         m_setWithOpStack = 2;
 
         m_ops.push_back( op );
-        m_opsArray.push_back( op.getOpEncoding() );
     }
     else
     {
@@ -463,7 +448,7 @@ void XformSample::setXRotation( const double iAngleInDegrees )
 //-*****************************************************************************
 void XformSample::setYRotation( const double iAngleInDegrees )
 {
-    XformOp op( kRotateYOperation, kSingleRotateHint );
+    XformOp op( kRotateYOperation, kRotateHint );
 
     op.setChannelValue( 0, iAngleInDegrees );
 
@@ -475,7 +460,6 @@ void XformSample::setYRotation( const double iAngleInDegrees )
         m_setWithOpStack = 2;
 
         m_ops.push_back( op );
-        m_opsArray.push_back( op.getOpEncoding() );
     }
     else
     {
@@ -496,7 +480,7 @@ void XformSample::setYRotation( const double iAngleInDegrees )
 //-*****************************************************************************
 void XformSample::setZRotation( const double iAngleInDegrees )
 {
-    XformOp op( kRotateZOperation, kSingleRotateHint );
+    XformOp op( kRotateZOperation, kRotateHint );
 
     op.setChannelValue( 0, iAngleInDegrees );
 
@@ -508,7 +492,6 @@ void XformSample::setZRotation( const double iAngleInDegrees )
         m_setWithOpStack = 2;
 
         m_ops.push_back( op );
-        m_opsArray.push_back( op.getOpEncoding() );
     }
     else
     {
@@ -547,7 +530,6 @@ void XformSample::setMatrix( const Abc::M44d &iMatrix )
         m_setWithOpStack = 2;
 
         m_ops.push_back( op );
-        m_opsArray.push_back( op.getOpEncoding() );
     }
     else
     {
@@ -590,6 +572,21 @@ Abc::M44d XformSample::getMatrix() const
                 }
             }
         }
+        else if ( otype == kRotateXOperation )
+        {
+            m.setAxisAngle( Abc::V3d( 1.0, 0.0, 0.0 ),
+                            DegreesToRadians( op.getChannelValue( 0 ) ) );
+        }
+        else if ( otype == kRotateYOperation )
+        {
+            m.setAxisAngle( Abc::V3d( 0.0, 1.0, 0.0 ),
+                            DegreesToRadians( op.getChannelValue( 0 ) ) );
+        }
+        else if ( otype == kRotateZOperation )
+        {
+            m.setAxisAngle( Abc::V3d( 0.0, 0.0, 1.0 ),
+                            DegreesToRadians( op.getChannelValue( 0 ) ) );
+        }
         else
         {
             Abc::V3d vec( op.getChannelValue( 0 ),
@@ -609,21 +606,7 @@ Abc::M44d XformSample::getMatrix() const
                 m.setAxisAngle( vec,
                                 DegreesToRadians( op.getChannelValue( 3 ) ) );
             }
-            else if ( otype == kRotateXOperation )
-            {
-                m.setAxisAngle( Abc::V3d( 1.0, 0.0, 0.0 ),
-                                DegreesToRadians( op.getChannelValue( 0 ) ) );
-            }
-            else if ( otype == kRotateYOperation )
-            {
-                m.setAxisAngle( Abc::V3d( 0.0, 1.0, 0.0 ),
-                                DegreesToRadians( op.getChannelValue( 0 ) ) );
-            }
-            else if ( otype == kRotateZOperation )
-            {
-                m.setAxisAngle( Abc::V3d( 0.0, 0.0, 1.0 ),
-                                DegreesToRadians( op.getChannelValue( 0 ) ) );
-            }
+
         }
         ret = m * ret;
     }
@@ -710,11 +693,28 @@ void XformSample::clear()
 void XformSample::reset()
 {
     this->clear();
-    m_opsArray.clear();
-    m_opsArray.resize( 0 );
 }
 
+//-*****************************************************************************
+bool XformSample::isTopologyEqual( const XformSample & iSample )
+{
+    if (getNumOps() != iSample.getNumOps())
+    {
+        return false;
+    }
 
+    std::vector<XformOp>::const_iterator opA, opB;
+    for ( opA = m_ops.begin(), opB = iSample.m_ops.begin(); opA != m_ops.end();
+          ++opA, ++opB )
+    {
+        if ( opA->getType() != opB->getType() )
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 } // End namespace AbcGeom
 } // End namespace Alembic

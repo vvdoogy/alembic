@@ -53,10 +53,11 @@ public:
         typedef Sample this_type;
 
         // Users don't ever create this data directly.
-        Sample() {}
+        Sample() { reset(); }
 
         Abc::V3fArraySamplePtr getPositions() const { return m_positions; }
         Abc::UInt64ArraySamplePtr getIds() const { return m_ids; }
+        Abc::V3fArraySamplePtr getVelocities() const { return m_velocities; }
 
         Abc::Box3d getSelfBounds() const { return m_selfBounds; }
         Abc::Box3d getChildBounds() const { return m_childBounds; }
@@ -69,6 +70,7 @@ public:
         void reset()
         {
             m_positions.reset();
+            m_velocities.reset();
             m_ids.reset();
 
             m_selfBounds.makeEmpty();
@@ -81,6 +83,7 @@ public:
         friend class IPointsSchema;
         Abc::V3fArraySamplePtr m_positions;
         Abc::UInt64ArraySamplePtr m_ids;
+        Abc::V3fArraySamplePtr m_velocities;
 
         Abc::Box3d m_selfBounds;
         Abc::Box3d m_childBounds;
@@ -110,12 +113,12 @@ public:
     //! can be used to override the ErrorHandlerPolicy, to specify
     //! MetaData, and to set TimeSamplingType.
     template <class CPROP_PTR>
-    IPointsSchema( CPROP_PTR iParentObject,
+    IPointsSchema( CPROP_PTR iParent,
                    const std::string &iName,
 
                    const Abc::Argument &iArg0 = Abc::Argument(),
                    const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<PointsSchemaInfo>( iParentObject, iName,
+      : Abc::ISchema<PointsSchemaInfo>( iParent, iName,
                                           iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
@@ -124,10 +127,10 @@ public:
     //! This constructor is the same as above, but with default
     //! schema name used.
     template <class CPROP_PTR>
-    explicit IPointsSchema( CPROP_PTR iParentObject,
+    explicit IPointsSchema( CPROP_PTR iParent,
                             const Abc::Argument &iArg0 = Abc::Argument(),
                             const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<PointsSchemaInfo>( iParentObject,
+      : Abc::ISchema<PointsSchemaInfo>( iParent,
                                      iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
@@ -162,7 +165,9 @@ public:
     AbcA::TimeSamplingPtr getTimeSampling()
     {
         if ( m_positions.valid() )
+        {
             return m_positions.getTimeSampling();
+        }
         return getObject().getArchive().getTimeSampling(0);
     }
 
@@ -180,6 +185,9 @@ public:
         if ( m_childBounds && m_childBounds.getNumSamples() > 0 )
         { m_childBounds.get( oSample.m_childBounds, iSS ); }
 
+        if ( m_velocities && m_velocities.getNumSamples() > 0 )
+        { m_velocities.get( oSample.m_velocities, iSS ); }
+
         // Could error check here.
 
         ALEMBIC_ABC_SAFE_CALL_END();
@@ -194,6 +202,31 @@ public:
 
     Abc::ICompoundProperty getArbGeomParams() { return m_arbGeomParams; }
 
+    Abc::IV3fArrayProperty getPositions()
+    {
+        return m_positions;
+    }
+
+    Abc::IV3fArrayProperty getVelocities()
+    {
+        return m_velocities;
+    }
+
+    Abc::IUInt64ArrayProperty getIds()
+    {
+        return m_ids;
+    }
+
+    Abc::IBox3dProperty getSelfBounds()
+    {
+        return m_selfBounds;
+    }
+
+    Abc::IBox3dProperty getChildBounds()
+    {
+        return m_childBounds;
+    }
+
     //-*************************************************************************
     // ABC BASE MECHANISMS
     // These functions are used by Abc to deal with errors, rewrapping,
@@ -205,6 +238,7 @@ public:
     void reset()
     {
         m_positions.reset();
+        m_velocities.reset();
         m_ids.reset();
 
         m_selfBounds.reset();
@@ -234,6 +268,7 @@ protected:
 
     Abc::IV3fArrayProperty m_positions;
     Abc::IUInt64ArrayProperty m_ids;
+    Abc::IV3fArrayProperty m_velocities;
 
     Abc::IBox3dProperty m_selfBounds;
     Abc::IBox3dProperty m_childBounds;

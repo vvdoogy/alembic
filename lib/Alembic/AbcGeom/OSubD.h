@@ -48,7 +48,7 @@ namespace AbcGeom {
 
 //-*****************************************************************************
 // for default values for int scalar properties here
-const int32_t ABC_GEOM_SUBD_NULL_INT_VALUE( INT_MIN / 2 );
+static const int32_t ABC_GEOM_SUBD_NULL_INT_VALUE( INT_MIN / 2 );
 
 //-*****************************************************************************
 class OSubDSchema : public Abc::OSchema<SubDSchemaInfo>
@@ -62,7 +62,7 @@ public:
     public:
         //! Creates a default sample with no data in it.
         //! ...
-        Sample() {}
+        Sample() { reset(); }
 
         //! Creates a sample with position data, index data, and count data.
         //! For specifying samples with an explicit topology. The first
@@ -296,13 +296,13 @@ public:
     //! can be used to override the ErrorHandlerPolicy, to specify
     //! MetaData, and to set TimeSamplingType.
     template <class CPROP_PTR>
-    OSubDSchema( CPROP_PTR iParentObject,
+    OSubDSchema( CPROP_PTR iParent,
                      const std::string &iName,
 
                      const Abc::Argument &iArg0 = Abc::Argument(),
                      const Abc::Argument &iArg1 = Abc::Argument(),
                      const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<SubDSchemaInfo>( iParentObject, iName,
+      : Abc::OSchema<SubDSchemaInfo>( iParent, iName,
                                       iArg0, iArg1, iArg2 )
     {
 
@@ -316,7 +316,7 @@ public:
         // 0 index
         if (tsPtr)
         {
-            tsIndex = iParentObject->getObject()->getArchive(
+            tsIndex = iParent->getObject()->getArchive(
                 )->addTimeSampling(*tsPtr);
         }
 
@@ -326,11 +326,11 @@ public:
     }
 
     template <class CPROP_PTR>
-    explicit OSubDSchema( CPROP_PTR iParentObject,
+    explicit OSubDSchema( CPROP_PTR iParent,
                           const Abc::Argument &iArg0 = Abc::Argument(),
                           const Abc::Argument &iArg1 = Abc::Argument(),
                           const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<SubDSchemaInfo>( iParentObject,
+      : Abc::OSchema<SubDSchemaInfo>( iParent,
                                       iArg0, iArg1, iArg2 )
     {
         AbcA::TimeSamplingPtr tsPtr =
@@ -343,7 +343,7 @@ public:
         // 0 index
         if (tsPtr)
         {
-            tsIndex = iParentObject->getObject()->getArchive(
+            tsIndex = iParent->getObject()->getArchive(
                 )->addTimeSampling(*tsPtr);
         }
 

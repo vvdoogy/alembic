@@ -65,7 +65,7 @@ public:
 
         //! Creates a default sample with no data in it.
         //! ...
-        Sample() {}
+        Sample() { reset(); }
 
         //! Creates a sample with the list of faces that are in this
         //! faceset.
@@ -256,7 +256,7 @@ public:
     {
         return ( Abc::OSchema<FaceSetSchemaInfo>::valid() &&
                  m_visibilityProperty.valid() &&
-                 m_facesProperty.valid() 
+                 m_facesProperty.valid()
                  );
     }
 

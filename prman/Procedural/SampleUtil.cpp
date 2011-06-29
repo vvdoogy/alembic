@@ -81,7 +81,7 @@ void WriteConcatTransform( const M44d &m )
 
 //-*****************************************************************************
 void GetRelevantSampleTimes( ProcArgs &args, TimeSamplingPtr timeSampling,
-                             size_t numSamples, SampleTimeSet &output )
+                            size_t numSamples, SampleTimeSet &output )
 {
     if ( numSamples < 2 )
     {

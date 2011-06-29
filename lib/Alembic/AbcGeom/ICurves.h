@@ -56,25 +56,22 @@ public:
         typedef Sample this_type;
 
         // Users don't ever create this data directly.
-        Sample() {}
+        Sample() { reset(); }
 
         Abc::V3fArraySamplePtr getPositions() const { return m_positions; }
 
         std::size_t getNumCurves() const
         {
-            return m_nVertices->size();
+            if ( m_nVertices ) { return m_nVertices->size(); }
+            else { return 0; }
         }
 
-        Abc::UInt32ArraySamplePtr getCurvesNumVertices() const
+        Abc::Int32ArraySamplePtr getCurvesNumVertices() const
         { return m_nVertices; }
 
         CurveType getType() const { return m_type; }
         CurvePeriodicity getWrap() const { return m_wrap; }
         BasisType getBasis() const { return m_basis; }
-
-        Abc::FloatArraySamplePtr getWidths() const { return m_widths; }
-        Abc::V2fArraySamplePtr getUVs() const { return m_uvs; }
-        Abc::V3fArraySamplePtr getNormals() const { return m_normals; }
 
         Abc::Box3d getSelfBounds() const { return m_selfBounds; }
         Abc::Box3d getChildBounds() const { return m_childBounds; }
@@ -88,10 +85,6 @@ public:
         {
             m_positions.reset();
             m_nVertices.reset();
-
-            m_widths.reset();
-            m_uvs.reset();
-            m_normals.reset();
 
             m_type = kCubic;
             m_wrap = kNonPeriodic;
@@ -111,17 +104,11 @@ public:
         Abc::Box3d m_childBounds;
 
         // type, wrap, and nVertices
-        std::size_t m_numCurves;
-        Abc::UInt32ArraySamplePtr m_nVertices;
+        Abc::Int32ArraySamplePtr m_nVertices;
 
         CurveType m_type;
         BasisType m_basis;
         CurvePeriodicity m_wrap;
-
-        Abc::FloatArraySamplePtr m_widths;
-        Abc::V2fArraySamplePtr m_uvs;
-        Abc::V3fArraySamplePtr m_normals;
-
     };
 
     //-*************************************************************************
@@ -138,7 +125,7 @@ public:
     // CONSTRUCTION, DESTRUCTION, ASSIGNMENT
     //-*************************************************************************
 
-    //! The default constructor creates an empty OCurvesSchema
+    //! The default constructor creates an empty ICurvesSchema
     //! ...
     ICurvesSchema() {}
 
@@ -150,11 +137,11 @@ public:
     //! can be used to override the ErrorHandlerPolicy and to specify
     //! schema interpretation matching.
     template <class CPROP_PTR>
-    ICurvesSchema( CPROP_PTR iParentObject,
+    ICurvesSchema( CPROP_PTR iParent,
                      const std::string &iName,
                      const Abc::Argument &iArg0 = Abc::Argument(),
                      const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<CurvesSchemaInfo>( iParentObject, iName, iArg0, iArg1 )
+      : Abc::ISchema<CurvesSchemaInfo>( iParent, iName, iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
     }
@@ -162,10 +149,10 @@ public:
     //! This constructor is the same as above, but with default
     //! schema name used.
     template <class CPROP_PTR>
-    explicit ICurvesSchema( CPROP_PTR iParentObject,
+    explicit ICurvesSchema( CPROP_PTR iParent,
                             const Abc::Argument &iArg0 = Abc::Argument(),
                             const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<CurvesSchemaInfo>( iParentObject, iArg0, iArg1 )
+      : Abc::ISchema<CurvesSchemaInfo>( iParent, iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
     }
@@ -218,10 +205,14 @@ public:
     }
 
 
-    Abc::IV3fArrayProperty &getPositions() { return m_positions; }
-    Abc::IV2fArrayProperty &getUVs() { return m_uvs; }
-    Abc::IV3fArrayProperty &getNormals() { return m_normals; }
-    Abc::IFloatArrayProperty &getWidths() { return m_widths; }
+    Abc::IV3fArrayProperty getPositions() { return m_positions; }
+
+    IV2fGeomParam &getUVs() { return m_uvs; }
+    IN3fGeomParam &getNormals() { return m_normals; }
+    IFloatGeomParam &getWidths() { return m_widths; }
+
+    Abc::IBox3dProperty getSelfBounds() { return m_selfBounds; }
+    Abc::IBox3dProperty getChildBounds() { return m_childBounds; }
 
     // compound property to use as parent for any arbitrary GeomParams
     // underneath it
@@ -259,7 +250,7 @@ public:
     bool valid() const
     {
         return ( Abc::ISchema<CurvesSchemaInfo>::valid() &&
-                 m_positions.valid() );
+                 m_positions.valid() && m_nVertices.valid() );
     }
 
     //! unspecified-bool-type operator overload.
@@ -270,14 +261,14 @@ protected:
     void init( const Abc::Argument &iArg0, const Abc::Argument &iArg1 );
 
     Abc::IV3fArrayProperty m_positions;
-    Abc::IUInt32ArrayProperty  m_nVertices;
+    Abc::IInt32ArrayProperty  m_nVertices;
 
     // contains type, wrap, ubasis, and vbasis.
     Abc::IScalarProperty m_basisAndType;
 
-    Abc::IFloatArrayProperty m_widths;
-    Abc::IV2fArrayProperty m_uvs;
-    Abc::IV3fArrayProperty m_normals;
+    IFloatGeomParam m_widths;
+    IV2fGeomParam m_uvs;
+    IN3fGeomParam m_normals;
 
     Abc::IBox3dProperty m_selfBounds;
     Abc::IBox3dProperty m_childBounds;

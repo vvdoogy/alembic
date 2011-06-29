@@ -110,7 +110,6 @@ INSTALL( TARGETS AlembicAbcCoreHDF5
 INSTALL( FILES
          All.h
          ReadWrite.h
-         Foundation.h
          DESTINATION include/Alembic/AbcCoreHDF5
          PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
 

@@ -39,21 +39,31 @@
 
 MayaPointPrimitiveWriter::MayaPointPrimitiveWriter(
     double iFrame, MDagPath & iDag, Alembic::AbcGeom::OObject & iParent,
-    uint32_t iTimeIndex,
-    bool iWriteVisibility, bool iForceStatic) :
+    Alembic::Util::uint32_t iTimeIndex,
+    const JobArgs & iArgs) :
     mIsAnimated(false), mDagPath(iDag)
 {
     MFnParticleSystem particle(mDagPath);
-    Alembic::AbcGeom::OPoints obj(iParent, particle.name().asChar(),
+    MString name = particle.name();
+    if (iArgs.stripNamespace)
+    {
+        name = util::stripNamespaces(name);
+    }
+    Alembic::AbcGeom::OPoints obj(iParent, name.asChar(),
         iTimeIndex);
     mSchema = obj.getSchema();
 
-    Alembic::Abc::OCompoundProperty cp = mSchema.getArbGeomParams();
-    mAttrs = AttributesWriterPtr(new AttributesWriter(cp, particle,
-        iTimeIndex, iWriteVisibility, iForceStatic));
+    Alembic::Abc::OCompoundProperty cp;
+    if (AttributesWriter::hasAnyAttr(particle, iArgs))
+    {
+        cp = mSchema.getArbGeomParams();
+    }
+
+    mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, particle,
+        iTimeIndex, iArgs));
 
     MObject object = iDag.node();
-    if (!iForceStatic && util::isAnimated(object))
+    if (iTimeIndex != 0 && util::isAnimated(object))
         mIsAnimated = true;
 
     write(iFrame);
@@ -63,7 +73,7 @@ void MayaPointPrimitiveWriter::write(double iFrame)
 {
     std::vector<float> position;
     std::vector<float> velocity;
-    std::vector< uint64_t > particleIds;
+    std::vector< Alembic::Util::uint64_t > particleIds;
     std::vector<float> width;
     float constantwidth = -1.0;
 

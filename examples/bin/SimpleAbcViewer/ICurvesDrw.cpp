@@ -44,7 +44,8 @@ ICurvesDrw::ICurvesDrw( ICurves &iCurves )
   , m_curves( iCurves )
 {
     // Get out if problems.
-    if ( !m_curves.valid() )
+    if ( !m_curves.getSchema().valid() ||
+         m_curves.getSchema().getNumSamples() < 1 )
     {
         return;
     }
@@ -87,11 +88,14 @@ void ICurvesDrw::setTime( chrono_t iSeconds )
     // Use nearest for now.
     ISampleSelector ss( iSeconds, ISampleSelector::kNearIndex );
     ICurvesSchema::Sample curvesSample;
-    m_curves.getSchema().get( curvesSample, ss );
+    if ( m_curves.getSchema().getNumSamples() > 0 )
+    { m_curves.getSchema().get( curvesSample, ss ); }
+    else
+    { return; }
 
     m_positions = curvesSample.getPositions();
     m_nCurves = curvesSample.getNumCurves();
-    
+
     m_nVertices = curvesSample.getCurvesNumVertices();
 
     m_bounds.makeEmpty();
@@ -103,11 +107,12 @@ void ICurvesDrw::setTime( chrono_t iSeconds )
 //-*****************************************************************************
 void ICurvesDrw::draw( const DrawContext &iCtx )
 {
+    if ( ! ( m_positions && m_nVertices ) ) { return; }
 
     size_t numPoints = m_positions->size();
 
     const V3f *points = m_positions->get();
-    const uint32_t *nVertices = m_nVertices->get();
+    const int32_t *nVertices = m_nVertices->get();
     const C3f *colors = NULL;
 
     glDisable( GL_LIGHTING );
@@ -120,14 +125,14 @@ void ICurvesDrw::draw( const DrawContext &iCtx )
     glPointSize( 1.0 );
     glLineWidth( 1.0 );
 
-    for ( size_t currentCurve = 0, currentVertex = 0 ; currentCurve < m_nCurves;
-          currentCurve++ )
+    for ( size_t currentCurve = 0, currentVertex = 0 ; currentCurve < m_nCurves ;
+          ++currentCurve )
     {
 
         m_curvePoints.clear();
-        for ( size_t currentCurveVertex = 0;
+        for ( size_t currentCurveVertex = 0 ;
               currentCurveVertex < nVertices[currentCurve];
-              currentCurveVertex++, currentVertex++ )
+              ++currentCurveVertex, ++currentVertex )
         {
             m_curvePoints.push_back(&points[currentVertex]);
         }
@@ -141,7 +146,7 @@ void ICurvesDrw::draw( const DrawContext &iCtx )
               ++currentSegment )
         {
             glEvalCoord1f(
-                static_cast<GLfloat>( currentSegment ) / static_cast<GLfloat>( 30.0 ) );
+                static_cast<GLfloat>( currentSegment ) / static_cast<GLfloat>( 30.0f ) );
         }
         glEnd();
     }

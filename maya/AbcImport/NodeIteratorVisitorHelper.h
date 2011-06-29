@@ -51,10 +51,18 @@
 
 #include <Alembic/AbcGeom/ICamera.h>
 #include <Alembic/AbcGeom/ICurves.h>
+#include <Alembic/AbcGeom/INuPatch.h>
 #include <Alembic/AbcGeom/IPoints.h>
 #include <Alembic/AbcGeom/IPolyMesh.h>
 #include <Alembic/AbcGeom/ISubD.h>
 #include <Alembic/AbcGeom/IXform.h>
+
+// one or the other will be valid (it's too complex for a union)
+struct Prop
+{
+    Alembic::Abc::IArrayProperty mArray;
+    Alembic::Abc::IScalarProperty mScalar;
+};
 
 bool addProp(Alembic::Abc::IArrayProperty & iProp, MObject & iParent);
 
@@ -64,8 +72,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
     MDataHandle & iHandle);
 
 void getAnimatedProps(Alembic::Abc::ICompoundProperty & iParent,
-    std::vector<Alembic::Abc::IArrayProperty> & oPropList);
-
+    std::vector<Prop> & oPropList);
 
 // This class is used for connecting to sampled transform operations and
 // properties in order  to keep the list of names of sampled channels
@@ -111,19 +118,18 @@ public:
     void getFrameRange(double & oMin, double & oMax);
 
     std::vector<MObject>        mCameraObjList;
+    std::vector<MObject>        mLocObjList;
+    std::vector<MObject>        mNurbsObjList;
     std::vector<MObject>        mNurbsCurveObjList;
     std::vector<MObject>        mPointsObjList;
     std::vector<MObject>        mPolyMeshObjList;
     std::vector<MObject>        mSubDObjList;
 
-    // will be used once we have more schemas implemented
-    /*
-    std::vector<MObject>        mNurbsSurfaceObjList;
-    */
-
-    std::vector<Alembic::Abc::IArrayProperty> mPropList;
+    std::vector<Prop> mPropList;
     std::vector<Alembic::AbcGeom::ICamera>    mCameraList;
     std::vector<Alembic::AbcGeom::ICurves>    mCurvesList;
+    std::vector<Alembic::AbcGeom::IXform>     mLocList;
+    std::vector<Alembic::AbcGeom::INuPatch>   mNurbsList;
     std::vector<Alembic::AbcGeom::IPolyMesh>  mPolyMeshList;
     std::vector<Alembic::AbcGeom::IPoints>    mPointsList;
     std::vector<Alembic::AbcGeom::ISubD>      mSubDList;

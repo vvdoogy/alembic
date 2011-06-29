@@ -60,29 +60,12 @@
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 
-// Other includes
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-
 #include <Alembic/AbcGeom/Tests/NurbsData.h>
 
 #include "Assert.h"
 
-//-*****************************************************************************
-//-*****************************************************************************
-// NAMESPACES
-//
-// Each library has a namespace which is the same as the name of the library.
-// We shorten those here for brevity.
-//-*****************************************************************************
-//-*****************************************************************************
-
 using namespace std;
 using namespace Alembic::AbcGeom;
-
-using Alembic::Util::uint64_t;
-using Alembic::Util::float32_t;
 
 void Example1_NurbsOut()
 {
@@ -102,14 +85,14 @@ void Example1_NurbsOut()
         // the archive with this filename.
         "nurbs1.abc" );
 
-    ONuPatch myNurbs(   OObject( archive, kTop ),
-                        "nurbs_surface");
+    ONuPatch myNurbs( OObject( archive, kTop ),
+                      "nurbs_surface" );
 
     ONuPatchSchema &myNurbsSchema = myNurbs.getSchema();
 
-    V3fArraySample pSample( V3fArraySample( ( const V3f * ) g_P, g_nP ));
-    FloatArraySample uKnotSample( FloatArraySample( (const float *)g_uKnot, 8));
-    FloatArraySample vKnotSample( FloatArraySample( (const float *)g_vKnot, 8));
+    V3fArraySample pSample( (const V3f *)g_P, g_nP );
+    FloatArraySample uKnotSample( (const float32_t *)g_uKnot, 8 );
+    FloatArraySample vKnotSample( (const float *)g_vKnot, 8 );
 
     ONuPatchSchema::Sample nurbsSample(
         pSample,
@@ -123,9 +106,9 @@ void Example1_NurbsOut()
 
     // set the trim curve
     nurbsSample.setTrimCurve(   g_trim_nLoops,
-                                UInt64ArraySample( (const uint64_t *) &g_trim_nCurves, 1),
-                                UInt64ArraySample( (const uint64_t *) &g_trim_n, 1),
-                                UInt64ArraySample( (const uint64_t *) &g_trim_order, 1),
+                                Int32ArraySample( (const int32_t *) &g_trim_nCurves, 1),
+                                Int32ArraySample( (const int32_t *) &g_trim_n, 1),
+                                Int32ArraySample( (const int32_t *) &g_trim_order, 1),
                                 FloatArraySample( (const float32_t *) &g_trim_knot, 12),
                                 FloatArraySample( (const float32_t *) &g_trim_min, 1),
                                 FloatArraySample( (const float32_t *) &g_trim_max, 1),
@@ -142,6 +125,35 @@ void Example1_NurbsOut()
     std::cout << "Writing: " << archive.getName() << std::endl;
 }
 
+void Example2_NurbsOut()
+{
+    // same as example 1 but without the trim curves
+    OArchive archive(
+        Alembic::AbcCoreHDF5::WriteArchive(),
+        "nurbs2.abc" );
+
+    ONuPatch myNurbs(   OObject( archive, kTop ),
+                        "nurbs_surface_noTrim");
+
+    ONuPatchSchema &myNurbsSchema = myNurbs.getSchema();
+
+    V3fArraySample pSample( (const V3f *)g_P, g_nP );
+    FloatArraySample uKnotSample( (const float32_t *)g_uKnot, 8 );
+    FloatArraySample vKnotSample( (const float32_t *)g_vKnot, 8 );
+
+    ONuPatchSchema::Sample nurbsSample(
+        pSample,
+        g_nu,
+        g_nv,
+        g_uOrder,
+        g_vOrder,
+        uKnotSample,
+        vKnotSample
+        );
+
+    // Set the sample.
+    myNurbsSchema.set( nurbsSample );
+}
 
 void Example1_NurbsIn()
 {
@@ -172,7 +184,34 @@ void Example1_NurbsIn()
     TESTING_ASSERT( nurbsSample.hasTrimCurve() == true );
 }
 
+void Example2_NurbsIn()
+{
+    std::cout << "loading archive" << std::endl;
+    IArchive archive( Alembic::AbcCoreHDF5::ReadArchive(), "nurbs2.abc" );
 
+    std::cout << "making INuPatch object" << std::endl;
+    INuPatch myNurbs( IObject( archive, kTop) , "nurbs_surface_noTrim");
+
+    std::cout << "getting INuPatch schema" << std::endl;
+    INuPatchSchema &nurbsSchema = myNurbs.getSchema();
+
+    // get the samples from the curves
+    std::cout << "getting INuPatch sample" << std::endl;
+    INuPatchSchema::Sample nurbsSample;
+    nurbsSchema.get( nurbsSample );
+
+    // test the bounding box
+
+    std::cout << nurbsSample.getSelfBounds().min << std::endl;
+    std::cout << nurbsSample.getSelfBounds().max << std::endl;
+
+    TESTING_ASSERT( nurbsSample.getSelfBounds().min == V3d( 0.0, 0.0, -3.0 ) );
+    TESTING_ASSERT( nurbsSample.getSelfBounds().max == V3d( 3.0, 3.0, 3.0 ) );
+
+    std::cout << "Number of trim curves: " << nurbsSample.getTrimNumLoops() << std::endl;
+    TESTING_ASSERT( nurbsSample.getTrimNumLoops() == 0 );
+    TESTING_ASSERT( nurbsSample.hasTrimCurve() == false );
+}
 
 //-*****************************************************************************
 //-*****************************************************************************
@@ -196,6 +235,13 @@ int main( int argc, char *argv[] )
     std::cout << "reading nurbs" << std::endl;
     Example1_NurbsIn();
     std::cout << "done reading nurbs" << std::endl;
+
+    Example2_NurbsOut();
+    std::cout << "done writing nurbs 2" << std::endl;
+
+    std::cout << "reading nurbs 2" << std::endl;
+    Example2_NurbsIn();
+    std::cout << "done reading nurbs 2" << std::endl;
 
     return 0;
 }

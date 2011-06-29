@@ -131,7 +131,11 @@ public:
     //! Get a key from an address of a datum.
     //! ...
     bool getKey( AbcA::ArraySampleKey& oKey,
-              const ISampleSelector &iSS = ISampleSelector() );
+                 const ISampleSelector &iSS = ISampleSelector() );
+
+    //! Get the dimensions of the datum.
+    void getDimensions( Util::Dimensions & oDim,
+                        const ISampleSelector &iSS = ISampleSelector() );
 
     //! Return the parent compound property, handily wrapped in a
     //! ICompoundProperty wrapper.

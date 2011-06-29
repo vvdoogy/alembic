@@ -41,8 +41,9 @@ namespace
     bool hasDuplicates(const util::ShapeSet & dagPath)
     {
         std::set<std::string> roots;
-        const util::ShapeSet::iterator end = dagPath.end();
-        for (util::ShapeSet::iterator it = dagPath.begin(); it != end; it++)
+        const util::ShapeSet::const_iterator end = dagPath.end();
+        for (util::ShapeSet::const_iterator it = dagPath.begin();
+            it != end; it++)
         {
             MFnTransform mFn(it->node());
             if (roots.count(mFn.name().asChar()) > 0)
@@ -58,29 +59,27 @@ namespace
         public:
             explicit CallWriteVisitor(double iFrame): mFrame(iFrame) {}
 
-/*
-            void operator()(MayaNurbsSurfaceWriterPtr & iNode)
+            void operator()(MayaCameraWriterPtr & iNode)
             {
-                iNode->write(mFrame);
-            }
-
-            void operator()(MayaLightWriterPtr & iNode)
-            {
-                iNode->write(mFrame);
+                iNode->write();
             }
 
             void operator()(MayaLocatorWriterPtr & iNode)
             {
-                iNode->write(mFrame);
+                iNode->write();
             }
-*/
+
+            void operator()(MayaMeshWriterPtr & iNode)
+            {
+                iNode->write();
+            }
 
             void operator()(MayaNurbsCurveWriterPtr & iNode)
             {
                 iNode->write();
             }
 
-            void operator()(MayaCameraWriterPtr & iNode)
+            void operator()(MayaNurbsSurfaceWriterPtr & iNode)
             {
                 iNode->write();
             }
@@ -90,10 +89,7 @@ namespace
                 iNode->write(mFrame);
             }
 
-            void operator()(MayaMeshWriterPtr & iNode)
-            {
-                iNode->write();
-            }
+
 
         private:
             double mFrame;
@@ -123,14 +119,13 @@ namespace
                 mCVsArray[4] = 0;   // increment onto PolyAnimCVs
             }
 
-            /*
+
             void operator()(MayaNurbsSurfaceWriterPtr & iNode)
             {
                 mCVsArray[0] += iNode->getNumCVs();
             }
 
             void operator()(MayaLocatorWriterPtr & iNode) {}
-            */
 
             void operator()(MayaNurbsCurveWriterPtr & iNode)
             {
@@ -224,36 +219,20 @@ namespace
     }
 }
 
-AbcWriteJob::AbcWriteJob(const util::ShapeSet & iDagPath,
-    const char * iFileName,
-    bool iUseSelectionList,
-    bool iWorldSpace,
-    bool iWriteVisibility,
-    bool iWriteUVs,
+AbcWriteJob::AbcWriteJob(const char * iFileName,
     std::set<double> & iTransFrames,
-    Alembic::AbcCoreAbstract::v1::TimeSamplingPtr iTransTime,
+    Alembic::AbcCoreAbstract::TimeSamplingPtr iTransTime,
     std::set<double> & iShapeFrames,
-    Alembic::AbcCoreAbstract::v1::TimeSamplingPtr iShapeTime,
-    std::string & iMelPerFrameCallback,
-    std::string & iMelPostCallback,
-    std::string & iPythonPerFrameCallback,
-    std::string & iPythonPostCallback,
-    std::string & iPrefixFilter,
-    std::set< std::string > & iAttribs)
+    Alembic::AbcCoreAbstract::TimeSamplingPtr iShapeTime,
+    const JobArgs & iArgs)
 {
     MStatus status;
-    mDagPath = iDagPath;
     mFileName = iFileName;
     mBoxIndex = 0;
+    mArgs = iArgs;
 
-    mUseSelectionList = iUseSelectionList;
-    if (mUseSelectionList)
+    if (mArgs.useSelectionList)
     {
-        // get all the DAG nodes starting from the current selection
-        // this list will be used as a filter while setting up the write jobs if mDagPath is not empty;
-        // if mDagPath is empty, all DAG nodes from the actively selected
-        // to the root will be written out
-        bool noRootProvided = mDagPath.empty();
 
         // get the active selection
         MSelectionList activeList;
@@ -272,21 +251,12 @@ AbcWriteJob::AbcWriteJob(const util::ShapeSet & iDagPath,
                     dagPath.pop();
                     mSList.add(dagPath, MObject::kNullObj, true);
                 }
-                if (noRootProvided)
-                    mDagPath.insert(dagPath);
             }
         }
     }
 
-    mWorldSpace = iWorldSpace;
-    mWriteVisibility = iWriteVisibility;
-    mWriteUVs = iWriteUVs;
-
     mTransFrames = iTransFrames;
     mShapeFrames = iShapeFrames;
-
-    mFilter = iPrefixFilter;
-    mAttribs = iAttribs;
 
     // only needed during creation of the transforms and shapes
     mTransTime = iTransTime;
@@ -296,10 +266,6 @@ AbcWriteJob::AbcWriteJob(const util::ShapeSet & iDagPath,
 
     // should have at least 1 value
     assert(!mTransFrames.empty() && !mShapeFrames.empty());
-
-    // First transform sample and shape sample MUST be equal. Otherwise
-    // setup would write a sample that is in one but not the other.
-    assert(*(mTransFrames.begin()) == *(mShapeFrames.begin()));
 
     mFirstFrame = *(mTransFrames.begin());
     std::set<double>::iterator last = mTransFrames.end();
@@ -311,14 +277,6 @@ AbcWriteJob::AbcWriteJob(const util::ShapeSet & iDagPath,
     double lastShapeFrame = *last;
     if (lastShapeFrame > mLastFrame)
         mLastFrame = lastShapeFrame;
-    // if there is only one sample, then force static
-    mShapesStatic = mShapeFrames.size() < 2;
-    mTransStatic = mTransFrames.size() < 2;
-
-    mMelPerFrameCallback = iMelPerFrameCallback;
-    mMelPostCallback = iMelPostCallback;
-    mPythonPerFrameCallback = iPythonPerFrameCallback;
-    mPythonPostCallback = iPythonPostCallback;
 }
 
 void AbcWriteJob::getBoundingBox(const MMatrix & eMInvMat)
@@ -330,7 +288,7 @@ void AbcWriteJob::getBoundingBox(const MMatrix & eMInvMat)
 
     // MGlobal::isSelected(ob) doesn't work, because DG node and DAG node is
     // not the same even if they refer to the same MObject
-    if (mUseSelectionList && !mSList.hasItem(mCurDag))
+    if (mArgs.useSelectionList && !mSList.hasItem(mCurDag))
         return;
 
     MObject ob = mCurDag.node();
@@ -365,7 +323,7 @@ void AbcWriteJob::getBoundingBox(const MMatrix & eMInvMat)
     }
     else if (ob.hasFn(MFn::kParticle) || ob.hasFn(MFn::kMesh)
         || ob.hasFn(MFn::kNurbsCurve)
-        /*|| ob.hasFn(MFn::kNurbsSurface)*/ )
+        || ob.hasFn(MFn::kNurbsSurface) )
     {
         if (util::isIntermediate(mCurDag.node()))
             return;
@@ -420,13 +378,19 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
 
     // short-circuit if selection flag is on but this node isn't actively
     // selected
-    if (mUseSelectionList && !mSList.hasItem(mCurDag))
+    if (mArgs.useSelectionList && !mSList.hasItem(mCurDag))
         return;
 
     MObject ob = mCurDag.node();
 
     // skip all intermediate nodes (and their children)
     if (util::isIntermediate(ob))
+    {
+        return;
+    }
+
+    // skip nodes that aren't renderable (and their children)
+    if (mArgs.excludeInvisible && util::isRenderable(ob))
     {
         return;
     }
@@ -453,18 +417,16 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
         {
             Alembic::Abc::OObject obj = mRoot.getTop();
             nurbsCurve = MayaNurbsCurveWriterPtr(new MayaNurbsCurveWriter(
-                mCurDag, obj, mShapeTimeIndex, true, mWriteVisibility,
-                mShapesStatic));
+                mCurDag, obj, mShapeTimeIndex, true, mArgs));
         }
         else
         {
             Alembic::Abc::OObject obj = iParent->getObject();
             nurbsCurve = MayaNurbsCurveWriterPtr(new MayaNurbsCurveWriter(
-                mCurDag, obj, mShapeTimeIndex, true, mWriteVisibility,
-                mShapesStatic));
+                mCurDag, obj, mShapeTimeIndex, true, mArgs));
         }
 
-        if (nurbsCurve->isAnimated() && !mShapesStatic)
+        if (nurbsCurve->isAnimated() && mShapeTimeIndex != 0)
         {
             MayaNodePtr nd = nurbsCurve;
             mShapeList.push_back(nd);
@@ -480,7 +442,7 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
         }
 
         AttributesWriterPtr attrs = nurbsCurve->getAttrs();
-        if (!mShapesStatic && attrs->isAnimated())
+        if (mShapeTimeIndex != 0 && attrs->isAnimated())
             mShapeAttrList.push_back(attrs);
     }
     else if (ob.hasFn(MFn::kTransform))
@@ -502,17 +464,15 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
         {
             Alembic::Abc::OObject obj = mRoot.getTop();
             trans = MayaTransformWriterPtr(new MayaTransformWriter(
-                obj, mCurDag, mTransTimeIndex, mWorldSpace,
-                mWriteVisibility, mTransStatic));
+                obj, mCurDag, mTransTimeIndex, mArgs));
         }
         else
         {
             trans = MayaTransformWriterPtr(new MayaTransformWriter(
-                *iParent, mCurDag, mTransTimeIndex, mWriteVisibility,
-                mTransStatic));
+                *iParent, mCurDag, mTransTimeIndex, mArgs));
         }
 
-        if (trans->isAnimated() && !mTransStatic)
+        if (trans->isAnimated() && mTransTimeIndex != 0)
         {
             mTransList.push_back(trans);
             mStats.mTransAnimNum++;
@@ -521,7 +481,7 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
             mStats.mTransStaticNum++;
 
         AttributesWriterPtr attrs = trans->getAttrs();
-        if (!mTransStatic && attrs->isAnimated())
+        if (mTransTimeIndex != 0 && attrs->isAnimated())
             mTransAttrList.push_back(attrs);
 
         // loop through the children, making sure to push and pop them
@@ -532,6 +492,46 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
             mCurDag.push(mCurDag.child(i));
             setup(iFrame, trans);
             mCurDag.pop();
+        }
+    }
+    else if (ob.hasFn(MFn::kLocator))
+    {
+        MFnDependencyNode fnLocator(ob, & status);
+        if (status != MS::kSuccess)
+        {
+            MString msg = "Initialize locator node ";
+            msg += mCurDag.fullPathName();
+            msg += " failed, skipping.";
+            MGlobal::displayWarning(msg);
+            return;
+        }
+
+        if (iParent != NULL)
+        {
+            Alembic::Abc::OObject obj = iParent->getObject();
+            MayaLocatorWriterPtr locator(new MayaLocatorWriter(
+                mCurDag, obj, mShapeTimeIndex, mArgs));
+
+            if (locator->isAnimated() && mShapeTimeIndex != 0)
+            {
+                MayaNodePtr nd = locator;
+                mShapeList.push_back(nd);
+                mStats.mLocatorAnimNum++;
+            }
+            else
+            {
+                mStats.mLocatorStaticNum++;
+            }
+
+            AttributesWriterPtr attrs = locator->getAttrs();
+            if (mShapeTimeIndex != 0 && attrs->isAnimated())
+                mShapeAttrList.push_back(attrs);
+        }
+        else
+        {
+            MString err = "Can't translate ";
+            err += fnLocator.name() + " since it doesn't have a parent.";
+            MGlobal::displayError(err);
         }
     }
     else if (ob.hasFn(MFn::kParticle))
@@ -550,10 +550,9 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
         {
             Alembic::Abc::OObject obj = iParent->getObject();
             MayaPointPrimitiveWriterPtr particle(new MayaPointPrimitiveWriter(
-                iFrame, mCurDag, obj, mShapeTimeIndex,
-                mWriteVisibility, mShapesStatic));
+                iFrame, mCurDag, obj, mShapeTimeIndex, mArgs));
 
-            if (particle->isAnimated() && !mShapesStatic)
+            if (particle->isAnimated() && mShapeTimeIndex != 0)
             {
                 MayaNodePtr nd = particle;
                 mShapeList.push_back(nd);
@@ -567,7 +566,7 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
             }
 
             AttributesWriterPtr attrs = particle->getAttrs();
-            if (!mShapesStatic && attrs->isAnimated())
+            if (mShapeTimeIndex != 0 && attrs->isAnimated())
                 mShapeAttrList.push_back(attrs);
         }
         else
@@ -593,9 +592,9 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
         {
             Alembic::Abc::OObject obj = iParent->getObject();
             MayaMeshWriterPtr mesh(new MayaMeshWriter(mCurDag, obj,
-                mShapeTimeIndex, mWriteVisibility, mWriteUVs, mShapesStatic));
+                mShapeTimeIndex, mArgs));
 
-            if (mesh->isAnimated() && !mShapesStatic)
+            if (mesh->isAnimated() && mShapeTimeIndex != 0)
             {
                 MayaNodePtr nd = mesh;
                 mShapeList.push_back(nd);
@@ -629,7 +628,7 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
             }
 
             AttributesWriterPtr attrs = mesh->getAttrs();
-            if (!mShapesStatic && attrs->isAnimated())
+            if (mShapeTimeIndex != 0 && attrs->isAnimated())
                 mShapeAttrList.push_back(attrs);
         }
         else
@@ -655,10 +654,9 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
         {
             Alembic::Abc::OObject obj = iParent->getObject();
             MayaCameraWriterPtr camera(new MayaCameraWriter(
-                mCurDag, obj, mShapeTimeIndex, mWriteVisibility,
-                mShapesStatic));
+                mCurDag, obj, mShapeTimeIndex, mArgs));
 
-            if (camera->isAnimated() && !mShapesStatic)
+            if (camera->isAnimated() && mShapeTimeIndex != 0)
             {
                 MayaNodePtr nd = camera;
                 mShapeList.push_back(nd);
@@ -668,7 +666,7 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
                 mStats.mCameraStaticNum++;
 
             AttributesWriterPtr attrs = camera->getAttrs();
-            if (!mShapesStatic && attrs->isAnimated())
+            if (mShapeTimeIndex != 0 && attrs->isAnimated())
                 mShapeAttrList.push_back(attrs);
         }
         else
@@ -678,7 +676,6 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
             MGlobal::displayError(err);
         }
     }
-/*
     else if (ob.hasFn(MFn::kNurbsSurface))
     {
         MFnNurbsSurface fnNurbsSurface(ob, &status);
@@ -695,9 +692,9 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
         {
             Alembic::Abc::OObject obj = iParent->getObject();
             MayaNurbsSurfaceWriterPtr nurbsSurface(new MayaNurbsSurfaceWriter(
-                mCurDag, obj, mWriteVisibility, mShapesStatic));
+                mCurDag, obj,  mShapeTimeIndex, mArgs));
 
-            if (nurbsSurface->isAnimated() && !mShapesStatic)
+            if (nurbsSurface->isAnimated() && mShapeTimeIndex != 0)
             {
                 MayaNodePtr nd = nurbsSurface;
                 mShapeList.push_back(nd);
@@ -710,8 +707,8 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
                 mStats.mNurbsStaticCVs += nurbsSurface->getNumCVs();
             }
 
-            AttributesWriterPtr attrs = camera->getAttrs();
-            if (!mShapesStatic && attrs->isAnimated())
+            AttributesWriterPtr attrs = nurbsSurface->getAttrs();
+            if (mShapeTimeIndex != 0 && attrs->isAnimated())
                 mShapeAttrList.push_back(attrs);
         }
         else
@@ -721,7 +718,6 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
             MGlobal::displayError(err);
         }
     }
-    */
     else if (ob.hasFn(MFn::kNurbsCurve))
     {
         MFnNurbsCurve fnNurbsCurve(ob, &status);
@@ -738,10 +734,9 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
         {
             Alembic::Abc::OObject obj = iParent->getObject();
             MayaNurbsCurveWriterPtr nurbsCurve(new MayaNurbsCurveWriter(
-                mCurDag, obj, mShapeTimeIndex, false, mWriteVisibility,
-                mShapesStatic));
+                mCurDag, obj, mShapeTimeIndex, false, mArgs));
 
-            if (nurbsCurve->isAnimated() && !mShapesStatic)
+            if (nurbsCurve->isAnimated() && mShapeTimeIndex != 0)
             {
                 MayaNodePtr nd = nurbsCurve;
                 mShapeList.push_back(nd);
@@ -757,7 +752,7 @@ void AbcWriteJob::setup(double iFrame, MayaTransformWriterPtr iParent)
             }
 
             AttributesWriterPtr attrs = nurbsCurve->getAttrs();
-            if (!mShapesStatic && attrs->isAnimated())
+            if (mShapeTimeIndex != 0 && attrs->isAnimated())
                 mShapeAttrList.push_back(attrs);
         }
         else
@@ -786,7 +781,7 @@ bool AbcWriteJob::eval(double iFrame)
     {
         // check if the shortnames of any two nodes are the same
         // if so, exit here
-        if (hasDuplicates(mDagPath))
+        if (hasDuplicates(mArgs.dagPaths))
         {
             throw std::runtime_error("The names of root nodes are the same");
         }
@@ -805,11 +800,9 @@ bool AbcWriteJob::eval(double iFrame)
             throw std::runtime_error("Unable to create abc file");
         }
 
-        AttributesWriter::mFilter = &mFilter;
-        AttributesWriter::mAttribs = &mAttribs;
-
-        const std::set< MDagPath >::iterator end = mDagPath.end();
-        for (std::set< MDagPath >::iterator it = mDagPath.begin(); it != end; it++)
+        util::ShapeSet::const_iterator end = mArgs.dagPaths.end();
+        for (util::ShapeSet::const_iterator it = mArgs.dagPaths.begin();
+            it != end; ++it)
         {
             mCurDag = *it;
             setup(iFrame * util::spf(), MayaTransformWriterPtr());
@@ -897,15 +890,15 @@ void AbcWriteJob::perFrameCallback(double iFrame)
 {
     MBoundingBox bbox;
 
-    util::ShapeSet::iterator it = mDagPath.begin();
-    const util::ShapeSet::iterator end = mDagPath.end();
+    util::ShapeSet::iterator it = mArgs.dagPaths.begin();
+    const util::ShapeSet::iterator end = mArgs.dagPaths.end();
     for (; it != end; it ++)
     {
         mCurDag = *it;
 
         mCurBBox.clear();
         MMatrix eMInvMat;
-        if (mWorldSpace)
+        if (mArgs.worldSpace)
         {
             eMInvMat.setToIdentity();
         }
@@ -923,8 +916,8 @@ void AbcWriteJob::perFrameCallback(double iFrame)
     Alembic::Abc::Box3d b(min, max);
     mBoxProp.set(b);
 
-    processCallback(mMelPerFrameCallback, true, iFrame, bbox);
-    processCallback(mPythonPerFrameCallback, false, iFrame, bbox);
+    processCallback(mArgs.melPerFrameCallback, true, iFrame, bbox);
+    processCallback(mArgs.pythonPerFrameCallback, false, iFrame, bbox);
 }
 
 
@@ -968,10 +961,11 @@ void AbcWriteJob::postCallback(double iFrame)
     addToString(statsStr, "TransStaticNum", mStats.mTransStaticNum);
     addToString(statsStr, "TransAnimNum", mStats.mTransAnimNum);
 
+    addToString(statsStr, "LocatorStaticNum", mStats.mLocatorStaticNum);
+    addToString(statsStr, "LocatorAnimNum", mStats.mLocatorAnimNum);
+
     addToString(statsStr, "CameraStaticNum", mStats.mCameraStaticNum);
     addToString(statsStr, "CameraAnimNum", mStats.mCameraAnimNum);
-
-    addToString(statsStr, "GenericNum", mStats.mGenericNum);
 
     if (statsStr.length() > 0)
     {
@@ -982,20 +976,20 @@ void AbcWriteJob::postCallback(double iFrame)
 
     MBoundingBox bbox;
 
-    if (mMelPostCallback.find("#BOUNDS#") != std::string::npos ||
-        mPythonPostCallback.find("#BOUNDS#") != std::string::npos ||
-        mMelPostCallback.find("#BOUNDSARRAY#") != std::string::npos ||
-        mPythonPostCallback.find("#BOUNDSARRAY#") != std::string::npos)
+    if (mArgs.melPostCallback.find("#BOUNDS#") != std::string::npos ||
+        mArgs.pythonPostCallback.find("#BOUNDS#") != std::string::npos ||
+        mArgs.melPostCallback.find("#BOUNDSARRAY#") != std::string::npos ||
+        mArgs.pythonPostCallback.find("#BOUNDSARRAY#") != std::string::npos)
     {
-        util::ShapeSet::iterator it = mDagPath.begin();
-        const util::ShapeSet::iterator end = mDagPath.end();
+        util::ShapeSet::const_iterator it = mArgs.dagPaths.begin();
+        const util::ShapeSet::const_iterator end = mArgs.dagPaths.end();
         for (; it != end; it ++)
         {
             mCurDag = *it;
 
             mCurBBox.clear();
             MMatrix eMInvMat;
-            if (mWorldSpace)
+            if (mArgs.worldSpace)
             {
                 eMInvMat.setToIdentity();
             }
@@ -1009,8 +1003,8 @@ void AbcWriteJob::postCallback(double iFrame)
         }
     }
 
-    processCallback(mMelPostCallback, true, iFrame, bbox);
-    processCallback(mPythonPostCallback, false, iFrame, bbox);
+    processCallback(mArgs.melPostCallback, true, iFrame, bbox);
+    processCallback(mArgs.pythonPostCallback, false, iFrame, bbox);
 }
 
 

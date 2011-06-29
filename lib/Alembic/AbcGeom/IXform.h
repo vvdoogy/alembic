@@ -75,11 +75,11 @@ public:
     //! can be used to override the ErrorHandlerPolicy, to specify
     //! MetaData, and to set TimeSamplingType.
     template <class CPROP_PTR>
-    IXformSchema( CPROP_PTR iParentObject,
+    IXformSchema( CPROP_PTR iParent,
                   const std::string &iName,
                   const Abc::Argument &iArg0 = Abc::Argument(),
                   const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<XformSchemaInfo>( iParentObject, iName,
+      : Abc::ISchema<XformSchemaInfo>( iParent, iName,
                                        iArg0, iArg1 )
     {
         // Meta data and error handling are eaten up by
@@ -90,11 +90,11 @@ public:
     //! This constructor does the same as the above, but uses the default
     //! name from the XformSchemaInfo struct.
     template <class CPROP_PTR>
-    explicit IXformSchema( CPROP_PTR iParentObject,
+    explicit IXformSchema( CPROP_PTR iParent,
 
                            const Abc::Argument &iArg0 = Abc::Argument(),
                            const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<XformSchemaInfo>( iParentObject, iArg0, iArg1 )
+      : Abc::ISchema<XformSchemaInfo>( iParent, iArg0, iArg1 )
     {
         init( Abc::GetSchemaInterpMatching( iArg0, iArg1 ) );
     }
@@ -133,19 +133,21 @@ public:
     XformSample getValue( const Abc::ISampleSelector &iSS =
                           Abc::ISampleSelector() );
 
+    Abc::IBox3dProperty getChildBounds() { return m_childBounds; }
+
     // lightweight get to avoid constructing a sample
     // see XformSample.h for explanation of this property
     bool getInheritsXforms( const Abc::ISampleSelector &iSS =
                             Abc::ISampleSelector() );
 
-    size_t getNumOps() const { return m_numOps; }
+    size_t getNumOps() const { return m_sample.getNumOps(); }
 
     //! Reset returns this function set to an empty, default
     //! state.
     void reset()
     {
         m_childBounds.reset();
-        m_ops.reset();
+        m_sample = XformSample();
         m_inherits.reset();
         m_isConstant = true;
         m_isConstantIdentity = true;
@@ -156,8 +158,10 @@ public:
     //! Valid returns whether this function set is valid.
     bool valid() const
     {
-        return ( m_ops && super_type::valid() );
+        return ( super_type::valid() );
     }
+
+    ICompoundProperty getArbGeomParams() { return m_arbGeomParams; }
 
     //! unspecified-bool-type operator overload.
     //! ...
@@ -167,23 +171,17 @@ public:
 protected:
     Abc::IBox3dProperty m_childBounds;
 
-    AbcA::ScalarPropertyReaderPtr m_ops;
-
     AbcA::BasePropertyReaderPtr m_vals;
 
-    Abc::UInt32ArraySamplePtr m_animChannels;
-
     Abc::IBoolProperty m_inherits;
+
+    Abc::ICompoundProperty m_arbGeomParams;
 
     bool m_isConstant;
 
     bool m_isConstantIdentity;
 
-    std::size_t m_numOps;
-    std::size_t m_numChannels;
-
-    std::vector<Alembic::Util::uint8_t> m_opVec;
-    std::vector<Alembic::Util::float64_t> m_valVec;
+    XformSample m_sample;
 
 private:
     void init( Abc::SchemaInterpMatching iMatching );
@@ -192,7 +190,8 @@ private:
     bool m_useArrayProp;
 
     // fills m_valVec with data
-    void getChannelValues( const AbcA::index_t iSampleIndex );
+    void getChannelValues( const AbcA::index_t iSampleIndex,
+                           XformSample & oSamp );
 };
 
 //-*****************************************************************************

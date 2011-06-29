@@ -39,7 +39,7 @@
 
 // assumption is we don't support multiple uv sets as well as animated uvs
 void MayaMeshWriter::getUVs(std::vector<float> & uvs,
-    std::vector<uint32_t> & indices)
+    std::vector<Alembic::Util::uint32_t> & indices)
 {
     MStatus status = MS::kSuccess;
     MFnMesh lMesh( mDagPath, &status );
@@ -88,9 +88,10 @@ void MayaMeshWriter::getUVs(std::vector<float> & uvs,
 
 
 MayaMeshWriter::MayaMeshWriter(MDagPath & iDag,
-    Alembic::Abc::OObject & iParent, uint32_t iTimeIndex,
-    bool iWriteVisibility, bool iWriteUVs, bool iForceStatic)
-  : mIsGeometryAnimated(false),
+    Alembic::Abc::OObject & iParent, Alembic::Util::uint32_t iTimeIndex,
+    const JobArgs & iArgs)
+  : mNoNormals(iArgs.noNormals),
+    mIsGeometryAnimated(false),
     mDagPath(iDag),
     mNumPoints(0)
 {
@@ -104,21 +105,27 @@ MayaMeshWriter::MayaMeshWriter(MDagPath & iDag,
     // intermediate objects aren't translated
     MObject surface = iDag.node();
 
-    if (!iForceStatic && util::isAnimated(surface))
+    if (iTimeIndex != 0 && util::isAnimated(surface))
         mIsGeometryAnimated = true;
 
     std::vector<float> uvs;
-    std::vector<uint32_t> indices;
+    std::vector<Alembic::Util::uint32_t> indices;
+
+    MString name = lMesh.name();
+    if (iArgs.stripNamespace)
+    {
+        name = util::stripNamespaces(name);
+    }
 
     // check to see if this poly has been tagged as a SubD
     MPlug plug = lMesh.findPlug("SubDivisionMesh");
     if ( !plug.isNull() && plug.asBool() )
     {
-        Alembic::AbcGeom::OSubD obj(iParent, lMesh.name().asChar(), iTimeIndex);
+        Alembic::AbcGeom::OSubD obj(iParent, name.asChar(), iTimeIndex);
         mSubDSchema = obj.getSchema();
 
         Alembic::AbcGeom::OV2fGeomParam::Sample uvSamp;
-        if ( iWriteUVs )
+        if ( iArgs.writeUVs )
         {
             getUVs(uvs, indices);
 
@@ -135,22 +142,24 @@ MayaMeshWriter::MayaMeshWriter(MDagPath & iDag,
             }
         }
 
-        Alembic::Abc::OCompoundProperty cp = mSubDSchema.getArbGeomParams();
-
-        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, lMesh,
-            iTimeIndex, iWriteVisibility, iForceStatic));
+        Alembic::Abc::OCompoundProperty cp;
+        if (AttributesWriter::hasAnyAttr(lMesh, iArgs))
+        {
+            cp = mSubDSchema.getArbGeomParams();
+        }
+        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, lMesh,
+            iTimeIndex, iArgs));
 
         writeSubD(iDag, uvSamp);
     }
     else
     {
-        Alembic::AbcGeom::OPolyMesh obj(iParent, lMesh.name().asChar(),
-            iTimeIndex);
+        Alembic::AbcGeom::OPolyMesh obj(iParent, name.asChar(), iTimeIndex);
         mPolySchema = obj.getSchema();
 
         Alembic::AbcGeom::OV2fGeomParam::Sample uvSamp;
 
-        if ( iWriteUVs )
+        if ( iArgs.writeUVs )
         {
             getUVs(uvs, indices);
 
@@ -168,13 +177,73 @@ MayaMeshWriter::MayaMeshWriter(MDagPath & iDag,
             }
         }
 
-        Alembic::Abc::OCompoundProperty cp = mPolySchema.getArbGeomParams();
+        Alembic::Abc::OCompoundProperty cp;
+        if (AttributesWriter::hasAnyAttr(lMesh, iArgs))
+        {
+            cp = mPolySchema.getArbGeomParams();
+        }
 
         // set the rest of the props and write to the writer node
-        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, lMesh,
-            iTimeIndex, iWriteVisibility, iForceStatic));
+        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, lMesh,
+            iTimeIndex, iArgs));
 
-       writePoly(uvSamp);
+        writePoly(uvSamp);
+    }
+
+    // look for facesets
+    std::size_t attrCount = lMesh.attributeCount();
+    for (std::size_t i = 0; i < attrCount; ++i)
+    {
+        MObject attr = lMesh.attribute(i);
+        MFnAttribute mfnAttr(attr);
+        MPlug plug = lMesh.findPlug(attr, true);
+
+        // if it is not readable, then bail without any more checking
+        if (!mfnAttr.isReadable() || plug.isNull())
+            continue;
+
+        MString propName = plug.partialName(0, 0, 0, 0, 0, 1);
+        std::string propStr = propName.asChar();
+
+        if (propStr.substr(0, 8) == "FACESET_")
+        {
+            MStatus status;
+            MFnIntArrayData arr(plug.asMObject(), &status);
+
+            // not the correct kind of data
+            if (status != MS::kSuccess)
+                continue;
+
+            std::string faceSetName = propStr.substr(8);
+            std::size_t numData = arr.length();
+            std::vector<Alembic::Util::int32_t> faceVals(numData);
+            for (std::size_t j = 0; j < numData; ++j)
+            {
+                faceVals[j] = arr[j];
+            }
+
+            bool isVisible = true;
+            MString visName = "FACESETVIS_";
+            visName += faceSetName.c_str();
+            MPlug visPlug = lMesh.findPlug(visName, true);
+            if (!visPlug.isNull())
+            {
+                isVisible = visPlug.asBool();
+            }
+
+            Alembic::AbcGeom::OFaceSet faceSet;
+            if (mPolySchema)
+            {
+                faceSet = mPolySchema.createFaceSet(faceSetName);
+            }
+            else
+            {
+                faceSet = mSubDSchema.createFaceSet(faceSetName);
+            }
+            Alembic::AbcGeom::OFaceSetSchema::Sample samp(
+                Alembic::Abc::Int32ArraySample(faceVals), isVisible);
+            faceSet.getSchema().set(samp);
+        }
     }
 }
 
@@ -215,6 +284,9 @@ void MayaMeshWriter::getPolyNormals(std::vector<float> & oNormals)
     }
 
     // no normals bail early
+    if ( mNoNormals )
+        return;
+
     MPlug plug = lMesh.findPlug("noNormals", true, &status);
     if ( status == MS::kSuccess && plug.asBool() == true )
         return;
@@ -266,8 +338,8 @@ void MayaMeshWriter::write()
     if (numPoints != mNumPoints)
     {
         std::vector<float> points;
-        std::vector<int32_t> facePoints;
-        std::vector<int32_t> faceList;
+        std::vector<Alembic::Util::int32_t> facePoints;
+        std::vector<Alembic::Util::int32_t> faceList;
 
         mNumPoints = numPoints;
         fillTopology(points, facePoints, faceList);
@@ -372,8 +444,8 @@ void MayaMeshWriter::writePoly(
     }
 
     std::vector<float> points;
-    std::vector<int32_t> facePoints;
-    std::vector<int32_t> pointCounts;
+    std::vector<Alembic::Util::int32_t> facePoints;
+    std::vector<Alembic::Util::int32_t> pointCounts;
 
     fillTopology(points, facePoints, pointCounts);
 
@@ -418,8 +490,8 @@ void MayaMeshWriter::writeSubD(MDagPath & iDag,
     }
 
     std::vector<float> points;
-    std::vector<int32_t> facePoints;
-    std::vector<int32_t> pointCounts;
+    std::vector<Alembic::Util::int32_t> facePoints;
+    std::vector<Alembic::Util::int32_t> pointCounts;
 
     fillTopology(points, facePoints, pointCounts);
 
@@ -496,7 +568,7 @@ void MayaMeshWriter::writeSubD(MDagPath & iDag,
             Alembic::Abc::Int32ArraySample(cornerIndices));
     }
 
-
+#if MAYA_API_VERSION >= 201100
     MUintArray holes = lMesh.getInvisibleFaces();
     std::size_t numHoles = holes.length();
     std::vector <Alembic::Util::int32_t> holeIndices(numHoles);
@@ -509,6 +581,7 @@ void MayaMeshWriter::writeSubD(MDagPath & iDag,
     {
         samp.setHoles(holeIndices);
     }
+#endif
 
     mSubDSchema.set(samp);
 
@@ -517,8 +590,8 @@ void MayaMeshWriter::writeSubD(MDagPath & iDag,
 // the arrays being passed in are assumed to be empty
 void MayaMeshWriter::fillTopology(
     std::vector<float> & oPoints,
-    std::vector<int32_t> & oFacePoints,
-    std::vector<int32_t> & oPointCounts)
+    std::vector<Alembic::Util::int32_t> & oFacePoints,
+    std::vector<Alembic::Util::int32_t> & oPointCounts)
 {
     MStatus status = MS::kSuccess;
     MFnMesh lMesh( mDagPath, &status );
