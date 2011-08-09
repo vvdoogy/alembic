@@ -1,7 +1,8 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2010, Industrial Light & Magic,
-##   a division of Lucasfilm Entertainment Company Ltd.
+## Copyright (c) 2009-2011,
+##  Sony Pictures Imageworks Inc. and
+##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
 ## All rights reserved.
 ##
@@ -53,6 +54,12 @@ IF(NOT DEFINED HDF5_ROOT)
     ENDIF()
 ENDIF()
 
+#IF( NOT DEFINED HDF5_USE_STATIC_LIBRARIES )
+#  SET( HDF5_USE_STATIC_LIBRARIES TRUE )
+#ENDIF()
+
+
+
 # Prefer HDF5_ROOT set from the environment over the CMakeCache'd variable
 IF(NOT $ENV{HDF5_ROOT}x STREQUAL "x")
   SET( HDF5_ROOT $ENV{HDF5_ROOT})
@@ -68,8 +75,11 @@ ELSE()
   MESSAGE( STATUS "NOT SETTING HDF5_INCLUDE_DIR FROM ENVIRONMENT" )
 ENDIF()
 
-
-FIND_PACKAGE( HDF5 )
+IF( CMAKE_MINOR_VERSION GREATER 7 AND CMAKE_PATCH_VERSION GREATER 4 OR CMAKE_MAJOR_VERSION GREATER 2 )
+  FIND_PACKAGE( HDF5 COMPONENTS C HL REQUIRED )
+ELSE()
+  FIND_PACKAGE( HDF5 )
+ENDIF()
 
 IF( HDF5_FOUND )
   IF ( NOT DEFINED ${ALEMBIC_HDF5_INCLUDE_PATH} )

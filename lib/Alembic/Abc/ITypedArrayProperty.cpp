@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -38,12 +38,13 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 // This is here as a minimal compile test against which the TypedScalar stuff
 // has to compile. It's to avoid not knowing that stuff in the templates
 // is very broken until much later.
-static void __test( IObject &iObject )
+void __test( IObject &iObject )
 {
     IBoolArrayProperty boolProp( ICompoundProperty( iObject, kTop ),
                                  "boolProp" );
@@ -59,6 +60,7 @@ static void __test( IObject &iObject )
     boolProp.get( bPtr );
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace Abc
 } // End namespace Alembic
 

@@ -1,6 +1,6 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2010,
+## Copyright (c) 2009-2011,
 ##  Sony Pictures Imageworks, Inc. and
 ##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
@@ -72,7 +72,6 @@ SET( THIS_LIBS
      AlembicAbc
      AlembicAbcCoreHDF5
      AlembicAbcCoreAbstract
-     AlembicGLUtil
      AlembicUtil
      ${ALEMBIC_HDF5_LIBS}
      ${ALEMBIC_GL_LIBS}

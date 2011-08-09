@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -157,10 +157,13 @@ void Example1_MeshIn()
     IArchive archive( Alembic::AbcCoreHDF5::ReadArchive(), "polyMesh1.abc" );
     std::cout << "Reading: " << archive.getName() << std::endl;
 
+    IGeomBaseObject geomBase( IObject( archive, kTop ), "meshy" );
+    TESTING_ASSERT( geomBase.getSchema().getSelfBoundsProperty().valid() );
+
     IPolyMesh meshyObj( IObject( archive, kTop ), "meshy" );
     IPolyMeshSchema &mesh = meshyObj.getSchema();
-    IN3fGeomParam N = mesh.getNormals();
-    IV2fGeomParam uv = mesh.getUVs();
+    IN3fGeomParam N = mesh.getNormalsParam();
+    IV2fGeomParam uv = mesh.getUVsParam();
 
     TESTING_ASSERT( ! N.isIndexed() );
 
@@ -168,10 +171,16 @@ void Example1_MeshIn()
 
     IPolyMeshSchema::Sample mesh_samp;
     mesh.get( mesh_samp );
+    IGeomBase::Sample baseSamp;
+    geomBase.getSchema().get( baseSamp );
 
     TESTING_ASSERT( mesh_samp.getSelfBounds().min == V3d( -1.0, -1.0, -1.0 ) );
 
     TESTING_ASSERT( mesh_samp.getSelfBounds().max == V3d( 1.0, 1.0, 1.0 ) );
+
+    TESTING_ASSERT( baseSamp.getSelfBounds().min == V3d( -1.0, -1.0, -1.0 ) );
+
+    TESTING_ASSERT( baseSamp.getSelfBounds().max == V3d( 1.0, 1.0, 1.0 ) );
 
     ICompoundProperty arbattrs = mesh.getArbGeomParams();
 
@@ -184,6 +193,8 @@ void Example1_MeshIn()
 
     TESTING_ASSERT( N.isConstant() );
     TESTING_ASSERT( uv.isConstant() );
+
+    TESTING_ASSERT( IsGeomParam( N.getMetaData() ) );
 
     N3f n0 = (*nsp)[0];
 

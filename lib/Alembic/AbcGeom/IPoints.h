@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -39,12 +39,15 @@
 
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
+#include <Alembic/AbcGeom/IGeomParam.h>
+#include <Alembic/AbcGeom/IGeomBase.h>
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
-class IPointsSchema : public Abc::ISchema<PointsSchemaInfo>
+class IPointsSchema : public IGeomBaseSchema<PointsSchemaInfo>
 {
 public:
     class Sample
@@ -55,7 +58,7 @@ public:
         // Users don't ever create this data directly.
         Sample() { reset(); }
 
-        Abc::V3fArraySamplePtr getPositions() const { return m_positions; }
+        Abc::P3fArraySamplePtr getPositions() const { return m_positions; }
         Abc::UInt64ArraySamplePtr getIds() const { return m_ids; }
         Abc::V3fArraySamplePtr getVelocities() const { return m_velocities; }
 
@@ -81,7 +84,7 @@ public:
 
     protected:
         friend class IPointsSchema;
-        Abc::V3fArraySamplePtr m_positions;
+        Abc::P3fArraySamplePtr m_positions;
         Abc::UInt64ArraySamplePtr m_ids;
         Abc::V3fArraySamplePtr m_velocities;
 
@@ -90,7 +93,7 @@ public:
     };
 
     //-*************************************************************************
-    // POLY MESH SCHEMA
+    // POINTS SCHEMA
     //-*************************************************************************
 public:
     //! By convention we always define this_type in AbcGeom classes.
@@ -118,7 +121,7 @@ public:
 
                    const Abc::Argument &iArg0 = Abc::Argument(),
                    const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<PointsSchemaInfo>( iParent, iName,
+      : IGeomBaseSchema<PointsSchemaInfo>( iParent, iName,
                                           iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
@@ -130,7 +133,7 @@ public:
     explicit IPointsSchema( CPROP_PTR iParent,
                             const Abc::Argument &iArg0 = Abc::Argument(),
                             const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<PointsSchemaInfo>( iParent,
+      : IGeomBaseSchema<PointsSchemaInfo>( iParent,
                                      iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
@@ -138,6 +141,7 @@ public:
 
     //! Copy constructor.
     IPointsSchema(const IPointsSchema& iCopy)
+        : IGeomBaseSchema<PointsSchemaInfo>()
     {
         *this = iCopy;
     }
@@ -153,20 +157,20 @@ public:
     //! This returns the number of samples that were written, independently
     //! of whether or not they were constant.
     size_t getNumSamples()
-    { return std::max( m_positions.getNumSamples(),
-                       m_ids.getNumSamples() ); }
+    { return std::max( m_positionsProperty.getNumSamples(),
+                       m_idsProperty.getNumSamples() ); }
 
     //! Ask if we're constant - no change in value amongst samples,
     //! regardless of the time sampling.
-    bool isConstant() { return m_positions.isConstant() && m_ids.isConstant(); }
+    bool isConstant() { return m_positionsProperty.isConstant() && m_idsProperty.isConstant(); }
 
     //! Time sampling Information.
     //!
     AbcA::TimeSamplingPtr getTimeSampling()
     {
-        if ( m_positions.valid() )
+        if ( m_positionsProperty.valid() )
         {
-            return m_positions.getTimeSampling();
+            return m_positionsProperty.getTimeSampling();
         }
         return getObject().getArchive().getTimeSampling(0);
     }
@@ -177,16 +181,16 @@ public:
     {
         ALEMBIC_ABC_SAFE_CALL_BEGIN( "IPointsSchema::get()" );
 
-        m_positions.get( oSample.m_positions, iSS );
-        m_ids.get( oSample.m_ids, iSS );
+        m_positionsProperty.get( oSample.m_positions, iSS );
+        m_idsProperty.get( oSample.m_ids, iSS );
 
-        m_selfBounds.get( oSample.m_selfBounds, iSS );
+        m_selfBoundsProperty.get( oSample.m_selfBounds, iSS );
 
-        if ( m_childBounds && m_childBounds.getNumSamples() > 0 )
-        { m_childBounds.get( oSample.m_childBounds, iSS ); }
+        if ( m_childBoundsProperty && m_childBoundsProperty.getNumSamples() > 0 )
+        { m_childBoundsProperty.get( oSample.m_childBounds, iSS ); }
 
-        if ( m_velocities && m_velocities.getNumSamples() > 0 )
-        { m_velocities.get( oSample.m_velocities, iSS ); }
+        if ( m_velocitiesProperty && m_velocitiesProperty.getNumSamples() > 0 )
+        { m_velocitiesProperty.get( oSample.m_velocities, iSS ); }
 
         // Could error check here.
 
@@ -200,31 +204,24 @@ public:
         return smp;
     }
 
-    Abc::ICompoundProperty getArbGeomParams() { return m_arbGeomParams; }
-
-    Abc::IV3fArrayProperty getPositions()
+    Abc::IP3fArrayProperty getPositionsProperty()
     {
-        return m_positions;
+        return m_positionsProperty;
     }
 
-    Abc::IV3fArrayProperty getVelocities()
+    Abc::IV3fArrayProperty getVelocitiesProperty()
     {
-        return m_velocities;
+        return m_velocitiesProperty;
     }
 
-    Abc::IUInt64ArrayProperty getIds()
+    Abc::IUInt64ArrayProperty getIdsProperty()
     {
-        return m_ids;
+        return m_idsProperty;
     }
 
-    Abc::IBox3dProperty getSelfBounds()
+    IFloatGeomParam getWidthsParam()
     {
-        return m_selfBounds;
-    }
-
-    Abc::IBox3dProperty getChildBounds()
-    {
-        return m_childBounds;
+        return m_widthsParam;
     }
 
     //-*************************************************************************
@@ -237,25 +234,21 @@ public:
     //! state.
     void reset()
     {
-        m_positions.reset();
-        m_velocities.reset();
-        m_ids.reset();
+        m_positionsProperty.reset();
+        m_velocitiesProperty.reset();
+        m_idsProperty.reset();
+        m_widthsParam.reset();
 
-        m_selfBounds.reset();
-        m_childBounds.reset();
-
-        m_arbGeomParams.reset();
-
-        Abc::ISchema<PointsSchemaInfo>::reset();
+        IGeomBaseSchema<PointsSchemaInfo>::reset();
     }
 
     //! Valid returns whether this function set is
     //! valid.
     bool valid() const
     {
-        return ( Abc::ISchema<PointsSchemaInfo>::valid() &&
-                 m_positions.valid() &&
-                 m_ids.valid() );
+        return ( IGeomBaseSchema<PointsSchemaInfo>::valid() &&
+                 m_positionsProperty.valid() &&
+                 m_idsProperty.valid() );
     }
 
     //! unspecified-bool-type operator overload.
@@ -266,18 +259,18 @@ protected:
     void init( const Abc::Argument &iArg0,
                const Abc::Argument &iArg1 );
 
-    Abc::IV3fArrayProperty m_positions;
-    Abc::IUInt64ArrayProperty m_ids;
-    Abc::IV3fArrayProperty m_velocities;
-
-    Abc::IBox3dProperty m_selfBounds;
-    Abc::IBox3dProperty m_childBounds;
-
-    Abc::ICompoundProperty m_arbGeomParams;
+    Abc::IP3fArrayProperty m_positionsProperty;
+    Abc::IUInt64ArrayProperty m_idsProperty;
+    Abc::IV3fArrayProperty m_velocitiesProperty;
+    IFloatGeomParam m_widthsParam;
 };
 
 //-*****************************************************************************
 typedef Abc::ISchemaObject<IPointsSchema> IPoints;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

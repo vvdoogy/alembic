@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 template <class TRAITS>
@@ -209,7 +210,7 @@ ITypedArrayProperty<TRAITS>::ITypedArrayProperty(
                     GetErrorHandlerPolicy( iProperty, iArg0, iArg1 ) )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN(
-        "ITypedArrayOTypedArrayProperty::OTypedArrayProperty()" );
+        "ITypedArrayProperty::ITypedArrayProperty()" );
 
     const AbcA::PropertyHeader &pheader = iProperty->getHeader();
 
@@ -298,6 +299,10 @@ typedef ITypedArrayProperty<N2dTPTraits>             IN2dArrayProperty;
 typedef ITypedArrayProperty<N3fTPTraits>             IN3fArrayProperty;
 typedef ITypedArrayProperty<N3dTPTraits>             IN3dArrayProperty;
 
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace Abc
 } // End namespace Alembic

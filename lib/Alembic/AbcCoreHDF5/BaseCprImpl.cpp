@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -207,7 +207,8 @@ size_t BaseCprImpl::getNumProperties()
 //-*****************************************************************************
 const AbcA::PropertyHeader &BaseCprImpl::getPropertyHeader( size_t i )
 {
-    if ( i < 0 || i > m_propertyHeaders.size() )
+    // fixed length and resize called in ctor, so multithread safe.
+    if ( i > m_propertyHeaders.size() )
     {
         ABCA_THROW( "Out of range index in "
                     << "CprImpl::getPropertyHeader: " << i );

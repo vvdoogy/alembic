@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 class IArchive;
 class ICompoundProperty;
@@ -74,7 +75,6 @@ public:
     template <class OBJECT_PTR>
     IObject( OBJECT_PTR iParentObject,
              const std::string &iName,
-
              ErrorHandler::Policy iPcy = ErrorHandler::kThrowPolicy
            );
 
@@ -83,7 +83,6 @@ public:
     template <class OBJECT_PTR>
     IObject( OBJECT_PTR iPtr,
              WrapExistingFlag iFlag,
-
              ErrorHandler::Policy iPcy = ErrorHandler::kThrowPolicy )
       : m_object( GetObjectReaderPtr( iPtr ) )
     {
@@ -97,7 +96,6 @@ public:
     template <class ARCHIVE_PTR>
     IObject( ARCHIVE_PTR iPtr,
              TopFlag iFlag,
-
              ErrorHandler::Policy iPcy = ErrorHandler::kThrowPolicy )
     {
         // Set the error handling policy
@@ -257,6 +255,10 @@ inline IObject::IObject( OBJECT_PTR iParentObject,
           GetErrorHandlerPolicy( iParentObject ),
           iPcy );
 }
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace Abc
 } // End namespace Alembic

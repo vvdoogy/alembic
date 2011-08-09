@@ -1,7 +1,8 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2011, Industrial Light & Magic,
-##   a division of Lucasfilm Entertainment Company Ltd.
+## Copyright (c) 2009-2011,
+##  Sony Pictures Imageworks Inc. and
+##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
 ## All rights reserved.
 ##
@@ -35,6 +36,8 @@
 # C++ files for this project
 SET( CXX_FILES
 
+  ArchiveBounds.cpp
+
   GeometryScope.cpp
 
   FilmBackXformOp.cpp
@@ -64,6 +67,8 @@ SET( CXX_FILES
   OSubD.cpp
   ISubD.cpp
 
+  Visibility.cpp
+
   XformOp.cpp
   XformSample.cpp
   IXform.cpp
@@ -75,6 +80,11 @@ SET( H_FILES
   All.h
 
   Foundation.h
+
+  ArchiveBounds.h
+
+  IGeomBase.h
+  OGeomBase.h
 
   GeometryScope.h
 
@@ -108,6 +118,8 @@ SET( H_FILES
 
   OSubD.h
   ISubD.h
+
+  Visibility.h
 
   XformOp.h
   XformSample.h

@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -39,12 +39,15 @@
 
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
+#include <Alembic/AbcGeom/OGeomParam.h>
+#include <Alembic/AbcGeom/OGeomBase.h>
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
-class OPointsSchema : public Abc::OSchema<PointsSchemaInfo>
+class OPointsSchema : public OGeomBaseSchema<PointsSchemaInfo>
 {
 public:
     //-*************************************************************************
@@ -57,36 +60,50 @@ public:
         //! ...
         Sample() { reset(); }
 
-        //! Creates a sample with position data but no index
+        //! Creates a sample with position data but no id
         //! data. For specifying samples after the first one
-        Sample( const Abc::V3fArraySample &iPos,
-                const Abc::V3fArraySample &iVelocities = Abc::V3fArraySample() )
+        Sample( const Abc::P3fArraySample &iPos,
+                const Abc::V3fArraySample &iVelocities = Abc::V3fArraySample(),
+                const OFloatGeomParam::Sample &iWidths = \
+                OFloatGeomParam::Sample() )
           : m_positions( iPos )
           , m_velocities( iVelocities )
+          , m_widths( iWidths )
         {}
 
         //! Creates a sample with position data and id data. The first
         //! sample must be full like this. Subsequent samples may also
         //! be full like this, which would indicate a change of topology
-        Sample( const Abc::V3fArraySample &iPos,
+        Sample( const Abc::P3fArraySample &iPos,
                 const Abc::UInt64ArraySample &iId,
-                const Abc::V3fArraySample &iVelocities = Abc::V3fArraySample() )
+                const Abc::V3fArraySample &iVelocities = Abc::V3fArraySample(),
+                const OFloatGeomParam::Sample &iWidths = \
+                OFloatGeomParam::Sample() )
           : m_positions( iPos )
           , m_velocities( iVelocities )
           , m_ids( iId )
+          , m_widths( iWidths )
         {}
 
-        const Abc::V3fArraySample &getPositions() const { return m_positions; }
-        void setPositions( const Abc::V3fArraySample &iSmp )
+        // positions accessor
+        const Abc::P3fArraySample &getPositions() const { return m_positions; }
+        void setPositions( const Abc::P3fArraySample &iSmp )
         { m_positions = iSmp; }
 
+        // ids accessor
         const Abc::UInt64ArraySample &getIds() const { return m_ids; }
         void setIds( const Abc::UInt64ArraySample &iSmp )
         { m_ids = iSmp; }
 
+        // velocities accessor
         const Abc::V3fArraySample &getVelocities() const { return m_velocities; }
         void setVelocities( const Abc::V3fArraySample &iVelocities )
         { m_velocities = iVelocities; }
+
+        // widths accessor
+        const OFloatGeomParam::Sample &getWidths() const { return m_widths; }
+        void setWidths( const OFloatGeomParam::Sample &iWidths )
+        { m_widths = iWidths; }
 
         const Abc::Box3d &getSelfBounds() const { return m_selfBounds; }
         void setSelfBounds( const Abc::Box3d &iBnds )
@@ -102,15 +119,17 @@ public:
             m_positions.reset();
             m_velocities.reset();
             m_ids.reset();
+            m_widths.reset();
 
             m_selfBounds.makeEmpty();
             m_childBounds.makeEmpty();
         }
 
     protected:
-        Abc::V3fArraySample m_positions;
+        Abc::P3fArraySample m_positions;
         Abc::V3fArraySample m_velocities;
         Abc::UInt64ArraySample m_ids;
+        OFloatGeomParam::Sample m_widths;
 
         Abc::Box3d m_selfBounds;
         Abc::Box3d m_childBounds;
@@ -146,7 +165,7 @@ public:
                    const Abc::Argument &iArg0 = Abc::Argument(),
                    const Abc::Argument &iArg1 = Abc::Argument(),
                    const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<PointsSchemaInfo>( iParent, iName,
+      : OGeomBaseSchema<PointsSchemaInfo>( iParent, iName,
                                           iArg0, iArg1, iArg2 )
     {
         AbcA::TimeSamplingPtr tsPtr =
@@ -173,7 +192,7 @@ public:
                             const Abc::Argument &iArg0 = Abc::Argument(),
                             const Abc::Argument &iArg1 = Abc::Argument(),
                             const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<PointsSchemaInfo>( iParent,
+      : OGeomBaseSchema<PointsSchemaInfo>( iParent,
                                      iArg0, iArg1, iArg2 )
     {
         AbcA::TimeSamplingPtr tsPtr =
@@ -197,6 +216,7 @@ public:
 
     //! Copy constructor.
     OPointsSchema(const OPointsSchema& iCopy)
+        : OGeomBaseSchema<PointsSchemaInfo>()
     {
         *this = iCopy;
     }
@@ -209,7 +229,7 @@ public:
 
     //! Return the time sampling
     AbcA::TimeSamplingPtr getTimeSampling() const
-    { return m_positions.getTimeSampling(); }
+    { return m_positionsProperty.getTimeSampling(); }
 
     //-*************************************************************************
     // SAMPLE STUFF
@@ -218,22 +238,17 @@ public:
     //! Get number of samples written so far.
     //! ...
     size_t getNumSamples()
-    { return m_positions.getNumSamples(); }
+    { return m_positionsProperty.getNumSamples(); }
 
-    //! Set a sample! Sample zero has to have non-degenerate
-    //! positions, ids and counts.
+    //! Set a sample
     void set( const Sample &iSamp );
 
     //! Set from previous sample. Will apply to each of positions,
-    //! ids, and counts.
+    //! ids, velocities, and widths
     void setFromPrevious( );
 
     void setTimeSampling( uint32_t iIndex );
     void setTimeSampling( AbcA::TimeSamplingPtr iTime );
-
-    //! A container for arbitrary geom params (pseudo-properties settable and
-    //! gettable as indexed or not).
-    Abc::OCompoundProperty getArbGeomParams();
 
     //-*************************************************************************
     // ABC BASE MECHANISMS
@@ -245,25 +260,21 @@ public:
     //! state.
     void reset()
     {
-        m_positions.reset();
-        m_ids.reset();
-        m_velocities.reset();
+        m_positionsProperty.reset();
+        m_idsProperty.reset();
+        m_velocitiesProperty.reset();
+        m_widthsParam.reset();
 
-        m_selfBounds.reset();
-        m_childBounds.reset();
-
-        m_arbGeomParams.reset();
-
-        Abc::OSchema<PointsSchemaInfo>::reset();
+        OGeomBaseSchema<PointsSchemaInfo>::reset();
     }
 
     //! Valid returns whether this function set is
     //! valid.
     bool valid() const
     {
-        return ( Abc::OSchema<PointsSchemaInfo>::valid() &&
-                 m_positions.valid() &&
-                 m_ids.valid() );
+        return ( OGeomBaseSchema<PointsSchemaInfo>::valid() &&
+                 m_positionsProperty.valid() &&
+                 m_idsProperty.valid() );
     }
 
     //! unspecified-bool-type operator overload.
@@ -273,20 +284,21 @@ public:
 protected:
     void init( uint32_t iTsIdx );
 
-    Abc::OV3fArrayProperty m_positions;
-    Abc::OUInt64ArrayProperty m_ids;
-    Abc::OV3fArrayProperty m_velocities;
+    Abc::OP3fArrayProperty m_positionsProperty;
+    Abc::OUInt64ArrayProperty m_idsProperty;
+    Abc::OV3fArrayProperty m_velocitiesProperty;
+    OFloatGeomParam m_widthsParam;
 
-    Abc::OBox3dProperty m_selfBounds;
-    Abc::OBox3dProperty m_childBounds;
-
-    Abc::OCompoundProperty m_arbGeomParams;
 };
 
 //-*****************************************************************************
 // SCHEMA OBJECT
 //-*****************************************************************************
 typedef Abc::OSchemaObject<OPointsSchema> OPoints;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

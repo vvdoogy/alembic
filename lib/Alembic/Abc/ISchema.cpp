@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -38,13 +38,14 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 // This is a small test suite to validate the templated ISchema stuff
 namespace {
 
 // Declare a test schema.
-ALEMBIC_ABC_DECLARE_SCHEMA_INFO( "TestSchema_v1", ".test",
+ALEMBIC_ABC_DECLARE_SCHEMA_INFO( "TestSchema_v1", "", ".test",
                                  TestSchemaInfo );
 
 typedef ISchema<TestSchemaInfo> ITestSchema;
@@ -63,5 +64,6 @@ void __test( IObject &iParent )
 
 } // End anonymous namespace
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace Abc
 } // End namespace Alembic

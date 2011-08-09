@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -52,7 +52,6 @@ static boost::shared_ptr<Abc::IArchive> mkIArchive( const std::string &iName )
     return boost::shared_ptr<Abc::IArchive>(
         new Abc::IArchive( ::Alembic::AbcCoreHDF5::ReadArchive(), iName ) );
 }
-
 
 //-*****************************************************************************
 void register_iarchive()

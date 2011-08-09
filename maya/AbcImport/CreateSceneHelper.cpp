@@ -52,6 +52,8 @@
 #include <maya/MFnSet.h>
 #include <maya/MFnTypedAttribute.h>
 
+#include <Alembic/AbcGeom/Visibility.h>
+
 #include <map>
 #include <set>
 #include <string>
@@ -95,7 +97,7 @@ namespace
 
                 MFnIntArrayData fnData;
                 MIntArray arr((int *) samp.getFaces()->getData(),
-                    samp.getFaces()->size());
+                    static_cast<unsigned int>(samp.getFaces()->size()));
                 MObject attrObj = fnData.create(arr);
                 MFnTypedAttribute typedAttr;
                 MObject faceObj = typedAttr.create(faceName, faceName,
@@ -104,7 +106,8 @@ namespace
                 mesh.addAttribute(faceObj,
                     MFnDependencyNode::kLocalDynamicAttr);
 
-                if (!samp.isVisible())
+                if (Alembic::AbcGeom::GetVisibility(faceSet) ==
+                    Alembic::AbcGeom::kVisibilityHidden)
                 {
                     MString visName = "FACESETVIS_";
                     visName += faceSet.getName().c_str();
@@ -132,26 +135,24 @@ namespace
     }
 
     Alembic::Abc::IScalarProperty getVisible(Alembic::Abc::IObject & iNode,
-        std::vector<Prop> & oPropList)
+        bool isObjConstant,
+        std::vector<Prop> & oPropList,
+        std::vector<Alembic::AbcGeom::IObject> & oAnimVisStaticObj)
     {
-        Alembic::Abc::ICompoundProperty props = iNode.getProperties();
-        const Alembic::AbcCoreAbstract::PropertyHeader * visHead =
-            props.getPropertyHeader("visible");
+        Alembic::AbcGeom::IVisibilityProperty visProp =
+            Alembic::AbcGeom::GetVisibilityProperty(iNode);
 
-        if (visHead != NULL && visHead->isScalar() &&
-            visHead->getDataType().getPod() == Alembic::Util::kInt8POD &&
-            visHead->getDataType().getExtent() == 1)
+        if (visProp && !visProp.isConstant())
         {
-            Alembic::Abc::IScalarProperty visProp(props, "visible");
-            if (!visProp.isConstant())
+            Prop prop;
+            prop.mScalar = visProp;
+            oPropList.push_back(prop);
+            if (isObjConstant)
             {
-                Prop prop;
-                prop.mScalar = visProp;
-                oPropList.push_back(prop);
+                oAnimVisStaticObj.push_back(iNode);
             }
-            return visProp;
         }
-        return Alembic::Abc::IScalarProperty();
+        return visProp;
     }
 
     void setConstantVisibility(Alembic::Abc::IScalarProperty iVisProp,
@@ -178,8 +179,10 @@ CreateSceneVisitor::CreateSceneVisitor(double iFrame,
         MString iRootNodes) :
     mFrame(iFrame), mParent(iParent), mAction(iAction)
 {
+    mAnyRoots = false;
+
     // parse the input string to extract the nodes that need (re)connection
-    if ( iRootNodes != MString("/") )
+    if (iRootNodes != MString() && iRootNodes != MString("/"))
     {
         MStringArray theArray;
         if (iRootNodes.split(' ', theArray) == MS::kSuccess)
@@ -196,8 +199,13 @@ CreateSceneVisitor::CreateSceneVisitor(double iFrame,
                 }
 
                 mRootNodes.insert(name.asChar());
+                mAnyRoots = true;
             }
         }
+    }
+    else if (iRootNodes == MString("/"))
+    {
+        mAnyRoots = true;
     }
 }
 
@@ -212,10 +220,6 @@ void CreateSceneVisitor::getData(WriterData & oData)
 
 bool CreateSceneVisitor::hasSampledData()
 {
-    unsigned int cameraSize = mData.mCameraList.size();
-
-    // unsigned int particleSize = mData.mParticleList.size();
-    unsigned int nSurfaceSize  = mData.mNurbsList.size();
 
     // Currently there's no support for bringing in particle system simulation
     return (mData.mPropList.size() > 0
@@ -265,7 +269,7 @@ void CreateSceneVisitor::addToPropList(std::size_t iFirst, MObject & iObject)
 
 // remembers what sets a mesh was part of, gets those sets as a selection
 // and then clears the sets for reassignment later  this is only used when
-// hooking up an HDF node to a previous hierarchy (swapping)
+// hooking up an Alembic node to a previous hierarchy (swapping)
 void CreateSceneVisitor::checkShaderSelection(MFnMesh & iMesh,
     unsigned int iInst)
 {
@@ -362,87 +366,70 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
 
     // doing connections
     std::set<std::string> connectUpdateNodes;
-    if (mAction == CREATE || mAction == CREATE_REMOVE)
+    std::set<std::string> connectCurNodesInFile;
+
+    std::set<std::string>::iterator fileEnd =
+        connectCurNodesInFile.end();
+    for (size_t i = 0; i < numChildren; i++)
     {
-        std::set<std::string> connectCurNodesInFile;
+        Alembic::Abc::IObject obj = top.getChild(i);
+        std::string name = obj.getName();
+        connectCurNodesInFile.insert(name);
 
-        bool connectWorld = (mRootNodes.size() == 0);
-        std::set<std::string>::iterator fileEnd =
-            connectCurNodesInFile.end();
-        for (size_t i = 0; i < numChildren; i++)
+        // see if this name is part of the input to AlembicNode
+        if (!mAnyRoots || ( mAnyRoots && (mRootNodes.empty() ||
+          (mRootNodes.find(name) != mRootNodes.end())) ))
         {
-            Alembic::Abc::IObject obj = top.getChild(i);
-            std::string name = obj.getName();
-            connectCurNodesInFile.insert(name);
-
-            // see if this name is part of the input to AlembicNode
-            if (connectWorld || (!connectWorld &&
-              mRootNodes.find(name) != mRootNodes.end()))
-            {
-                // Find out if this node exists in the current scene
-                MDagPath dagPath;
-
-                if (getDagPathByName(MString(name.c_str()), dagPath) ==
-                    MS::kSuccess)
-                {
-                    connectUpdateNodes.insert(name);
-                    mCurrentDagNode = dagPath;
-                    name = dagPath.partialPathName().asChar();
-                    this->visit(obj);
-                    mParent = saveParent;
-                }
-                else
-                {
-                    connectUpdateNodes.insert(name);
-                    this->visit(obj);
-                    mParent = saveParent;
-
-                }
-            }
-        }  // for-loop
-
-        if ( connectWorld )
-        {
-            mRootNodes = connectCurNodesInFile;
-        }
-        else if (mRootNodes.size() > connectUpdateNodes.size())
-        {
-            std::set<std::string>::iterator iter =
-                mRootNodes.begin();
-            const std::set<std::string>::iterator fileEndIter =
-                connectCurNodesInFile.end();
+            // Find out if this node exists in the current scene
             MDagPath dagPath;
-            for ( ; iter != mRootNodes.end(); iter++)
+
+            if (mAnyRoots &&
+                getDagPathByName(MString(name.c_str()), dagPath) ==
+                MS::kSuccess)
             {
-                std::string name = *iter;
-                bool existInFile =
-                    (connectCurNodesInFile.find(name) != fileEndIter);
-                bool existInScene =
-                    (getDagPathByName(MString(name.c_str()), dagPath)
-                        == MS::kSuccess);
-                if ( existInScene && !existInFile )
-                    removeDagNode(dagPath);
-                else if (!existInScene && !existInFile)
-                {
-                    MString theWarning(name.c_str());
-                    theWarning +=
-                        " exists neither in file nor in the scene";
-                    printWarning(theWarning);
-                }
+                connectUpdateNodes.insert(name);
+                mConnectDagNode = dagPath;
+                mConnectDagNode.pop();
+                this->visit(obj);
+                mParent = saveParent;
+            }
+            else
+            {
+                mConnectDagNode = MDagPath();
+                connectUpdateNodes.insert(name);
+                this->visit(obj);
+                mParent = saveParent;
+
             }
         }
-    }
-    else  // mAction == CONNECT
+    }  // for-loop
+
+    if (mRootNodes.size() > connectUpdateNodes.size() &&
+        (mAction == REMOVE || mAction == CREATE_REMOVE))
     {
-        for (size_t i = 0; i < numChildren; i++)
+        std::set<std::string>::iterator iter =
+            mRootNodes.begin();
+        const std::set<std::string>::iterator fileEndIter =
+            connectCurNodesInFile.end();
+        MDagPath dagPath;
+        for ( ; iter != mRootNodes.end(); iter++)
         {
-            Alembic::Abc::IObject child = top.getChild(i);
-            std::string name = child.getName();
-            if ( connectUpdateNodes.find( name )
-                != connectUpdateNodes.end() )
+            std::string name = *iter;
+            bool existInFile =
+                (connectCurNodesInFile.find(name) != fileEndIter);
+            bool existInScene =
+                (getDagPathByName(MString(name.c_str()), dagPath)
+                    == MS::kSuccess);
+            if (existInScene && !existInFile)
             {
-                getDagPathByName(name.c_str(), mCurrentDagNode);
-                this->visit(child);
+                removeDagNode(dagPath);
+            }
+            else if (!existInScene && !existInFile)
+            {
+                MString theWarning(name.c_str());
+                theWarning +=
+                    " exists neither in file nor in the scene";
+                printWarning(theWarning);
             }
         }
     }
@@ -455,52 +442,66 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICamera & iNode)
     MStatus status = MS::kSuccess;
     MObject cameraObj = MObject::kNullObj;
 
-    size_t numSamples = iNode.getSchema().getNumSamples();
+    bool isConstant = iNode.getSchema().isConstant();
 
     // add animated camera to the list
-    if (numSamples > 1)
+    if (!isConstant)
+    {
         mData.mCameraList.push_back(iNode);
+    }
 
     Alembic::Abc::ICompoundProperty arbProp =
         iNode.getSchema().getArbGeomParams();
 
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList);
-    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, mData.mPropList);
+    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
+        mData.mPropList, mData.mAnimVisStaticObjList);
+
+    bool hasDag = false;
+    if (mAction != NONE && mConnectDagNode.isValid())
+    {
+        hasDag = getDagPathByChildName(mConnectDagNode, iNode.getName());
+        if (hasDag)
+        {
+            cameraObj = mConnectDagNode.node();
+            if (!isConstant)
+            {
+                mData.mCameraObjList.push_back(cameraObj);
+            }
+        }
+    }
 
     if (mAction == CREATE || mAction == CREATE_REMOVE)
     {
         cameraObj = create(iNode, mParent);
-        MFnDagNode(cameraObj).getPath(mCurrentDagNode);
-        if (numSamples > 1)
+        if (!isConstant)
         {
             mData.mCameraObjList.push_back(cameraObj);
         }
+    }
 
+    if (cameraObj != MObject::kNullObj)
+    {
         setConstantVisibility(visProp, cameraObj);
         addProps(arbProp, cameraObj);
-
     }
 
     if ( mAction >= CONNECT )
     {
-        if (cameraObj == MObject::kNullObj)
-        {
-            cameraObj = mCurrentDagNode.node();
-            MFnCamera fn(cameraObj, &status);
+        MFnCamera fn(cameraObj, &status);
 
-            // check that the data types are compatible, they might not be
-            // if we have a weird hierarchy, where the node in the scene
-            // differs from the node on disk
-            if ( status != MS::kSuccess )
-            {
-                MString theError("No connection done for node '");
-                theError += MString(iNode.getName().c_str());
-                theError += MString("' with ");
-                theError += mCurrentDagNode.fullPathName();
-                printError(theError);
-                return status;
-            }
+        // check that the data types are compatible, they might not be
+        // if we have a weird hierarchy, where the node in the scene
+        // differs from the node on disk
+        if ( status != MS::kSuccess )
+        {
+            MString theError("No connection done for node '");
+            theError += MString(iNode.getName().c_str());
+            theError += MString("' with ");
+            theError += mConnectDagNode.fullPathName();
+            printError(theError);
+            return status;
         }
 
         addToPropList(firstProp, cameraObj);
@@ -514,7 +515,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICurves & iNode)
     MStatus status = MS::kSuccess;
     MObject curvesObj = MObject::kNullObj;
 
-    size_t numSamples = iNode.getSchema().getNumSamples();
+    bool isConstant = iNode.getSchema().isConstant();
 
     // read sample 0 to determine and use it to set the number of total
     // curves.  We can't support changing the number of curves over time.
@@ -523,9 +524,9 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICurves & iNode)
     Alembic::Abc::ICompoundProperty arbProp =
         iNode.getSchema().getArbGeomParams();
     Alembic::AbcGeom::IFloatGeomParam::Sample widthSamp;
-    if (iNode.getSchema().getWidths())
+    if (iNode.getSchema().getWidthsParam())
     {
-        iNode.getSchema().getWidths().getExpanded(widthSamp);
+        iNode.getSchema().getWidthsParam().getExpanded(widthSamp);
     }
     std::size_t numCurves = samp.getNumCurves();
 
@@ -537,7 +538,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICurves & iNode)
         return MS::kFailure;
     }
     // add animated curves to the list
-    else if (numSamples > 1)
+    else if (!isConstant)
     {
         mData.mNumCurves.push_back(numCurves);
         mData.mCurvesList.push_back(iNode);
@@ -545,48 +546,72 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICurves & iNode)
 
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList);
-    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, mData.mPropList);
+    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
+        mData.mPropList, mData.mAnimVisStaticObjList);
 
-    if (mAction == CREATE || mAction == CREATE_REMOVE)
+    bool hasDag = false;
+    if (mAction != NONE && mConnectDagNode.isValid())
     {
-        curvesObj = createCurves(iNode.getName(), samp, widthSamp, mParent,
-            mData.mNurbsCurveObjList, numSamples > 1);
-        MFnDagNode(curvesObj).getPath(mCurrentDagNode);
+        hasDag = getDagPathByChildName(mConnectDagNode, iNode.getName());
+        if (hasDag)
+        {
+            curvesObj = mConnectDagNode.node();
+            if (!isConstant)
+            {
+                mData.mNurbsCurveObjList.push_back(curvesObj);
+            }
+        }
+    }
 
+    if (!hasDag && (mAction == CREATE || mAction == CREATE_REMOVE))
+    {
+
+        curvesObj = createCurves(iNode.getName(), samp, widthSamp, mParent,
+            mData.mNurbsCurveObjList, !isConstant);
+
+        if (!isConstant)
+        {
+            mData.mNurbsCurveObjList.push_back(curvesObj);
+        }
+    }
+
+    if (curvesObj != MObject::kNullObj)
+    {
         setConstantVisibility(visProp, curvesObj);
         addProps(arbProp, curvesObj);
-
     }
 
 
     if (mAction >= CONNECT)
     {
-        if (curvesObj == MObject::kNullObj)
+
+        MFnNurbsCurve fncurve(curvesObj, &status);
+
+        // not a single curve, try the transform for a group of curves
+        if (status != MS::kSuccess)
         {
-            curvesObj = mCurrentDagNode.node();
-            MFnNurbsCurve fncurve(curvesObj, &status);
+            MFnTransform fntrans(curvesObj, &status);
+        }
 
-            // not a single curve, try the transform for a group of curves
-            if (status != MS::kSuccess)
-            {
-                MFnTransform fntrans(curvesObj, &status);
-            }
-
-            // check that the data types are compatible, they might not be
-            // if we have a weird hierarchy, where the node in the scene
-            // differs from the node on disk
-            if (status != MS::kSuccess)
-            {
-                MString theError("No connection done for node '");
-                theError += MString(iNode.getName().c_str());
-                theError += MString("' with ");
-                theError += mCurrentDagNode.fullPathName();
-                printError(theError);
-                return status;
-            }
+        // check that the data types are compatible, they might not be
+        // if we have a weird hierarchy, where the node in the scene
+        // differs from the node on disk
+        if (status != MS::kSuccess)
+        {
+            MString theError("No connection done for node '");
+            theError += MString(iNode.getName().c_str());
+            theError += MString("' with ");
+            theError += mConnectDagNode.fullPathName();
+            printError(theError);
+            return status;
         }
 
         addToPropList(firstProp, curvesObj);
+    }
+
+    if (hasDag)
+    {
+        mConnectDagNode.pop();
     }
 
     return status;
@@ -597,30 +622,51 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPoints& iNode)
     MStatus status = MS::kSuccess;
     MObject particleObj = MObject::kNullObj;
 
-    if (iNode.getSchema().getNumSamples() > 1)
+    bool isConstant = iNode.getSchema().isConstant();
+    if (!isConstant)
         mData.mPointsList.push_back(iNode);
 
     // since we don't really support animated points, don't bother
     // with the animated properties on it
 
-    if (mAction == CREATE || mAction == CREATE_REMOVE)
+    bool hasDag = false;
+    if (mAction != NONE && mConnectDagNode.isValid())
     {
+        hasDag = getDagPathByChildName(mConnectDagNode, iNode.getName());
+        if (hasDag)
+        {
+            particleObj = mConnectDagNode.node();
+        }
+    }
+
+    if (!hasDag && (mAction == CREATE || mAction == CREATE_REMOVE))
+    {
+
         status = create(mFrame, iNode, mParent, particleObj);
-        if (iNode.getSchema().getNumSamples() > 1)
+        if (!isConstant)
         {
             mData.mPointsObjList.push_back(particleObj);
         }
+    }
 
-        Alembic::Abc::ICompoundProperty arbProp =
-            iNode.getSchema().getArbGeomParams();
+    // don't currently care about anything animated on a particleObj
+    std::vector<Prop> fakePropList;
+    std::vector<Alembic::AbcGeom::IObject> fakeObjList;
 
-        // don't currently care about anything animated on a particleObj
-        std::vector<Prop> fakePropList;
+    if (particleObj != MObject::kNullObj)
+    {
         Alembic::Abc::IScalarProperty visProp =
-            getVisible(iNode, fakePropList);
+            getVisible(iNode, false, fakePropList, fakeObjList);
 
         setConstantVisibility(visProp, particleObj);
+        Alembic::Abc::ICompoundProperty arbProp =
+            iNode.getSchema().getArbGeomParams();
         addProps(arbProp, particleObj);
+    }
+
+    if (hasDag)
+    {
+        mConnectDagNode.pop();
     }
 
     return status;
@@ -631,10 +677,10 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ISubD& iNode)
     MStatus status = MS::kSuccess;
     MObject subDObj = MObject::kNullObj;
 
-    size_t numSamples = iNode.getSchema().getNumSamples();
+    bool isConstant = iNode.getSchema().isConstant();
 
     // add animated SubDs to the list
-    if (numSamples > 1)
+    if (!isConstant)
     {
         mData.mSubDList.push_back(iNode);
     }
@@ -644,51 +690,69 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ISubD& iNode)
 
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList);
-    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, mData.mPropList);
+    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
+        mData.mPropList, mData.mAnimVisStaticObjList);
 
-    if (mAction == CREATE || mAction == CREATE_REMOVE)
+    bool hasDag = false;
+    if (mAction != NONE && mConnectDagNode.isValid())
+    {
+        hasDag = getDagPathByChildName(mConnectDagNode, iNode.getName());
+        if (hasDag)
+        {
+            subDObj = mConnectDagNode.node();
+            if (!isConstant)
+            {
+                mData.mSubDObjList.push_back(subDObj);
+            }
+        }
+    }
+
+    if (!hasDag && (mAction == CREATE || mAction == CREATE_REMOVE))
     {
         subDObj = createSubD(mFrame, iNode, mParent);
-        MFnDagNode(subDObj).getPath(mCurrentDagNode);
-        if (numSamples > 1)
+        if (!isConstant)
         {
             mData.mSubDObjList.push_back(subDObj);
         }
+    }
 
-        Alembic::Abc::ICompoundProperty arbProp =
-            iNode.getSchema().getArbGeomParams();
-
+    if (subDObj != MObject::kNullObj)
+    {
         setConstantVisibility(visProp, subDObj);
         addProps(arbProp, subDObj);
     }
 
     if ( mAction >= CONNECT )
     {
-        if (subDObj ==  MObject::kNullObj)
+        MFnMesh fn(subDObj, &status);
+
+        // check that the data types are compatible, they might not be
+        // if we have a weird hierarchy, where the node in the scene
+        // differs from the node on disk
+        if (!subDObj.hasFn(MFn::kMesh))
         {
-            subDObj = mCurrentDagNode.node();
-            MFnMesh fn(subDObj, &status);
+            MString theError("No connection done for node '");
+            theError += MString(iNode.getName().c_str());
+            theError += MString("' with ");
+            theError += mConnectDagNode.fullPathName();
+            printError(theError);
+            return MS::kFailure;
+        }
 
-            // check that the data types are compatible, they might not be
-            // if we have a weird hierarchy, where the node in the scene
-            // differs from the node on disk
-            if ( status != MS::kSuccess )
-            {
-                MString theError("No connection done for node '");
-                theError += MString(iNode.getName().c_str());
-                theError += MString("' with ");
-                theError += mCurrentDagNode.fullPathName();
-                printError(theError);
-                return status;
-            }
-
-            checkShaderSelection(fn, mCurrentDagNode.instanceNumber());
+        if (mConnectDagNode.isValid())
+        {
+            checkShaderSelection(fn, mConnectDagNode.instanceNumber());
         }
 
         disconnectMesh(subDObj, mData.mPropList, firstProp);
         addToPropList(firstProp, subDObj);
         addFaceSets(subDObj, iNode);
 
+    }
+
+    if (hasDag)
+    {
+        mConnectDagNode.pop();
     }
 
     return status;
@@ -699,10 +763,10 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPolyMesh& iNode)
     MStatus status = MS::kSuccess;
     MObject polyObj = MObject::kNullObj;
 
-    size_t numSamples = iNode.getSchema().getNumSamples();
+    bool isConstant = iNode.getSchema().isConstant();
 
     // add animated poly mesh to the list
-    if (numSamples > 1)
+    if (!isConstant)
         mData.mPolyMeshList.push_back(iNode);
 
     Alembic::Abc::ICompoundProperty arbProp =
@@ -710,49 +774,66 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPolyMesh& iNode)
 
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList);
-    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, mData.mPropList);
+    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
+        mData.mPropList, mData.mAnimVisStaticObjList);
 
-    if (mAction == CREATE || mAction == CREATE_REMOVE)
+    bool hasDag = false;
+    if (mAction != NONE && mConnectDagNode.isValid())
+    {
+        hasDag = getDagPathByChildName(mConnectDagNode, iNode.getName());
+        if (hasDag)
+        {
+            polyObj = mConnectDagNode.node();
+            if (!isConstant)
+            {
+                mData.mPolyMeshObjList.push_back(polyObj);
+            }
+        }
+    }
+
+    if (!hasDag && (mAction == CREATE || mAction == CREATE_REMOVE))
     {
         polyObj = createPoly(mFrame, iNode, mParent);
-        MFnDagNode(polyObj).getPath(mCurrentDagNode);
-        if (numSamples > 1)
+        if (!isConstant)
         {
             mData.mPolyMeshObjList.push_back(polyObj);
         }
+    }
 
+    if (polyObj != MObject::kNullObj)
+    {
         setConstantVisibility(visProp, polyObj);
-
         addProps(arbProp, polyObj);
         addFaceSets(polyObj, iNode);
     }
 
-
     if ( mAction >= CONNECT )
     {
-        if (polyObj == MObject::kNullObj)
+        MFnMesh fn(polyObj, &status);
+
+        // check that the data types are compatible, they might not be
+        // if we have a weird hierarchy, where the node in the scene
+        // differs from the node on disk
+        if ( status != MS::kSuccess )
         {
-            polyObj = mCurrentDagNode.node();
-            MFnMesh fn(polyObj, &status);
-
-            // check that the data types are compatible, they might not be
-            // if we have a weird hierarchy, where the node in the scene
-            // differs from the node on disk
-            if ( status != MS::kSuccess )
-            {
-                MString theError("No connection done for node '");
-                theError += MString(iNode.getName().c_str());
-                theError += MString("' with ");
-                theError += mCurrentDagNode.fullPathName();
-                printError(theError);
-                return status;
-            }
-
-            checkShaderSelection(fn, mCurrentDagNode.instanceNumber());
+            MString theError("No connection done for node '");
+            theError += MString(iNode.getName().c_str());
+            theError += MString("' with ");
+            theError += mConnectDagNode.fullPathName();
+            printError(theError);
+            return status;
         }
+
+        if (mConnectDagNode.isValid())
+            checkShaderSelection(fn, mConnectDagNode.instanceNumber());
 
         disconnectMesh(polyObj, mData.mPropList, firstProp);
         addToPropList(firstProp, polyObj);
+    }
+
+    if (hasDag)
+    {
+        mConnectDagNode.pop();
     }
 
     return status;
@@ -763,10 +844,10 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::INuPatch& iNode)
     MStatus status = MS::kSuccess;
     MObject nurbsObj = MObject::kNullObj;
 
-    size_t numSamples = iNode.getSchema().getNumSamples();
+    bool isConstant = iNode.getSchema().isConstant();
 
     // add animated poly mesh to the list
-    if (numSamples > 1)
+    if (!isConstant)
         mData.mNurbsList.push_back(iNode);
 
     Alembic::Abc::ICompoundProperty arbProp =
@@ -774,49 +855,64 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::INuPatch& iNode)
 
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList);
-    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, mData.mPropList);
+    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
+        mData.mPropList, mData.mAnimVisStaticObjList);
 
-    if (mAction == CREATE || mAction == CREATE_REMOVE)
+    bool hasDag = false;
+    if (mAction != NONE && mConnectDagNode.isValid())
+    {
+        hasDag = getDagPathByChildName(mConnectDagNode, iNode.getName());
+        if (hasDag)
+        {
+            nurbsObj = mConnectDagNode.node();
+            if (!isConstant)
+            {
+                mData.mNurbsObjList.push_back(nurbsObj);
+            }
+        }
+    }
+
+    if (!hasDag && (mAction == CREATE || mAction == CREATE_REMOVE))
     {
         nurbsObj = createNurbs(mFrame, iNode, mParent);
-        MFnDagNode(nurbsObj).getPath(mCurrentDagNode);
-        if (numSamples > 1)
+        if (!isConstant)
         {
             mData.mNurbsObjList.push_back(nurbsObj);
         }
+    }
 
-        setConstantVisibility(visProp, nurbsObj);
-
+    if (nurbsObj != MObject::kNullObj)
+    {
         addProps(arbProp, nurbsObj);
+        setConstantVisibility(visProp, nurbsObj);
     }
 
 
     if ( mAction >= CONNECT )
     {
-        if (nurbsObj == MObject::kNullObj)
+        MFnNurbsSurface fn(nurbsObj, &status);
+
+        // check that the data types are compatible, they might not be
+        // if we have a weird hierarchy, where the node in the scene
+        // differs from the node on disk
+        if ( status != MS::kSuccess )
         {
-            nurbsObj = mCurrentDagNode.node();
-            MFnNurbsSurface fn(nurbsObj, &status);
-
-            // check that the data types are compatible, they might not be
-            // if we have a weird hierarchy, where the node in the scene
-            // differs from the node on disk
-            if ( status != MS::kSuccess )
-            {
-                MString theError("No connection done for node '");
-                theError += MString(iNode.getName().c_str());
-                theError += MString("' with ");
-                theError += mCurrentDagNode.fullPathName();
-                printError(theError);
-                return status;
-            }
-
+            MString theError("No connection done for node '");
+            theError += MString(iNode.getName().c_str());
+            theError += MString("' with ");
+            theError += mConnectDagNode.fullPathName();
+            printError(theError);
+            return status;
         }
 
         disconnectMesh(nurbsObj, mData.mPropList, firstProp);
         addToPropList(firstProp, nurbsObj);
     }
 
+    if (hasDag)
+    {
+        mConnectDagNode.pop();
+    }
     return status;
 }
 
@@ -830,7 +926,6 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
 
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList);
-    Alembic::Abc::IScalarProperty visProp = getVisible(iNode, mData.mPropList);
 
     if (iNode.getProperties().getPropertyHeader("locator") != NULL)
     {
@@ -844,39 +939,60 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
             Alembic::Abc::IScalarProperty locProp(props, "locator");
             bool isConstant = locProp.isConstant();
 
+            Alembic::Abc::IScalarProperty visProp = getVisible(iNode,
+                isConstant, mData.mPropList, mData.mAnimVisStaticObjList);
+
             // add animated locator to the list
             if (!isConstant)
                 mData.mLocList.push_back(iNode);
 
-            if ( mAction == CREATE || mAction == CREATE_REMOVE )
+            bool hasDag = false;
+            if (mAction != NONE && mConnectDagNode.isValid())
             {
-                xformObj = create(iNode, mParent, locProp, mCurrentDagNode);
+                hasDag = getDagPathByChildName(mConnectDagNode,
+                    iNode.getName());
+                if (hasDag)
+                {
+                    if (!isConstant)
+                    {
+                        mData.mLocObjList.push_back(xformObj);
+                    }
+                }
+            }
+
+            if (!hasDag && (mAction == CREATE || mAction == CREATE_REMOVE))
+            {
+                xformObj = create(iNode, mParent, locProp);
                 if (!isConstant)
                 {
                     mData.mLocObjList.push_back(xformObj);
                 }
+            }
 
-                setConstantVisibility(visProp, xformObj);
+            if (xformObj != MObject::kNullObj)
+            {
                 addProps(arbProp, xformObj);
+                setConstantVisibility(visProp, xformObj);
             }
 
             if ( mAction >= CONNECT )
             {
-                if (xformObj ==  MObject::kNullObj)
+                if (!xformObj.hasFn(MFn::kLocator))
                 {
-                    xformObj = mCurrentDagNode.node();
-                    if (!xformObj.hasFn(MFn::kLocator))
-                    {
-                        MString theError("No connection done for node '");
-                        theError += MString(iNode.getName().c_str());
-                        theError += MString("' with ");
-                        theError += mCurrentDagNode.fullPathName();
-                        printError(theError);
-                        return status;
-                    }
+                    MString theError("No connection done for node '");
+                    theError += MString(iNode.getName().c_str());
+                    theError += MString("' with ");
+                    theError += mConnectDagNode.fullPathName();
+                    printError(theError);
+                    return status;
                 }
 
                 addToPropList(firstProp, xformObj);
+            }
+
+            if (hasDag)
+            {
+                mConnectDagNode.pop();
             }
         }
     }
@@ -886,18 +1002,40 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
 
         size_t numChildren = iNode.getNumChildren();
         bool isConstant = iNode.getSchema().isConstant();
+
+        Alembic::Abc::IScalarProperty visProp = getVisible(iNode,
+            isConstant, mData.mPropList, mData.mAnimVisStaticObjList);
+
+        Alembic::AbcGeom::XformSample samp;
+        iNode.getSchema().get(samp, 0);
         if (!isConstant)
         {
             mData.mXformList.push_back(iNode);
-            mData.mIsComplexXform.push_back(isComplex(iNode));
+            mData.mIsComplexXform.push_back(isComplex(samp));
+        }
+
+        if (isConstant && visProp.valid() && !visProp.isConstant())
+        {
+             mData.mAnimVisStaticObjList.push_back(iNode);
+        }
+
+        bool hasDag = false;
+        if (mAction != NONE && mConnectDagNode.isValid())
+        {
+            hasDag = getDagPathByChildName(mConnectDagNode, iNode.getName());
+            if (hasDag)
+            {
+                xformObj = mConnectDagNode.node();
+            }
         }
 
         // There might be children under the current DAG node that
         // doesn't exist in the file.
         // Remove them if the -removeIfNoUpdate flag is set
-        if (mAction == REMOVE || mAction == CREATE_REMOVE)
+        if ((mAction == REMOVE || mAction == CREATE_REMOVE) &&
+            mConnectDagNode.isValid())
         {
-            unsigned int numDags = mCurrentDagNode.childCount();
+            unsigned int numDags = mConnectDagNode.childCount();
             std::vector<MDagPath> dagToBeRemoved;
 
             // get names of immediate children so we can compare with
@@ -911,7 +1049,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
 
             for (unsigned int i = 0; i < numDags; i++)
             {
-                MObject child = mCurrentDagNode.child(i);
+                MObject child = mConnectDagNode.child(i);
                 MFnDagNode fn(child, &status);
                 if ( status == MS::kSuccess )
                 {
@@ -926,8 +1064,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
                             == childNodesInFile.end())
                         {
                             MDagPath dagPath;
-                            getDagPathByName(
-                                fn.fullPathName(), dagPath);
+                            getDagPathByName(fn.fullPathName(), dagPath);
                             dagToBeRemoved.push_back(dagPath);
                         }
                     }
@@ -935,18 +1072,18 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
             }
             if (dagToBeRemoved.size() > 0)
             {
-                unsigned int dagSize = dagToBeRemoved.size();
+                unsigned int dagSize =
+                    static_cast<unsigned int>(dagToBeRemoved.size());
                 for ( unsigned int i = 0; i < dagSize; i++ )
                     removeDagNode(dagToBeRemoved[i]);
             }
         }
 
         // just create the node
-        if ( mAction == CREATE || mAction == CREATE_REMOVE )
+        if (!hasDag && (mAction == CREATE || mAction == CREATE_REMOVE ))
         {
             MFnTransform trans;
             xformObj = trans.create(mParent, &status);
-            trans.getPath(mCurrentDagNode);
 
             if (status != MS::kSuccess)
             {
@@ -957,29 +1094,20 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
             }
 
             trans.setName(name);
+        }
 
-            MPlug dstPlug;
-            dstPlug = trans.findPlug("inheritsTransform");
-            if (!dstPlug.isNull())
-            {
-                dstPlug.setBool( iNode.getSchema().getInheritsXforms(
-                    Alembic::Abc::ISampleSelector(mFrame,
-                        Alembic::Abc::ISampleSelector::kNearIndex)) );
-            }
-
+        if (xformObj != MObject::kNullObj)
+        {
             setConstantVisibility(visProp, xformObj);
             addProps(arbProp, xformObj);
         }
 
-        if ( mAction >= CONNECT )
+        if (mAction >= CONNECT)
         {
-            if (xformObj ==  MObject::kNullObj)
-                xformObj = mCurrentDagNode.node();
-
             if (xformObj.hasFn(MFn::kTransform))
             {
                 std::vector<std::string> transopNameList;
-                connectToXform(mFrame, iNode, xformObj, transopNameList,
+                connectToXform(samp, isConstant, xformObj, transopNameList,
                     mData.mPropList, firstProp);
 
                 if (!isConstant)
@@ -991,21 +1119,27 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
             }
             else
             {
-                MString theError = mCurrentDagNode.partialPathName();
+                MString theError = mConnectDagNode.partialPathName();
                 theError += MString(" is not compatible as a transform node. ");
                 theError += MString("Connection failed.");
                 printError(theError);
+                return MS::kFailure;
             }
+
         }
 
         MObject saveParent = xformObj;
-        MDagPath saveDag = mCurrentDagNode;
         for (size_t i = 0; i < numChildren; ++i)
         {
             Alembic::Abc::IObject child = iNode.getChild(i);
             mParent = saveParent;
 
             this->visit(child);
+        }
+
+        if (hasDag)
+        {
+            mConnectDagNode.pop();
         }
     }
 

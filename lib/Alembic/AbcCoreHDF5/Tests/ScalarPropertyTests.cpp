@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -418,7 +418,7 @@ void testReadWriteScalars()
                 case Alembic::Util::kInt64POD:
                 {
                     TESTING_ASSERT(sp->getName() == "i64");
-                    Alembic::Util::uint64_t val = 0;
+                    Alembic::Util::int64_t val = 0;
                     sp->getSample(0, &val);
                     TESTING_ASSERT(val == -5000000000LL);
                 }
@@ -702,10 +702,39 @@ void testRepeatedScalarData()
     }
 }
 
+AbcA::ScalarPropertyWriterPtr createObjectAndScalar(
+    AbcA::ObjectWriterPtr iParent, const std::string & iName )
+{
+    AbcA::ObjectWriterPtr child =
+        iParent->createChild(AbcA::ObjectHeader(iName, AbcA::MetaData()));
+
+    AbcA::CompoundPropertyWriterPtr props = child->getProperties();
+
+    AbcA::ScalarPropertyWriterPtr swp =
+            props->createScalarProperty(iName, AbcA::MetaData(),
+                AbcA::DataType(Alembic::Util::kInt32POD, 1), 0);
+    return swp;
+}
+
+// tests a known issue where you can't write to scalar and array properties
+// parented to the top compound if the OObject gets destroyed.
+// http://code.google.com/p/alembic/issues/detail?id=171
+void testPropScoping()
+{
+    A5::WriteArchive w;
+    AbcA::ArchiveWriterPtr a = w("scopingTest.abc", AbcA::MetaData());
+    AbcA::ObjectWriterPtr archive = a->getTop();
+    AbcA::ScalarPropertyWriterPtr s = createObjectAndScalar(archive, "test");
+    Alembic::Util::int32_t val = 42;
+    s->setSample(&val);
+
+}
+
 int main ( int argc, char *argv[] )
 {
     testWeirdStringScalar();
     testRepeatedScalarData();
     testReadWriteScalars();
+    // testPropScoping();
     return 0;
 }

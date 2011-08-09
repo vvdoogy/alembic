@@ -1,7 +1,8 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2010, Industrial Light & Magic,
-##   a division of Lucasfilm Entertainment Company Ltd.
+## Copyright (c) 2009-2011,
+##  Sony Pictures Imageworks Inc. and
+##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
 ## All rights reserved.
 ##
@@ -34,6 +35,7 @@
 
 # C++ files for this project
 SET( CXX_FILES 
+  ArchiveInfo.cpp
   ErrorHandler.cpp
 
   IArchive.cpp
@@ -64,6 +66,7 @@ SET( H_FILES
   ErrorHandler.h
   Foundation.h
   Argument.h
+  ArchiveInfo.h
 
   IArchive.h
   IArrayProperty.h

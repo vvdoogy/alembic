@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -42,20 +42,22 @@
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
 #include <Alembic/AbcGeom/OFaceSet.h>
 #include <Alembic/AbcGeom/OGeomParam.h>
+#include <Alembic/AbcGeom/OGeomBase.h>
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 // for default values for int scalar properties here
 static const int32_t ABC_GEOM_SUBD_NULL_INT_VALUE( INT_MIN / 2 );
 
 //-*****************************************************************************
-class OSubDSchema : public Abc::OSchema<SubDSchemaInfo>
+class OSubDSchema : public OGeomBaseSchema<SubDSchemaInfo>
 {
 public:
     //-*************************************************************************
-    // POLY MESH SCHEMA SAMPLE TYPE
+    // SUBD SCHEMA SAMPLE TYPE
     //-*************************************************************************
     class Sample
     {
@@ -68,7 +70,7 @@ public:
         //! For specifying samples with an explicit topology. The first
         //! sample must be full like this. Subsequent samples may also
         //! be full like this, which would indicate a change of topology
-        Sample( const Abc::V3fArraySample &iPositions,
+        Sample( const Abc::P3fArraySample &iPositions,
                 const Abc::Int32ArraySample &iFaceIndices,
                 const Abc::Int32ArraySample &iFaceCounts,
 
@@ -103,8 +105,8 @@ public:
         {}
 
         // main stuff
-        const Abc::V3fArraySample &getPositions() const { return m_positions; }
-        void setPositions( const Abc::V3fArraySample &iSmp )
+        const Abc::P3fArraySample &getPositions() const { return m_positions; }
+        void setPositions( const Abc::P3fArraySample &iSmp )
         { m_positions = iSmp; }
 
         const Abc::Int32ArraySample &getFaceIndices() const { return m_faceIndices; }
@@ -240,7 +242,7 @@ public:
     protected:
         friend class OSubDSchema;
 
-        Abc::V3fArraySample m_positions;
+        Abc::P3fArraySample m_positions;
         Abc::Int32ArraySample m_faceIndices;
         Abc::Int32ArraySample m_faceCounts;
 
@@ -302,7 +304,7 @@ public:
                      const Abc::Argument &iArg0 = Abc::Argument(),
                      const Abc::Argument &iArg1 = Abc::Argument(),
                      const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<SubDSchemaInfo>( iParent, iName,
+      : OGeomBaseSchema<SubDSchemaInfo>( iParent, iName,
                                       iArg0, iArg1, iArg2 )
     {
 
@@ -330,7 +332,7 @@ public:
                           const Abc::Argument &iArg0 = Abc::Argument(),
                           const Abc::Argument &iArg1 = Abc::Argument(),
                           const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<SubDSchemaInfo>( iParent,
+      : OGeomBaseSchema<SubDSchemaInfo>( iParent,
                                       iArg0, iArg1, iArg2 )
     {
         AbcA::TimeSamplingPtr tsPtr =
@@ -354,6 +356,7 @@ public:
 
     //! Copy constructor.
     OSubDSchema(const OSubDSchema& iCopy)
+        : OGeomBaseSchema<SubDSchemaInfo>()
     {
         *this = iCopy;
     }
@@ -367,7 +370,7 @@ public:
     //! Return the time sampling, which is stored on each of the
     //! sub properties.
     AbcA::TimeSamplingPtr getTimeSampling() const
-    { return m_positions.getTimeSampling(); }
+    { return m_positionsProperty.getTimeSampling(); }
 
     //-*************************************************************************
     // SAMPLE STUFF
@@ -376,7 +379,7 @@ public:
     //! Get number of samples written so far.
     //! ...
     size_t getNumSamples()
-    { return m_positions.getNumSamples(); }
+    { return m_positionsProperty.getNumSamples(); }
 
     //! Set a sample! Sample zero has to have non-degenerate
     //! positions, indices and counts.
@@ -389,8 +392,6 @@ public:
     void setTimeSampling( uint32_t iIndex );
     void setTimeSampling( AbcA::TimeSamplingPtr iTime );
 
-    Abc::OCompoundProperty getArbGeomParams();
-
     //-*************************************************************************
     // ABC BASE MECHANISMS
     // These functions are used by Abc to deal with errors, rewrapping,
@@ -401,40 +402,36 @@ public:
     //! state.
     void reset()
     {
-        m_positions.reset();
-        m_faceIndices.reset();
-        m_faceCounts.reset();
+        m_positionsProperty.reset();
+        m_faceIndicesProperty.reset();
+        m_faceCountsProperty.reset();
 
-        m_creaseIndices.reset();
-        m_creaseLengths.reset();
-        m_creaseSharpnesses.reset();
+        m_creaseIndicesProperty.reset();
+        m_creaseLengthsProperty.reset();
+        m_creaseSharpnessesProperty.reset();
 
-        m_cornerIndices.reset();
-        m_cornerSharpnesses.reset();
+        m_cornerIndicesProperty.reset();
+        m_cornerSharpnessesProperty.reset();
 
-        m_holes.reset();
+        m_holesProperty.reset();
 
-        m_subdScheme.reset();
+        m_subdSchemeProperty.reset();
 
-        m_selfBounds.reset();
-        m_childBounds.reset();
+        m_uvsParam.reset();
 
-        m_uvs.reset();
-
-        m_arbGeomParams.reset();
         m_faceSets.clear ();
 
-        Abc::OSchema<SubDSchemaInfo>::reset();
+        OGeomBaseSchema<SubDSchemaInfo>::reset();
     }
 
     //! Valid returns whether this function set is
     //! valid.
     bool valid() const
     {
-        return ( Abc::OSchema<SubDSchemaInfo>::valid() &&
-                 m_positions.valid() &&
-                 m_faceIndices.valid() &&
-                 m_faceCounts.valid() );
+        return ( OGeomBaseSchema<SubDSchemaInfo>::valid() &&
+                 m_positionsProperty.valid() &&
+                 m_faceIndicesProperty.valid() &&
+                 m_faceCountsProperty.valid() );
     }
 
     // FaceSet stuff
@@ -452,39 +449,32 @@ public:
 protected:
     void init( uint32_t iTsIdx );
 
-    Abc::OV3fArrayProperty m_positions;
-    Abc::OInt32ArrayProperty m_faceIndices;
-    Abc::OInt32ArrayProperty m_faceCounts;
+    Abc::OP3fArrayProperty m_positionsProperty;
+    Abc::OInt32ArrayProperty m_faceIndicesProperty;
+    Abc::OInt32ArrayProperty m_faceCountsProperty;
 
     // misc
-    Abc::OInt32Property m_faceVaryingInterpolateBoundary;
-    Abc::OInt32Property m_faceVaryingPropagateCorners;
-    Abc::OInt32Property m_interpolateBoundary;
+    Abc::OInt32Property m_faceVaryingInterpolateBoundaryProperty;
+    Abc::OInt32Property m_faceVaryingPropagateCornersProperty;
+    Abc::OInt32Property m_interpolateBoundaryProperty;
 
     // Creases
-    Abc::OInt32ArrayProperty m_creaseIndices;
-    Abc::OInt32ArrayProperty m_creaseLengths;
-    Abc::OFloatArrayProperty m_creaseSharpnesses;
+    Abc::OInt32ArrayProperty m_creaseIndicesProperty;
+    Abc::OInt32ArrayProperty m_creaseLengthsProperty;
+    Abc::OFloatArrayProperty m_creaseSharpnessesProperty;
 
     // Corners
-    Abc::OInt32ArrayProperty m_cornerIndices;
-    Abc::OFloatArrayProperty m_cornerSharpnesses;
+    Abc::OInt32ArrayProperty m_cornerIndicesProperty;
+    Abc::OFloatArrayProperty m_cornerSharpnessesProperty;
 
     // Holes
-    Abc::OInt32ArrayProperty m_holes;
+    Abc::OInt32ArrayProperty m_holesProperty;
 
     // subdivision scheme
-    Abc::OStringProperty m_subdScheme;
-
-    // bounds
-    Abc::OBox3dProperty m_selfBounds;
-    Abc::OBox3dProperty m_childBounds;
+    Abc::OStringProperty m_subdSchemeProperty;
 
     // UVs
-    OV2fGeomParam m_uvs;
-
-    // arbitrary geometry parameters
-    Abc::OCompoundProperty m_arbGeomParams;
+    OV2fGeomParam m_uvsParam;
 
 private:
     void initCreases(uint32_t iNumSamples);
@@ -501,6 +491,10 @@ private:
 // SCHEMA OBJECT
 //-*****************************************************************************
 typedef Abc::OSchemaObject<OSubDSchema> OSubD;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

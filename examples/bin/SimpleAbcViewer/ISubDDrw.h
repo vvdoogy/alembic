@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -60,6 +60,8 @@ public:
 
 protected:
     ISubD m_subD;
+    ISubDSchema::Sample m_samp;
+    IBox3dProperty m_boundsProp;
     MeshDrwHelper m_drwHelper;
 };
 

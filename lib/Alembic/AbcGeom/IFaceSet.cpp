@@ -38,6 +38,7 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 size_t IFaceSetSchema::getNumSamples()
@@ -73,7 +74,6 @@ void IFaceSetSchema::get( IFaceSetSchema::Sample &oSample,
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IFaceSetSchema::get()" );
 
     m_facesProperty.get( oSample.m_faces, iSS );
-    oSample.m_visible = m_visibilityProperty.getValue( iSS );
 
     // HERE NYI - templated getFaceIndices
     //m_selfBoundsProperty.get( oSample.m_selfBounds, iSS );
@@ -93,6 +93,7 @@ void IFaceSetSchema::get( IFaceSetSchema::Sample &oSample,
 void IFaceSetSchema::init( const Abc::Argument &iArg0,
                         const Abc::Argument &iArg1 )
 {
+    // Only callable by ctors (mt-safety)
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IFaceSetSchema::init()" );
 
     Abc::Arguments args;
@@ -103,22 +104,6 @@ void IFaceSetSchema::init( const Abc::Argument &iArg0,
 
     m_facesProperty = Abc::IInt32ArrayProperty( _this, ".faces",
         args.getSchemaInterpMatching() );
-    m_visibilityProperty = Abc::IBoolProperty( _this, ".visibility",
-        args.getSchemaInterpMatching() );
-    m_selfBoundsProperty = Abc::IBox3dProperty( _this, ".selfBnds", iArg0,
-        iArg1 );
-
-    if ( this->getPropertyHeader(".childBnds") != NULL )
-    {
-        m_childBoundsProperty= Abc::IBox3dProperty( _this, ".childBnds",
-            iArg0, iArg1);
-    }
-
-    if ( this->getPropertyHeader( ".arbGeomParams" ) != NULL )
-    {
-        m_arbGeomParams = Abc::ICompoundProperty( _this, ".arbGeomParams",
-            args.getErrorHandlerPolicy() );
-    }
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
@@ -146,5 +131,6 @@ FaceSetExclusivity IFaceSetSchema::getFaceExclusivity()
     return kFaceSetNonExclusive;
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcGeom
 } // End namespace Alembic

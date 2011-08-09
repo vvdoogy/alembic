@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -45,6 +45,7 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class IArrayProperty
@@ -111,17 +112,17 @@ public:
     //! This can be any number, including zero.
     //! This returns the number of samples that were written, independently
     //! of whether or not they were constant.
-    size_t getNumSamples();
+    size_t getNumSamples() const;
 
     //! Ask if we're constant - no change in value amongst samples,
     //! regardless of the time sampling.
-    bool isConstant();
+    bool isConstant() const;
 
     //! Ask if we are like a scalar - we have 1 and only 1 DataType per sample.
-    bool isScalarLike();
+    bool isScalarLike() const;
 
     //! Time information.
-    AbcA::TimeSamplingPtr getTimeSampling();
+    AbcA::TimeSamplingPtr getTimeSampling() const;
 
     //! Get a sample into the address of a datum.
     //! ...
@@ -168,6 +169,10 @@ inline IArrayProperty::IArrayProperty( CPROP_PTR iParentProp,
           GetErrorHandlerPolicy( iParentProp ),
           iArg0, iArg1 );
 }
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace Abc
 } // End namespace Alembic

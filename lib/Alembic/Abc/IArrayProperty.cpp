@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -38,6 +38,7 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 IArrayProperty::~IArrayProperty()
@@ -47,7 +48,7 @@ IArrayProperty::~IArrayProperty()
 }
 
 //-*****************************************************************************
-size_t IArrayProperty::getNumSamples()
+size_t IArrayProperty::getNumSamples() const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::getNumSamples()" );
 
@@ -60,7 +61,7 @@ size_t IArrayProperty::getNumSamples()
 }
 
 //-*****************************************************************************
-bool IArrayProperty::isConstant()
+bool IArrayProperty::isConstant() const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::isConstant()" );
 
@@ -69,11 +70,11 @@ bool IArrayProperty::isConstant()
     ALEMBIC_ABC_SAFE_CALL_END();
 
     // Not all error handlers throw, so return a default.
-    return true;
+    return false;
 }
 
 //-*****************************************************************************
-bool IArrayProperty::isScalarLike()
+bool IArrayProperty::isScalarLike() const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::isScalarLike()" );
 
@@ -86,7 +87,7 @@ bool IArrayProperty::isScalarLike()
 }
 
 //-*****************************************************************************
-AbcA::TimeSamplingPtr IArrayProperty::getTimeSampling()
+AbcA::TimeSamplingPtr IArrayProperty::getTimeSampling() const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArrayProperty::getTimeSampling()" );
 
@@ -185,5 +186,6 @@ void IArrayProperty::init( AbcA::CompoundPropertyReaderPtr iParent,
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace Abc
 } // End namespace Alembic

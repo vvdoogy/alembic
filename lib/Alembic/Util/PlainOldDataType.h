@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -85,11 +85,11 @@ public:
 
     bool_t operator!( void )
     {
-        return bool_t( !static_cast<bool>( m_byte ) );
+        return bool_t( m_byte == 0 );
     }
 
-    bool asBool() const { return static_cast<bool>( m_byte ); }
-    operator bool() const { return static_cast<bool>( m_byte ); }
+    bool asBool() const { return ( m_byte != 0 ); }
+    operator bool() const { return ( m_byte != 0 ); }
 
 private:
     byte_t m_byte;

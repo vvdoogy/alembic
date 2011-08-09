@@ -81,8 +81,6 @@ MStatus AbcExport::doIt(const MArgList & args)
 
     MArgParser argData(syntax(), args, &status);
 
-    unsigned int numberOfArguments = args.length();
-
     if (argData.isFlagSet("help"))
     {
         MGlobal::displayInfo(util::getHelpText());
@@ -154,7 +152,7 @@ MStatus AbcExport::doIt(const MArgList & args)
                 fileName = jobArgsArray[++i].asChar();
             }
 
-            else if (arg == "-fr" || arg == "-frameRange")
+            else if (arg == "-fr" || arg == "-framerange")
             {
                 if (i+2 >= numJobArgs || !jobArgsArray[i+1].isDouble() ||
                     !jobArgsArray[i+2].isDouble())
@@ -282,7 +280,7 @@ MStatus AbcExport::doIt(const MArgList & args)
             }
 
             // attribute filtering stuff
-            else if (arg == "-ap" || arg == "-attrprefix")
+            else if (arg == "-atp" || arg == "-attrprefix")
             {
                 if (i+1 >= numJobArgs)
                 {
@@ -462,7 +460,8 @@ MStatus AbcExport::doIt(const MArgList & args)
         if (hasRange)
         {
             transTime.reset(new AbcA::TimeSampling(AbcA::TimeSamplingType(
-                samples.size(), strideTime * util::spf()), samples));
+                static_cast<Alembic::Util::uint32_t>(samples.size()),
+                strideTime * util::spf()), samples));
         }
         else
         {
@@ -486,8 +485,7 @@ MStatus AbcExport::doIt(const MArgList & args)
         }
 
         AbcWriteJobPtr job(new AbcWriteJob(fileName.c_str(),
-            transSamples, transTime, geoSamples, geoTime,
-            jobArgs));
+            transSamples, transTime, geoSamples, geoTime, jobArgs));
 
        jobList.push_front(job);
 
@@ -544,6 +542,9 @@ MStatus AbcExport::doIt(const MArgList & args)
     std::set<double>::iterator it = allFrameRange.begin();
     std::set<double>::iterator itEnd = allFrameRange.end();
 
+    MComputation computation;
+    computation.beginComputation();
+
     // loop through every frame in the list, if a job has that frame in it's
     // list of transform or shape frames, then it will write out data and
     // call the perFrameCallback, if that frame is also the last one it has
@@ -564,6 +565,9 @@ MStatus AbcExport::doIt(const MArgList & args)
         std::list< AbcWriteJobPtr >::iterator jend = jobList.end();
         while (j != jend)
         {
+            if (computation.isInterruptRequested())
+                return MS::kFailure;
+
             bool lastFrame = (*j)->eval(*it);
 
             if (lastFrame)
@@ -574,6 +578,7 @@ MStatus AbcExport::doIt(const MArgList & args)
                 j++;
         }
     }
+    computation.endComputation();
 
     // set the time back
     MGlobal::viewFrame(oldCurTime);
@@ -586,7 +591,7 @@ MStatus AbcExport::doIt(const MArgList & args)
 MStatus initializePlugin(MObject obj)
 {
     MStatus status;
-    MFnPlugin plugin(obj, "Alembic", "1.0", "Any");
+    MFnPlugin plugin(obj, "Alembic", ABCEXPORT_VERSION, "Any");
 
     status = plugin.registerCommand(
         "AbcExport", AbcExport::creator,
@@ -597,6 +602,11 @@ MStatus initializePlugin(MObject obj)
         status.perror("registerCommand");
     }
 
+    MString info = "AbcExport v";
+    info += ABCEXPORT_VERSION;
+    info += " using ";
+    info += Alembic::Abc::GetLibraryVersion().c_str();
+    MGlobal::displayInfo(info);
 
     return status;
 }

@@ -167,13 +167,14 @@ MObject readNurbs(double iFrame, Alembic::AbcGeom::INuPatch & iNode,
 
     // no interpolation for now
     Alembic::AbcCoreAbstract::index_t index, ceilIndex;
-    double alpha = getWeightAndIndex(iFrame, schema.getTimeSampling(),
+    getWeightAndIndex(iFrame, schema.getTimeSampling(),
         schema.getNumSamples(), index, ceilIndex);
 
     Alembic::AbcGeom::INuPatchSchema::Sample samp;
     schema.get(samp, Alembic::Abc::ISampleSelector(index));
 
-    Alembic::Abc::V3fArraySamplePtr pos = samp.getPositions();
+    Alembic::Abc::P3fArraySamplePtr pos = samp.getPositions();
+    Alembic::Abc::FloatArraySamplePtr weights = samp.getPositionWeights();
 
     MString surfaceName(iNode.getName().c_str());
 
@@ -196,6 +197,11 @@ MObject readNurbs(double iFrame, Alembic::AbcGeom::INuPatch & iNode,
             unsigned int mayaIndex = u * numCVInV + (numCVInV - v - 1);
             MPoint pt((*pos)[curPos].x, (*pos)[curPos].y, (*pos)[curPos].z);
 
+            if (weights)
+            {
+                pt.w = (*weights)[curPos];
+            }
+
             // go from u,v order to reversed v, u order
             controlVertices.set(pt, mayaIndex);
         }
@@ -204,7 +210,7 @@ MObject readNurbs(double iFrame, Alembic::AbcGeom::INuPatch & iNode,
     Alembic::Abc::FloatArraySamplePtr uKnot = samp.getUKnot();
     Alembic::Abc::FloatArraySamplePtr vKnot = samp.getVKnot();
 
-    unsigned int numKnotsInU = uKnot->size() - 2;
+    unsigned int numKnotsInU = static_cast<unsigned int>(uKnot->size() - 2);
     MDoubleArray uKnotSequences;
     uKnotSequences.setLength(numKnotsInU);
     for (unsigned int i = 0; i < numKnotsInU; ++i)
@@ -212,7 +218,7 @@ MObject readNurbs(double iFrame, Alembic::AbcGeom::INuPatch & iNode,
         uKnotSequences.set((*uKnot)[i+1], i);
     }
 
-    unsigned int numKnotsInV = vKnot->size() - 2;
+    unsigned int numKnotsInV = static_cast<unsigned int>(vKnot->size() - 2);
     MDoubleArray vKnotSequences;
     vKnotSequences.setLength(numKnotsInV);
     for (unsigned int i = 0; i < numKnotsInV; i++)

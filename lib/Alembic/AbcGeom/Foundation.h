@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -45,8 +45,9 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
-namespace Abc = ::Alembic::Abc;
+namespace Abc = ::Alembic::Abc::ALEMBIC_VERSION_NS;
 using namespace Abc;
 
 //-*****************************************************************************
@@ -157,6 +158,21 @@ inline double RadiansToDegrees( double iRadians )
     return iRadians * ( 180.0 / M_PI );
 }
 
+//-*****************************************************************************
+//! A couple simple tests for if something is a GeomParam
+inline bool IsGeomParam( const AbcA::MetaData &iMetaData )
+{
+    return iMetaData.get( "isGeomParam" ) == "true";
+}
+
+inline bool IsGeomParam( const AbcA::PropertyHeader &iHeader )
+{
+    return IsGeomParam( iHeader.getMetaData() );
+}
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

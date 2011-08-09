@@ -175,7 +175,7 @@ void MayaNurbsCurveWriter::write()
     bool useConstWidth = false;
 
     MFnDependencyNode dep(mRootDagPath.transform());
-    MPlug constWidthPlug = dep.findPlug("constantwidth");
+    MPlug constWidthPlug = dep.findPlug("width");
 
     if (!constWidthPlug.isNull())
     {
@@ -183,7 +183,7 @@ void MayaNurbsCurveWriter::write()
         width.push_back(constWidthPlug.asFloat());
     }
 
-    for (size_t i = 0; i < numCurves; i++)
+    for (std::size_t i = 0; i < numCurves; i++)
     {
         MFnNurbsCurve curve;
         if (mIsCurveGrp)
@@ -222,7 +222,7 @@ void MayaNurbsCurveWriter::write()
 
         MPointArray cvArray;
         stat = curve.getCVs(cvArray, MSpace::kObject);
-        for (size_t j = 0; j < numCVs; j++)
+        for (Alembic::Util::int32_t j = 0; j < numCVs; j++)
         {
             MPoint transformdPt;
             if (mIsCurveGrp)
@@ -230,9 +230,9 @@ void MayaNurbsCurveWriter::write()
             else
                 transformdPt = cvArray[j];
 
-            points.push_back(transformdPt.x);
-            points.push_back(transformdPt.y);
-            points.push_back(transformdPt.z);
+            points.push_back(static_cast<float>(transformdPt.x));
+            points.push_back(static_cast<float>(transformdPt.y));
+            points.push_back(static_cast<float>(transformdPt.z));
         }
 
         // width
@@ -244,33 +244,37 @@ void MayaNurbsCurveWriter::write()
             MStatus status = widthPlug.getValue(widthObj);
             MFnDoubleArrayData fnDoubleArrayData(widthObj, &status);
             MDoubleArray doubleArrayData = fnDoubleArrayData.array();
-            size_t arraySum = doubleArrayData.length();
-            size_t correctVecLen = arraySum;
-            if (arraySum == correctVecLen)
+            Alembic::Util::int32_t arraySum = doubleArrayData.length();
+            if (arraySum == numCVs)
             {
-                for (size_t i = 0; i < arraySum; i++)
+                for (Alembic::Util::int32_t i = 0; i < arraySum; i++)
                 {
-                    width.push_back(doubleArrayData[i]);
+                    width.push_back(static_cast<float>(doubleArrayData[i]));
                 }
             }
-            else
+            else if (status == MS::kSuccess)
             {
                 MString msg = "Curve ";
                 msg += curve.partialPathName();
                 msg += " has incorrect size for the width vector.";
-                msg += "\nUsing default constantwidth.";
+                msg += "\nUsing default constant width of 0.1.";
                 MGlobal::displayWarning(msg);
 
                 width.clear();
-                width.push_back(0.1);
+                width.push_back(0.1f);
+                useConstWidth = true;
+            }
+            else
+            {
+                width.push_back(widthPlug.asFloat());
                 useConstWidth = true;
             }
         }
-        else
+        else if (!useConstWidth)
         {
             // pick a default value
             width.clear();
-            width.push_back(0.1);
+            width.push_back(0.1f);
             useConstWidth = true;
         }
     }

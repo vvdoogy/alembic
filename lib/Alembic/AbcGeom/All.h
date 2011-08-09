@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -37,7 +37,9 @@
 #ifndef _Alembic_AbcGeom_All_h_
 #define _Alembic_AbcGeom_All_h_
 
-#include <Alembic/AbcGeom/Foundation.h>
+#include <Alembic/AbcGeom/ArchiveBounds.h>
+
+#include <Alembic/AbcGeom/GeometryScope.h>
 
 #include <Alembic/AbcGeom/GeometryScope.h>
 
@@ -47,6 +49,9 @@
 
 #include <Alembic/AbcGeom/OFaceSet.h>
 #include <Alembic/AbcGeom/IFaceSet.h>
+
+#include <Alembic/AbcGeom/IGeomBase.h>
+#include <Alembic/AbcGeom/OGeomBase.h>
 
 #include <Alembic/AbcGeom/OGeomParam.h>
 #include <Alembic/AbcGeom/IGeomParam.h>
@@ -72,5 +77,7 @@
 #include <Alembic/AbcGeom/XformSample.h>
 #include <Alembic/AbcGeom/OXform.h>
 #include <Alembic/AbcGeom/IXform.h>
+
+#include <Alembic/AbcGeom/Visibility.h>
 
 #endif

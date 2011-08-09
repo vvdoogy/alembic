@@ -40,6 +40,7 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 
 //-*****************************************************************************
@@ -54,13 +55,6 @@ void OFaceSetSchema::init( uint32_t iTimeSamplingID )
 
     m_facesProperty = Abc::OInt32ArrayProperty( _this, ".faces", 
         iTimeSamplingID );
-    // NYI - replace this with library utility funtions that generically
-    // store visibility.
-    m_visibilityProperty = Abc::OBoolProperty( _this, ".visibility", 
-        iTimeSamplingID );
-
-    m_selfBoundsProperty = Abc::OBox3dProperty( _this, ".selfBnds", 
-        iTimeSamplingID );
 
     m_facesExclusive = kFaceSetNonExclusive;
 
@@ -74,7 +68,6 @@ void OFaceSetSchema::setTimeSampling( uint32_t iTimeSamplingID )
         "OFaceSetSchema::setTimeSampling( uint32_t iTimeSamplingID )" );
 
     m_facesProperty.setTimeSampling( iTimeSamplingID );
-    m_visibilityProperty.setTimeSampling( iTimeSamplingID );
     m_selfBoundsProperty.setTimeSampling( iTimeSamplingID );
     if (m_childBoundsProperty)
     {
@@ -105,7 +98,7 @@ void OFaceSetSchema::setTimeSampling( AbcA::TimeSamplingPtr iTimeSampling )
 Abc::Box3d computeBoundsFromPositionsByFaces (const Int32ArraySample & faces,
     const Int32ArraySample & meshFaceCounts,
     const Int32ArraySample & vertexIndices,
-    const V3fArraySample & meshP)
+    const P3fArraySample & meshP)
 {
     Abc::Box3d     bounds;
     size_t numFaceSetFaces = faces.size ();
@@ -172,6 +165,7 @@ Abc::Box3d computeBoundsFromPositionsByFaces (const Int32ArraySample & faces,
     return bounds;
 }
 
+
 //-*****************************************************************************
 void OFaceSetSchema::set( const Sample &iSamp )
 {
@@ -202,7 +196,6 @@ void OFaceSetSchema::set( const Sample &iSamp )
         ABCA_ASSERT( iSamp.getFaces() ,
                      "Sample 0 must provide the faces that make up the faceset." );
         m_facesProperty.set( iSamp.getFaces() );
-        m_visibilityProperty.set( iSamp.isVisible() );
 
         if (m_childBoundsProperty)
         { 
@@ -268,5 +261,6 @@ void OFaceSetSchema::_recordExclusivityHint()
     m_facesExclusiveProperty.set (m_facesExclusive);
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcGeom
 } // End namespace Alembic

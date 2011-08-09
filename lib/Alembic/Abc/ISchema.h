@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 //! See Schema Notes in OSchema.h
@@ -149,6 +150,8 @@ public:
 
     //! Default copy constructor used
     //! Default assignment operator used.
+    //
+    virtual ~ISchema() {}
 
 private:
     template <class CPROP_PTR>
@@ -176,7 +179,7 @@ void ISchema<INFO>::init( CPROP_PTR iParent,
 
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ISchema::ISchema::init()" );
 
-    // Get actual writer for parent.
+    // Get actual reader for parent.
     ABCA_ASSERT( iParent,
                  "NULL parent passed into ISchema ctor" );
     AbcA::CompoundPropertyReaderPtr parent =
@@ -230,6 +233,10 @@ inline ISchema<INFO>::ISchema(
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace Abc
 } // End namespace Alembic

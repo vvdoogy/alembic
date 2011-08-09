@@ -1,4 +1,3 @@
-
 #set these to your alembic check-out and build dirs
 ABCROOT = ../../lib
 ABCBUILDROOT = ../../../alembic_build/lib/Alembic
@@ -11,8 +10,7 @@ LINKPATHS = -L $(ABCBUILDROOT)/MD5Hash \
             -L $(ABCBUILDROOT)/AbcCoreAbstract \
             -L $(ABCBUILDROOT)/AbcCoreHDF5 \
             -L $(ABCBUILDROOT)/Abc \
-            -L $(ABCBUILDROOT)/AbcGeom \
-            $(GLULIB)
+            -L $(ABCBUILDROOT)/AbcGeom 
 
 LINKS = -l AlembicAbcGeom \
         -l AlembicAbc \
@@ -20,26 +18,12 @@ LINKS = -l AlembicAbcGeom \
         -l AlembicAbcCoreAbstract \
         -l AlembicUtil \
         -l hdf5 -l hdf5_hl 
-        
 
 HCUSTOM_ADDITIONAL_ARGS = 
 
-#Sony-specific errata you can ignore (and which will go away soon)
-ATSPI = 0
-ifeq ($(ATSPI), 1)
-INCLUDES += -I /usr/local/spi/include
-INCLUDES += -I /usr/include/OpenEXR
-LINKS += -l SpiImath -l SpiIex -l SpiHalf
-LINKS += -L /usr/lib64/xorg.mesa.3d -L /usr/lib64/
-HCUSTOM_ADDITIONAL_ARGS += --appver 11.0.703
-endif
-
-
-INSTALLDIR = /tmp
-
-
-
-
-debug: SOP_AlembicIn.cpp
-	hcustom $(HCUSTOM_ADDITIONAL_ARGS) -e SOP_AlembicIn.cpp $(INCLUDES) $(LINKPATHS) $(LINKS) -i $(INSTALLDIR)
+debug: SOP_AlembicIn.C
+	hcustom $(HCUSTOM_ADDITIONAL_ARGS) -e SOP_AlembicIn.C $(INCLUDES) $(LINKPATHS) $(LINKS)
 	rm SOP_AlembicIn.o
+
+otl:
+	hotl -b -c OPalembic OPalembic.otl

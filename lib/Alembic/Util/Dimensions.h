@@ -1,7 +1,8 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010, Industrial Light & Magic,
-//   a division of Lucasfilm Entertainment Company Ltd.
+// Copyright (c) 2009-2011,
+//  Sony Pictures Imageworks Inc. and
+//  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
 // All rights reserved.
 //
@@ -49,35 +50,31 @@ class BaseDimensions
 private:
     typedef std::vector<T> SizeVec;
     SizeVec m_vector;
-    const size_t m_mask;
 
 public:
     // Default is for a rank-0 dimension.
     BaseDimensions()
       : m_vector()
-      , m_mask( -1 )
     {}
 
     // When you specify a single thing, you're specifying a rank-1
     // dimension of a certain size.
     explicit BaseDimensions( const T& t )
       : m_vector( 1, t )
-      , m_mask( -1 )
     {}
 
     BaseDimensions( const BaseDimensions &copy )
       : m_vector( copy.m_vector )
-      , m_mask( -1 )
     {}
 
     template <class Y>
     BaseDimensions( const BaseDimensions<Y> &copy )
-      : m_mask( -1 )
     {
         m_vector.resize( copy.rank() );
         for ( size_t i = 0; i < copy.rank(); ++i )
         {
-            m_vector[i] = static_cast<T>( copy[i] );
+            Y val = copy[i];
+            m_vector[i] = static_cast<T>( val );
         }
     }
 
@@ -93,7 +90,8 @@ public:
         m_vector.resize( copy.rank() );
         for ( size_t i = 0; i < copy.rank(); ++i )
         {
-            m_vector[i] = static_cast<T>( copy[i] );
+            Y val = copy[i];
+            m_vector[i] = static_cast<T>( val );
         }
         return *this;
     }
@@ -110,10 +108,10 @@ public:
     }
 
     T &operator[]( size_t i )
-    { return *( ( T * )( m_mask & ((T) &(m_vector[i] ) ) ) ); }
+    { return m_vector[i]; }
 
     const T &operator[]( size_t i ) const
-    { return *( ( const T *)( m_mask & ((T) &( m_vector[i] ) ) ) ); }
+    { return m_vector[i]; }
 
     T *rootPtr() { return ( T * )( &( m_vector.front() ) ); }
     const T *rootPtr() const

@@ -42,6 +42,7 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 // place holder used by the default constructor of Argument, used so the visitor
 // can differentiate between no arguments being set and the uint32_t time
@@ -115,6 +116,7 @@ private:
 // our various classes for construction.
 // ErrorHandlerPolicy - always defaults to QuietNoop
 // MetaData - always defaults to ""
+// matching - schema interpretation matching
 // TimeSampling - always defaults to default uniform
 // TimeSamplingIndex - always defaults to 0
 class Argument
@@ -155,6 +157,19 @@ inline ErrorHandler::Policy GetErrorHandlerPolicy
   const Argument &iArg2 = Argument() )
 {
     Arguments args( GetErrorHandlerPolicy( iSomething ) );
+    iArg0.setInto( args );
+    iArg1.setInto( args );
+    iArg2.setInto( args );
+    return args.getErrorHandlerPolicy();
+}
+
+//-*****************************************************************************
+inline ErrorHandler::Policy GetErrorHandlerPolicyFromArgs
+( const Argument &iArg0,
+  const Argument &iArg1 = Argument(),
+  const Argument &iArg2 = Argument() )
+{
+    Arguments args;
     iArg0.setInto( args );
     iArg1.setInto( args );
     iArg2.setInto( args );
@@ -212,6 +227,10 @@ inline SchemaInterpMatching GetSchemaInterpMatching
     iArg2.setInto( args );
     return args.getSchemaInterpMatching();
 }
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace Abc
 } // End namespace Alembic

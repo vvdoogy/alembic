@@ -38,6 +38,7 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 
 //-*****************************************************************************
@@ -66,6 +67,12 @@ void ICameraSchema::init( const Abc::Argument &iArg0,
     if ( this->getPropertyHeader( ".arbGeomParams" ) != NULL )
     {
         m_arbGeomParams = Abc::ICompoundProperty( _this, ".arbGeomParams",
+            args.getErrorHandlerPolicy() );
+    }
+
+    if ( this->getPropertyHeader( ".userProperties" ) != NULL )
+    {
+        m_userProperties = Abc::ICompoundProperty( _this, ".userProperties",
             args.getErrorHandlerPolicy() );
     }
 
@@ -207,5 +214,6 @@ void ICameraSchema::get( CameraSample & oSample,
     ALEMBIC_ABC_SAFE_CALL_END();
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcGeom
 } // End namespace Alembic

@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -57,7 +57,9 @@ struct ProcArgs
     , shutterClose( rhs.shutterClose )
     , excludeXform( false )
     {}
-
+    
+    void usage();
+    
     //member variables
     std::string filename;
     std::string objectpath;

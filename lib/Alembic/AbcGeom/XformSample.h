@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class XformSample
@@ -122,7 +123,7 @@ public:
     bool isTopologyEqual( const XformSample & iSample );
 
     //! Has this Sample been used in a call to OXformSchema::set()
-    const bool getIsTopologyFrozen() const { return m_hasBeenRead; }
+    bool getIsTopologyFrozen() const { return m_hasBeenRead; }
 
     void reset();
 
@@ -151,6 +152,10 @@ private:
     size_t m_opIndex;
 };
 
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -54,6 +54,7 @@ typedef boost::weak_ptr<CacheImpl> CacheImplWeakPtr;
 //-*****************************************************************************
 //! This class is underimplemented. It ought to allow limits on storage.
 //! Todo!
+//! THIS CLASS IS NOT MULTITHREAD SAFE
 class CacheImpl : public AbcA::ReadArraySampleCache
 {
 public:

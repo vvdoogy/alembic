@@ -41,9 +41,11 @@
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
 #include <Alembic/AbcGeom/OGeomParam.h>
 #include <Alembic/AbcGeom/FaceSetExclusivity.h>
+#include <Alembic/AbcGeom/OGeomBase.h>
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 
@@ -52,7 +54,7 @@ class OSubDSchema;
 class OPolyMeshSchema;
 
 //-*****************************************************************************
-class OFaceSetSchema : public Abc::OSchema<FaceSetSchemaInfo>
+class OFaceSetSchema : public OGeomBaseSchema<FaceSetSchemaInfo>
 {
 public:
     //-*************************************************************************
@@ -74,22 +76,10 @@ public:
         //! e.g. call std::sort (myVecOfFaces.begin (), myVecOfFaces.end ());
         //! if you need to.
         //! The sample must be complete like this. Subsequent samples may also
-        //! consist of faces and visbibility which allows you to change of topology
-        //! of the faceset, or you can use the other sample ctor if you only need
-        //! to change visibility.
-        Sample( const Abc::Int32ArraySample &iFaceNums,
-                const bool visible = true)
-          : m_visible( visible )
-          , m_faces( iFaceNums )
-        {}
-
-        //! Creates a sample with just indication of visibility.
-        //! To use this ctor you must have first created a Sample
-        //! with the list of faces. This second ctor is handy if
-        //! the topology of your faceset hasn't change and you just
-        //! need to animate visibility of the faceset.
-        Sample( const bool visible)
-          : m_visible( visible )
+        //! consist of faces which allows you to change of topology
+        //! of the faceset.
+        Sample( const Abc::Int32ArraySample &iFaceNums)
+          : m_faces( iFaceNums )
         {}
 
         /* main accessors */
@@ -97,10 +87,6 @@ public:
         const Abc::Int32ArraySample &getFaces() const { return m_faces; }
         void setFaces( const Abc::Int32ArraySample &iFaces)
         { m_faces = iFaces; }
-        // Visibility
-        const bool isVisible () const { return m_visible; }
-        void setVisible( const bool visible )
-        { m_visible = visible; }
 
         // Bounding boxes
         const Abc::Box3d &getSelfBounds() const { return m_selfBounds; }
@@ -113,7 +99,6 @@ public:
 
         void reset()
         {
-            m_visible = true;
             m_faces.reset();
 
             m_selfBounds.makeEmpty();
@@ -121,7 +106,6 @@ public:
         }
 
     protected:
-        bool                    m_visible;
         Abc::Int32ArraySample   m_faces;
 
         // bounds
@@ -164,7 +148,7 @@ public:
                      const Abc::Argument &iArg0 = Abc::Argument(),
                      const Abc::Argument &iArg1 = Abc::Argument(),
                      const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<FaceSetSchemaInfo>( iParentCompound, iName,
+      : OGeomBaseSchema<FaceSetSchemaInfo>( iParentCompound, iName,
                                    iArg0, iArg1, iArg2 )
     {
         _initTimeSampling ( iParentCompound, iArg0, iArg1, iArg2 );
@@ -198,7 +182,7 @@ public:
                               const Abc::Argument &iArg0 = Abc::Argument(),
                               const Abc::Argument &iArg1 = Abc::Argument(),
                               const Abc::Argument &iArg2 = Abc::Argument() )
-      : Abc::OSchema<FaceSetSchemaInfo>( iParentCompound,
+      : OGeomBaseSchema<FaceSetSchemaInfo>( iParentCompound,
                                             iArg0, iArg1, iArg2 )
     {
         _initTimeSampling ( iParentCompound, iArg0, iArg1, iArg2 );
@@ -206,6 +190,7 @@ public:
 
     //! Copy constructor.
     OFaceSetSchema(const OFaceSetSchema& iCopy)
+        : OGeomBaseSchema<FaceSetSchemaInfo>()
     {
         *this = iCopy;
     }
@@ -223,7 +208,7 @@ public:
     //! Get number of samples written so far.
     //! ...
     size_t getNumSamples()
-    { return m_visibilityProperty.getNumSamples(); }
+    { return m_facesProperty.getNumSamples(); }
 
     //! Set a sample! First sample must have the list of faces in the faceset.
     void set( const Sample &iSamp );
@@ -245,17 +230,15 @@ public:
     {
         m_selfBoundsProperty.reset();
         m_childBoundsProperty.reset();
-        m_visibilityProperty.reset();
         m_facesProperty.reset();
 
-        Abc::OSchema<FaceSetSchemaInfo>::reset();
+        OGeomBaseSchema<FaceSetSchemaInfo>::reset();
     }
 
     //! Valid returns whether this instance holds real data.
     bool valid() const
     {
-        return ( Abc::OSchema<FaceSetSchemaInfo>::valid() &&
-                 m_visibilityProperty.valid() &&
+        return ( OGeomBaseSchema<FaceSetSchemaInfo>::valid() &&
                  m_facesProperty.valid()
                  );
     }
@@ -269,15 +252,10 @@ protected:
 
     void init( uint32_t iTimeSamplingID );
 
-    Abc::OBoolProperty          m_visibilityProperty;
     Abc::OInt32ArrayProperty    m_facesProperty;
-
-    Abc::OBox3dProperty         m_selfBoundsProperty;
-    Abc::OBox3dProperty         m_childBoundsProperty;
 
     Abc::OUInt32Property        m_facesExclusiveProperty;
     FaceSetExclusivity          m_facesExclusive;
-
 
     friend class OSubDSchema;
     friend class OPolyMeshSchema;
@@ -288,6 +266,10 @@ protected:
 // Nice to use typedef for users of this class.
 //-*****************************************************************************
 typedef Abc::OSchemaObject<OFaceSetSchema> OFaceSet;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

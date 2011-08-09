@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -42,21 +42,21 @@ namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 // static instancing
-const uint32_t TimeSamplingType::ACYCLIC_NUM_SAMPLES =
-    std::numeric_limits<uint32_t>::max();
+namespace {
+const uint32_t ACYCLIC_NUM_SAMPLES = std::numeric_limits<uint32_t>::max();
 
 // Not all the way to the max.
-const chrono_t TimeSamplingType::ACYCLIC_TIME_PER_CYCLE =
-    std::numeric_limits<chrono_t>::max() / 32.0;
+const chrono_t ACYCLIC_TIME_PER_CYCLE = std::numeric_limits<chrono_t>::max() / 32.0;
+}
 
 //-*****************************************************************************
 // get these constants; similar to std::numeric_limits<>()
-uint32_t const TimeSamplingType::AcyclicNumSamples()
+uint32_t TimeSamplingType::AcyclicNumSamples()
 {
     return ACYCLIC_NUM_SAMPLES;
 }
 
-chrono_t const TimeSamplingType::AcyclicTimePerCycle()
+chrono_t TimeSamplingType::AcyclicTimePerCycle()
 {
     return ACYCLIC_TIME_PER_CYCLE;
 }
