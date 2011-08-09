@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -141,7 +141,7 @@ void ProcessPolyMesh( IPolyMesh &polymesh, ProcArgs &args )
 
         ParamListBuilder.add( "P", (RtPointer)sample.getPositions()->get() );
 
-        IV2fGeomParam uvParam = ps.getUVs();
+        IV2fGeomParam uvParam = ps.getUVsParam();
         if ( uvParam.valid() )
         {
             ICompoundProperty parent = uvParam.getParent();
@@ -155,7 +155,7 @@ void ProcessPolyMesh( IPolyMesh &polymesh, ProcArgs &args )
                 2,
                 "st");
         }
-        IN3fGeomParam nParam = ps.getNormals();
+        IN3fGeomParam nParam = ps.getNormalsParam();
         if ( nParam.valid() )
         {
             ICompoundProperty parent = nParam.getParent();
@@ -218,7 +218,7 @@ void ProcessSubD( ISubD &subd, ProcArgs &args, const std::string & facesetName )
 
         ParamListBuilder.add( "P", (RtPointer)sample.getPositions()->get() );
 
-        IV2fGeomParam uvParam = ss.getUVs();
+        IV2fGeomParam uvParam = ss.getUVsParam();
         if ( uvParam.valid() )
         {
             ICompoundProperty parent = uvParam.getParent();
@@ -359,28 +359,60 @@ void ProcessNuPatch( INuPatch &patch, ProcArgs &args )
         
         ParamListBuilder ParamListBuilder;
         
-        //for now, no Pw so go straight with P
-        ParamListBuilder.add( "P", (RtPointer)sample.getPositions()->get() );
+        //build this here so that it's still in scope when RiNuPatchV is
+        //called.
+        std::vector<RtFloat> pwValues;
+        
+        if ( sample.getPositionWeights() )
+        {
+            if ( sample.getPositionWeights()->size() == sample.getPositions()->size() )
+            {
+                //need to combine P with weight form Pw
+                pwValues.reserve( sample.getPositions()->size() * 4 );
+                
+                const float32_t * pStart = reinterpret_cast<const float32_t * >(
+                        sample.getPositions()->get() );
+                const float32_t * wStart = reinterpret_cast<const float32_t * >(
+                        sample.getPositionWeights()->get() );
+                
+                for ( size_t i = 0, e = sample.getPositionWeights()->size();
+                        i < e;  ++i )
+                {
+                    pwValues.push_back( pStart[i*3] );
+                    pwValues.push_back( pStart[i*3+1] );
+                    pwValues.push_back( pStart[i*3+2] );
+                    pwValues.push_back( wStart[i] );
+                }
+                
+                ParamListBuilder.add( "Pw", (RtPointer) &pwValues[0] );
+            }
+        }
+        
+        if ( pwValues.empty() )
+        {
+            //no Pw so go straight with P
+            ParamListBuilder.add( "P",
+                    (RtPointer)sample.getPositions()->get() );
+        }
         
         ICompoundProperty arbGeomParams = ps.getArbGeomParams();
         AddArbitraryGeomParams( arbGeomParams,
                     sampleSelector, ParamListBuilder );
         
-        //for now, use 0 and 1 for umin and umax as it's not described in
-        //alembic data. In theory, setting varying st could accomplish the
-        //same thing for someone who really needs it.
+        //For now, use the last knot value for umin and umax as it's
+        //not described in the alembic data 
         
         RiNuPatchV(
                 sample.getNumU(),
                 sample.getUOrder(),
                 (RtFloat *) sample.getUKnot()->get(),
                 0.0, //umin
-                1.0, //umax
+                sample.getUKnot()->get()[sample.getUKnot()->size()-1],//umax
                 sample.getNumV(),
                 sample.getVOrder(),
                 (RtFloat *) sample.getVKnot()->get(),
                 0.0, //vmin
-                1.0, //vmax
+                sample.getVKnot()->get()[sample.getVKnot()->size()-1], //vmax
                 ParamListBuilder.n(),
                 ParamListBuilder.nms(),
                 ParamListBuilder.vals() );
@@ -402,7 +434,7 @@ void ProcessPoints( IPoints &points, ProcArgs &args )
     //for now, punt on the changing point count case -- even for frame ranges
     //for which the point count isn't changing
     
-    if ( ps.getIds().isConstant() )
+    if ( ps.getIdsProperty().isConstant() )
     {
         //grab only the current time
         sampleTimes.insert( args.frame / args.fps );
@@ -513,7 +545,7 @@ void ProcessCurves( ICurves &curves, ProcArgs &args )
         ParamListBuilder ParamListBuilder;
         ParamListBuilder.add( "P", (RtPointer)sample.getPositions()->get() );
         
-        IFloatGeomParam widthParam = cs.getWidths();
+        IFloatGeomParam widthParam = cs.getWidthsParam();
         if ( widthParam.valid() )
         {
             ICompoundProperty parent = widthParam.getParent();
@@ -542,7 +574,7 @@ void ProcessCurves( ICurves &curves, ProcArgs &args )
                 widthName);
         }
         
-        IN3fGeomParam nParam = cs.getNormals();
+        IN3fGeomParam nParam = cs.getNormalsParam();
         if ( nParam.valid() )
         {
             ICompoundProperty parent = nParam.getParent();
@@ -555,7 +587,7 @@ void ProcessCurves( ICurves &curves, ProcArgs &args )
                 ParamListBuilder);
         }
         
-        IV2fGeomParam uvParam = cs.getUVs();
+        IV2fGeomParam uvParam = cs.getUVsParam();
         if ( uvParam.valid() )
         {
             ICompoundProperty parent = uvParam.getParent();

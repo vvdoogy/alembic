@@ -42,12 +42,14 @@
 #include <Alembic/AbcGeom/CurveType.h>
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
 #include <Alembic/AbcGeom/IGeomParam.h>
+#include <Alembic/AbcGeom/IGeomBase.h>
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
-class ICurvesSchema : public Abc::ISchema<CurvesSchemaInfo>
+class ICurvesSchema : public IGeomBaseSchema<CurvesSchemaInfo>
 {
 public:
     class Sample
@@ -58,7 +60,7 @@ public:
         // Users don't ever create this data directly.
         Sample() { reset(); }
 
-        Abc::V3fArraySamplePtr getPositions() const { return m_positions; }
+        Abc::P3fArraySamplePtr getPositions() const { return m_positions; }
 
         std::size_t getNumCurves() const
         {
@@ -98,7 +100,7 @@ public:
 
     protected:
         friend class ICurvesSchema;
-        Abc::V3fArraySamplePtr m_positions;
+        Abc::P3fArraySamplePtr m_positions;
 
         Abc::Box3d m_selfBounds;
         Abc::Box3d m_childBounds;
@@ -141,7 +143,7 @@ public:
                      const std::string &iName,
                      const Abc::Argument &iArg0 = Abc::Argument(),
                      const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<CurvesSchemaInfo>( iParent, iName, iArg0, iArg1 )
+      : IGeomBaseSchema<CurvesSchemaInfo>( iParent, iName, iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
     }
@@ -152,7 +154,7 @@ public:
     explicit ICurvesSchema( CPROP_PTR iParent,
                             const Abc::Argument &iArg0 = Abc::Argument(),
                             const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<CurvesSchemaInfo>( iParent, iArg0, iArg1 )
+      : IGeomBaseSchema<CurvesSchemaInfo>( iParent, iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
     }
@@ -163,7 +165,7 @@ public:
                    Abc::WrapExistingFlag iFlag,
                    const Abc::Argument &iArg0 = Abc::Argument(),
                    const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<CurvesSchemaInfo>( iThis, iFlag, iArg0, iArg1 )
+      : IGeomBaseSchema<CurvesSchemaInfo>( iThis, iFlag, iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
     }
@@ -171,25 +173,28 @@ public:
     //! Default assignment operator used.
 
     ICurvesSchema( const ICurvesSchema &iCopy )
+      : IGeomBaseSchema<CurvesSchemaInfo>()
     {
         *this = iCopy;
     }
 
-    size_t getNumSamples() { return m_positions.getNumSamples(); }
+    size_t getNumSamples() const
+    { return m_positionsProperty.getNumSamples(); }
 
     //! Return the topological variance.
     //! This indicates how the mesh may change.
-    MeshTopologyVariance getTopologyVariance();
+    MeshTopologyVariance getTopologyVariance() const;
 
     //! Ask if we're constant - no change in value amongst samples,
     //! regardless of the time sampling.
-    bool isConstant() { return getTopologyVariance() == kConstantTopology; }
+    bool isConstant() const
+    { return getTopologyVariance() == kConstantTopology; }
 
     //! Time sampling type.
     //!
-    AbcA::TimeSamplingPtr getTimeSampling()
+    AbcA::TimeSamplingPtr getTimeSampling() const
     {
-        return m_positions.getTimeSampling();
+        return m_positionsProperty.getTimeSampling();
     }
 
     //-*************************************************************************
@@ -205,18 +210,21 @@ public:
     }
 
 
-    Abc::IV3fArrayProperty getPositions() { return m_positions; }
+    Abc::IP3fArrayProperty getPositionsProperty() const
+    {
+        return m_positionsProperty;
+    }
 
-    IV2fGeomParam &getUVs() { return m_uvs; }
-    IN3fGeomParam &getNormals() { return m_normals; }
-    IFloatGeomParam &getWidths() { return m_widths; }
+    Abc::IInt32ArrayProperty getNumVerticesProperty() const
+    {
+        return m_nVerticesProperty;
+    }
 
-    Abc::IBox3dProperty getSelfBounds() { return m_selfBounds; }
-    Abc::IBox3dProperty getChildBounds() { return m_childBounds; }
+    IV2fGeomParam &getUVsParam() { return m_uvsParam; }
+    IN3fGeomParam &getNormalsParam() { return m_normalsParam; }
+    IFloatGeomParam &getWidthsParam() { return m_widthsParam; }
 
-    // compound property to use as parent for any arbitrary GeomParams
-    // underneath it
-    ICompoundProperty getArbGeomParams() { return m_arbGeomParams; }
+
 
     //-*************************************************************************
     // ABC BASE MECHANISMS
@@ -228,29 +236,24 @@ public:
     //! state.
     void reset()
     {
-        m_positions.reset();
-        m_nVertices.reset();
+        m_positionsProperty.reset();
+        m_nVerticesProperty.reset();
 
-        m_selfBounds.reset();
-        m_childBounds.reset();
+        m_uvsParam.reset();
+        m_normalsParam.reset();
+        m_widthsParam.reset();
 
-        m_uvs.reset();
-        m_normals.reset();
-        m_widths.reset();
+        m_basisAndTypeProperty.reset();
 
-        m_arbGeomParams.reset();
-
-        m_basisAndType.reset();
-
-        Abc::ISchema<CurvesSchemaInfo>::reset();
+        IGeomBaseSchema<CurvesSchemaInfo>::reset();
     }
 
     //! Valid returns whether this function set is
     //! valid.
     bool valid() const
     {
-        return ( Abc::ISchema<CurvesSchemaInfo>::valid() &&
-                 m_positions.valid() && m_nVertices.valid() );
+        return ( IGeomBaseSchema<CurvesSchemaInfo>::valid() &&
+                 m_positionsProperty.valid() && m_nVerticesProperty.valid() );
     }
 
     //! unspecified-bool-type operator overload.
@@ -260,24 +263,23 @@ public:
 protected:
     void init( const Abc::Argument &iArg0, const Abc::Argument &iArg1 );
 
-    Abc::IV3fArrayProperty m_positions;
-    Abc::IInt32ArrayProperty  m_nVertices;
+    Abc::IP3fArrayProperty m_positionsProperty;
+    Abc::IInt32ArrayProperty m_nVerticesProperty;
 
     // contains type, wrap, ubasis, and vbasis.
-    Abc::IScalarProperty m_basisAndType;
+    Abc::IScalarProperty m_basisAndTypeProperty;
 
-    IFloatGeomParam m_widths;
-    IV2fGeomParam m_uvs;
-    IN3fGeomParam m_normals;
-
-    Abc::IBox3dProperty m_selfBounds;
-    Abc::IBox3dProperty m_childBounds;
-
-    Abc::ICompoundProperty m_arbGeomParams;
+    IFloatGeomParam m_widthsParam;
+    IV2fGeomParam m_uvsParam;
+    IN3fGeomParam m_normalsParam;
 };
 
 //-*****************************************************************************
 typedef Abc::ISchemaObject<ICurvesSchema> ICurves;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

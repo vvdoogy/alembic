@@ -44,6 +44,7 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class IXformSchema : public Abc::ISchema<XformSchemaInfo>
@@ -113,6 +114,7 @@ public:
 
     //! explicit copy constructor to work around Windows compiler bug
     IXformSchema( const IXformSchema &iCopy )
+        : Abc::ISchema<XformSchemaInfo>()
     {
         *this = iCopy;
     }
@@ -133,7 +135,7 @@ public:
     XformSample getValue( const Abc::ISampleSelector &iSS =
                           Abc::ISampleSelector() );
 
-    Abc::IBox3dProperty getChildBounds() { return m_childBounds; }
+    Abc::IBox3dProperty getChildBoundsProperty() { return m_childBoundsProperty; }
 
     // lightweight get to avoid constructing a sample
     // see XformSample.h for explanation of this property
@@ -146,11 +148,14 @@ public:
     //! state.
     void reset()
     {
-        m_childBounds.reset();
+        m_childBoundsProperty.reset();
         m_sample = XformSample();
-        m_inherits.reset();
+        m_inheritsProperty.reset();
         m_isConstant = true;
         m_isConstantIdentity = true;
+
+        m_arbGeomParams.reset();
+        m_userProperties.reset();
 
         super_type::reset();
     }
@@ -163,19 +168,22 @@ public:
 
     ICompoundProperty getArbGeomParams() { return m_arbGeomParams; }
 
+    ICompoundProperty getUserProperties() { return m_userProperties; }
+
     //! unspecified-bool-type operator overload.
     //! ...
     ALEMBIC_OVERRIDE_OPERATOR_BOOL( this_type::valid() );
 
 
 protected:
-    Abc::IBox3dProperty m_childBounds;
+    Abc::IBox3dProperty m_childBoundsProperty;
 
-    AbcA::BasePropertyReaderPtr m_vals;
+    AbcA::BasePropertyReaderPtr m_valsProperty;
 
-    Abc::IBoolProperty m_inherits;
+    Abc::IBoolProperty m_inheritsProperty;
 
     Abc::ICompoundProperty m_arbGeomParams;
+    Abc::ICompoundProperty m_userProperties;
 
     bool m_isConstant;
 
@@ -198,6 +206,10 @@ private:
 // SCHEMA OBJECT
 //-*****************************************************************************
 typedef Abc::ISchemaObject<IXformSchema> IXform;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -38,6 +38,7 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 void ErrorHandler::operator()( std::exception &iExc,
@@ -78,8 +79,10 @@ void ErrorHandler::handleIt( const std::string &iMsg )
     default:
     case kThrowPolicy:
         ABCA_THROW( iMsg );
+        return;
     }
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace Abc
 } // End namespace Alembic

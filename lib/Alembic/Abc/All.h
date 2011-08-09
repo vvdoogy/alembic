@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -41,6 +41,7 @@
 #include <Alembic/Abc/ErrorHandler.h>
 #include <Alembic/Abc/Foundation.h>
 
+#include <Alembic/Abc/ArchiveInfo.h>
 #include <Alembic/Abc/Argument.h>
 #include <Alembic/Abc/IArchive.h>
 #include <Alembic/Abc/IArrayProperty.h>

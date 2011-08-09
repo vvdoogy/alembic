@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -39,6 +39,7 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 IArchive::~IArchive()
@@ -115,6 +116,19 @@ uint32_t IArchive::getNumTimeSamplings( )
 }
 
 //-*****************************************************************************
+int32_t IArchive::getArchiveVersion( )
+{
+    ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArchive:::getArchiveVersion" );
+
+    return m_archive->getArchiveVersion( );
+
+    ALEMBIC_ABC_SAFE_CALL_END();
+
+    // Not all error handlers throw, so here is a default behavior.
+    return 0;
+}
+
+//-*****************************************************************************
 void IArchive::setReadArraySampleCachePtr( AbcA::ReadArraySampleCachePtr iPtr )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IArchive::setReadArraySampleCachePtr" );
@@ -124,5 +138,6 @@ void IArchive::setReadArraySampleCachePtr( AbcA::ReadArraySampleCachePtr iPtr )
     ALEMBIC_ABC_SAFE_CALL_END();
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace Abc
 } // End namespace Alembic

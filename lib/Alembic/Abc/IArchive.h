@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
 class IObject;
 
@@ -159,6 +160,10 @@ public:
         return ( Base::valid() && m_archive );
     }
 
+    //! Returns the Alembic library numeric version (see Foundation.h)
+    //! of this archive file.
+    int32_t getArchiveVersion();
+
     //! The unspecified-bool-type operator casts the object to "true"
     //! if it is valid, and "false" otherwise.
     ALEMBIC_OPERATOR_BOOL( valid() );
@@ -191,6 +196,10 @@ IArchive::IArchive( ARCHIVE_CTOR iCtor,
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 
 }
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace Abc
 } // End namespace Alembic

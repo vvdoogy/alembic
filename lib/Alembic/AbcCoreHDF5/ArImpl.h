@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -78,6 +78,7 @@ public:
         return m_readArraySampleCache;
     }
 
+    //! THIS METHOD IS NOT MULTITHREAD SAFE
     virtual void
     setReadArraySampleCachePtr( AbcA::ReadArraySampleCachePtr iPtr )
     {
@@ -89,11 +90,18 @@ public:
         return m_timeSamples.size();
     }
 
+    virtual int32_t getArchiveVersion()
+    {
+        return m_archiveVersion;
+    }
+
 private:
     std::string m_fileName;
     hid_t m_file;
 
     TopOrImpl *m_top;
+
+    int32_t m_archiveVersion;
 
     std::vector <  AbcA::TimeSamplingPtr > m_timeSamples;
 

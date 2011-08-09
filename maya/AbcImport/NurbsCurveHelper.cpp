@@ -64,7 +64,7 @@ MStatus readCurves(double iFrame, const Alembic::AbcGeom::ICurves & iNode,
     Alembic::AbcGeom::ICurvesSchema::Sample samp, ceilSamp;
     schema.get(samp, index);
 
-    unsigned int numCurves = samp.getNumCurves();
+    unsigned int numCurves = static_cast<unsigned int>(samp.getNumCurves());
 
     bool interp = false;
     if (alpha != 0.0 && index != ceilIndex)
@@ -76,8 +76,8 @@ MStatus readCurves(double iFrame, const Alembic::AbcGeom::ICurves & iNode,
         }
     }
 
-    Alembic::Abc::V3fArraySamplePtr sampPoints = samp.getPositions();
-    Alembic::Abc::V3fArraySamplePtr ceilPoints = ceilSamp.getPositions();
+    Alembic::Abc::P3fArraySamplePtr sampPoints = samp.getPositions();
+    Alembic::Abc::P3fArraySamplePtr ceilPoints = ceilSamp.getPositions();
 
     Alembic::Abc::Int32ArraySamplePtr numVertices =
         samp.getCurvesNumVertices();
@@ -89,6 +89,12 @@ MStatus readCurves(double iFrame, const Alembic::AbcGeom::ICurves & iNode,
         interp = false;
     }
 
+    unsigned int degree = 1;
+    if (samp.getType() == Alembic::AbcGeom::kCubic)
+    {
+        degree = 3;
+    }
+
     std::size_t curVert = 0;
     for (std::size_t i = 0; i < iExpectedCurves && i < numCurves; ++i)
     {
@@ -96,8 +102,8 @@ MStatus readCurves(double iFrame, const Alembic::AbcGeom::ICurves & iNode,
         MDoubleArray knots;
 
         int numVerts = (*numVertices)[i];
-
-        for (int j = 0; j < numVerts; ++j, ++curVert)
+        int j;
+        for (j = 0; j < numVerts; ++j, ++curVert)
         {
             Alembic::Abc::V3f pos = (*sampPoints)[curVert];
 
@@ -112,15 +118,20 @@ MStatus readCurves(double iFrame, const Alembic::AbcGeom::ICurves & iNode,
             {
                 cvs.append(pos.x, pos.y, pos.z);
             }
+        }
 
-            knots.append(j/(float)(numVerts-1));
+        // for now evenly distribute the knots
+        int numKnots = numVerts + degree - 1;
+        for (j = 0; j < numKnots; ++j)
+        {
+            knots.append(j/(float)(numKnots-1));
         }
 
         MFnNurbsCurveData curveData;
         MObject curveDataObj = curveData.create();
         ioCurveObjects.push_back(curveDataObj);
         MFnNurbsCurve curve;
-        curve.create(cvs, knots, 1, MFnNurbsCurve::kOpen, false, true,
+        curve.create(cvs, knots, degree, MFnNurbsCurve::kOpen, false, true,
             curveDataObj);
     }
 
@@ -148,7 +159,7 @@ MObject createCurves(const std::string & iName,
     Alembic::Abc::FloatArraySamplePtr widths = iWidths.getVals();
     Alembic::Abc::Int32ArraySamplePtr curvesNumVertices =
         iSample.getCurvesNumVertices();
-    Alembic::Abc::V3fArraySamplePtr positions = iSample.getPositions();
+    Alembic::Abc::P3fArraySamplePtr positions = iSample.getPositions();
 
     MString name(iName.c_str());
 
@@ -179,14 +190,19 @@ MObject createCurves(const std::string & iName,
         if (widths && widths->size() == 1)
         {
             MFnNumericAttribute widthAttr;
-            attrObj = widthAttr.create("constantwidth", "constantwidth",
+            attrObj = widthAttr.create("width", "width",
                 MFnNumericData::kFloat, (*widths)[0]);
             fnTrans.addAttribute(attrObj,
                 MFnDependencyNode::kLocalDynamicAttr);
         }
     }
 
-    unsigned int degree = 1; // samp.getDegree();
+    unsigned int degree = 1;
+    if (iSample.getType() == Alembic::AbcGeom::kCubic)
+    {
+        degree = 3;
+    }
+
     std::size_t curVert = 0;
     for (std::size_t i = 0; i < numCurves; ++i)
     {
@@ -195,15 +211,22 @@ MObject createCurves(const std::string & iName,
 
         int numVerts = (*curvesNumVertices)[i];
 
-        for (int j = 0; j < numVerts; ++j, ++curVert)
+        int j;
+        for (j = 0; j < numVerts; ++j, ++curVert)
         {
             Alembic::Abc::V3f pos = (*positions)[curVert];
             cvs.append(pos.x, pos.y, pos.z);
-            knots.append(j/(float)(numVerts-1));
+        }
+
+        // for now evenly distribute the knots
+        int numKnots = numVerts + degree - 1;
+        for (j = 0; j < numKnots; ++j)
+        {
+            knots.append(j/(float)(numKnots-1));
         }
 
         MFnNurbsCurve curve;
-        MObject curveObj = curve.create(cvs, knots, 1,
+        MObject curveObj = curve.create(cvs, knots, degree,
             MFnNurbsCurve::kOpen, false, true, parent);
         curve.setName(name);
 
@@ -215,19 +238,37 @@ MObject createCurves(const std::string & iName,
         if (numCurves == 1)
         {
             returnObj = curveObj;
-
-            // constant width
-            if (widths && widths->size() == 1)
-            {
-                MFnNumericAttribute widthAttr;
-                MObject attrObj = widthAttr.create("constantwidth",
-                    "constantwidth", MFnNumericData::kFloat, (*widths)[0]);
-                curve.addAttribute(attrObj,
-                    MFnDependencyNode::kLocalDynamicAttr);
-            }
         }
 
-        // deal with other types of width
+        // constant width, 1 curve just put it on the curve shape
+        if (numCurves == 1 && widths && widths->size() == 1 && 
+            iWidths.getScope() ==  Alembic::AbcGeom::kConstantScope)
+        {
+            MFnNumericAttribute widthAttr;
+            MObject attrObj = widthAttr.create("width",
+                "width", MFnNumericData::kFloat, (*widths)[0]);
+            curve.addAttribute(attrObj,
+                MFnDependencyNode::kLocalDynamicAttr);
+        }
+        // per vertex width
+        else if (widths && widths->size() >= curVert && numVerts > 0 &&
+            iWidths.getScope() ==  Alembic::AbcGeom::kVertexScope)
+        {
+            MDoubleArray array((const float *)(
+                &(*widths)[curVert-numVerts]), numVerts);
+            MFnDoubleArrayData mFn;
+            MObject attrObject = mFn.create(array);
+            MFnGenericAttribute attr(attrObject);
+            MObject attrObj = attr.create("width", "width");
+            attr.addDataAccept(MFnData::kDoubleArray);
+            MFnDependencyNode mParentFn(curve);
+            mParentFn.addAttribute(attrObj,
+                MFnDependencyNode::kLocalDynamicAttr);
+
+            MPlug plug(curveObj, attrObj);
+            plug.setValue(attrObject);
+        }
+
     }
 
 

@@ -230,6 +230,8 @@ AbcWriteJob::AbcWriteJob(const char * iFileName,
     mFileName = iFileName;
     mBoxIndex = 0;
     mArgs = iArgs;
+    mShapeSamples = 1;
+    mTransSamples = 1;
 
     if (mArgs.useSelectionList)
     {
@@ -345,7 +347,7 @@ bool AbcWriteJob::checkCurveGrp()
 
     bool init = false;
     int degree;
-    MFnNurbsCurve::Form form;
+    MFnNurbsCurve::Form form = MFnNurbsCurve::kInvalid;
     for (; !itDag.isDone(); itDag.next())
     {
         MDagPath curvePath;
@@ -786,13 +788,29 @@ bool AbcWriteJob::eval(double iFrame)
             throw std::runtime_error("The names of root nodes are the same");
         }
 
-        mRoot = Alembic::Abc::OArchive( Alembic::AbcCoreHDF5::WriteArchive(),
-            mFileName, Alembic::Abc::ErrorHandler::kThrowPolicy );
+        std::string appWriter = "Maya ";
+        appWriter += MGlobal::mayaVersion().asChar();
+        appWriter += " AbcExport v";
+        appWriter += ABCEXPORT_VERSION;
+
+        std::string userInfo = "Exported from: ";
+        userInfo += MFileIO::currentFile().asChar();
+
+        // these symbols can't be in the meta data
+        if (userInfo.find('=') != std::string::npos ||
+            userInfo.find(';') != std::string::npos)
+        {
+            userInfo = "";
+        }
+
+        mRoot = CreateArchiveWithInfo(Alembic::AbcCoreHDF5::WriteArchive(),
+            mFileName, appWriter, userInfo,
+            Alembic::Abc::ErrorHandler::kThrowPolicy);
         mShapeTimeIndex = mRoot.addTimeSampling(*mShapeTime);
         mTransTimeIndex = mRoot.addTimeSampling(*mTransTime);
 
-        mBoxProp = Alembic::Abc::OBox3dProperty(mRoot.getTop().getProperties(),
-            ".childBnds", mTransTimeIndex);
+        mBoxProp =  Alembic::AbcGeom::CreateOArchiveBounds(mRoot,
+            mTransTimeIndex);
 
         if (!mRoot.valid())
         {
@@ -813,10 +831,11 @@ bool AbcWriteJob::eval(double iFrame)
     {
         std::set<double>::iterator checkFrame = mShapeFrames.find(iFrame);
         bool foundShapeFrame = false;
-        if (checkFrame != mShapeFrames.end() && !mShapeList.empty())
+        if (checkFrame != mShapeFrames.end())
         {
             assert(mRoot != NULL);
             foundShapeFrame = true;
+            mShapeSamples ++;
             std::vector< MayaNodePtr >::iterator it = mShapeList.begin();
             std::vector< MayaNodePtr >::iterator end = mShapeList.end();
             CallWriteVisitor visit(iFrame * util::spf());
@@ -846,10 +865,11 @@ bool AbcWriteJob::eval(double iFrame)
 
         checkFrame = mTransFrames.find(iFrame);
         bool foundTransFrame = false;
-        if (checkFrame != mTransFrames.end() && !mTransList.empty())
+        if (checkFrame != mTransFrames.end())
         {
             assert(mRoot.valid());
             foundTransFrame = true;
+            mTransSamples ++;
             std::vector< MayaTransformWriterPtr >::iterator tcur =
                 mTransList.begin();
 
@@ -972,6 +992,26 @@ void AbcWriteJob::postCallback(double iFrame)
         Alembic::Abc::OStringProperty stats(mRoot.getTop().getProperties(),
             "statistics");
         stats.set(statsStr);
+    }
+
+    if (mTransTimeIndex != 0)
+    {
+        MString propName;
+        propName += mTransTimeIndex;
+        propName += ".samples";
+        Alembic::Abc::OUInt32Property samp(mRoot.getTop().getProperties(),
+            propName.asChar());
+        samp.set(mTransSamples);
+    }
+
+    if (mShapeTimeIndex != 0 && mShapeTimeIndex != mTransTimeIndex)
+    {
+        MString propName;
+        propName += mShapeTimeIndex;
+        propName += ".samples";
+        Alembic::Abc::OUInt32Property samp(mRoot.getTop().getProperties(),
+            propName.asChar());
+        samp.set(mShapeSamples);
     }
 
     MBoundingBox bbox;

@@ -38,14 +38,17 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
-static void __testIGeomParamCompile( Abc::ICompoundProperty &iParent )
+void __testIGeomParamCompile( Abc::ICompoundProperty &iParent )
 {
     IV2fGeomParam uvs( iParent, "uv" );
 
     const AbcA::DataType &dt = uvs.getDataType();
+    dt.getExtent();
 }
 
 
-}
-}
+} // End namespace ALEMBIC_VERSION_NS
+} // End namespace AbcGeom
+} // End namespace Alembic

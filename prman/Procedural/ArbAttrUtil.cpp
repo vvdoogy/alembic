@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -220,6 +220,15 @@ void AddArbitraryGeomParams( ICompoundProperty &parent,
         else if ( IV3fGeomParam::matches( propHeader ) )
         {
             AddGeomParamToParamListBuilder<IV3fGeomParam>(
+                parent,
+                propHeader,
+                sampleSelector,
+                "vector",
+                ParamListBuilder);
+        }
+        else if ( IP3fGeomParam::matches( propHeader ) )
+        {
+            AddGeomParamToParamListBuilder<IP3fGeomParam>(
                 parent,
                 propHeader,
                 sampleSelector,

@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -49,6 +49,12 @@ IPolyMeshDrw::IPolyMeshDrw( IPolyMesh &iPmesh )
         return;
     }
 
+    if ( m_polyMesh.getSchema().getNumSamples() > 0 )
+    {
+        m_polyMesh.getSchema().get( m_samp );
+    }
+
+    m_boundsProp = m_polyMesh.getSchema().getSelfBoundsProperty();
 
     // The object has already set up the min time and max time of
     // all the children.
@@ -93,19 +99,32 @@ void IPolyMeshDrw::setTime( chrono_t iSeconds )
     // Use nearest for now.
     ISampleSelector ss( iSeconds, ISampleSelector::kNearIndex );
     IPolyMeshSchema::Sample psamp;
-    if ( m_polyMesh.getSchema().getNumSamples() > 0 )
+
+    if ( m_polyMesh.getSchema().isConstant() )
+    {
+        psamp = m_samp;
+    }
+    else if ( m_polyMesh.getSchema().getNumSamples() > 0 )
     {
         m_polyMesh.getSchema().get( psamp, ss );
     }
 
     // Get the stuff.
-    V3fArraySamplePtr P = psamp.getPositions();
+    P3fArraySamplePtr P = psamp.getPositions();
     Int32ArraySamplePtr indices = psamp.getFaceIndices();
     Int32ArraySamplePtr counts = psamp.getFaceCounts();
 
+    Box3d bounds;
+    bounds.makeEmpty();
+
+    if ( m_boundsProp && m_boundsProp.getNumSamples() > 0 )
+    {
+        bounds = m_boundsProp.getValue( ss );
+    }
+
     // Update the mesh hoo-ha.
     m_drwHelper.update( P, V3fArraySamplePtr(),
-                        indices, counts );
+                        indices, counts, bounds );
 
     if ( !m_drwHelper.valid() )
     {

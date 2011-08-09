@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class ICameraSchema : public Abc::ISchema<CameraSchemaInfo>
@@ -93,6 +94,7 @@ public:
 
     //! Copy constructor.
     ICameraSchema(const ICameraSchema& iCopy)
+        : Abc::ISchema<CameraSchemaInfo>()
     {
         *this = iCopy;
     }
@@ -128,6 +130,7 @@ public:
     // compound property to use as parent for any arbitrary GeomParams
     // underneath it
     ICompoundProperty getArbGeomParams() { return m_arbGeomParams; }
+    ICompoundProperty getUserProperties() { return m_userProperties; }
 
     //! Reset returns this function set to an empty, default
     //! state.
@@ -136,6 +139,7 @@ public:
         m_coreProperties.reset();
         m_childBounds.reset();
         m_arbGeomParams.reset();
+        m_userProperties.reset();
         m_ops.clear();
         Abc::ISchema<CameraSchemaInfo>::reset();
     }
@@ -160,6 +164,7 @@ protected:
     Abc::IBox3dProperty m_childBounds;
 
     Abc::ICompoundProperty m_arbGeomParams;
+    Abc::ICompoundProperty m_userProperties;
 
     Abc::IScalarProperty m_smallFilmBackChannels;
     Abc::IDoubleArrayProperty m_largeFilmBackChannels;
@@ -173,6 +178,10 @@ private:
 // SCHEMA OBJECT
 //-*****************************************************************************
 typedef Abc::ISchemaObject<ICameraSchema> ICamera;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

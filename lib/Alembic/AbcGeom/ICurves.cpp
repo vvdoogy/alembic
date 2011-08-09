@@ -38,19 +38,20 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
-MeshTopologyVariance ICurvesSchema::getTopologyVariance()
+MeshTopologyVariance ICurvesSchema::getTopologyVariance() const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ICurvesSchema::getTopologyVariance()" );
 
-    if ( m_positions.isConstant() && m_nVertices.isConstant() &&
-         m_basisAndType.isConstant() )
+    if ( m_positionsProperty.isConstant() && m_nVerticesProperty.isConstant() &&
+         m_basisAndTypeProperty.isConstant() )
     {
         return kConstantTopology;
     }
 
-    else if ( m_basisAndType.isConstant() )
+    else if ( m_basisAndTypeProperty.isConstant() )
     {
         return kHomogenousTopology;
     }
@@ -69,6 +70,7 @@ MeshTopologyVariance ICurvesSchema::getTopologyVariance()
 void ICurvesSchema::init( const Abc::Argument &iArg0,
                           const Abc::Argument &iArg1 )
 {
+    // Only callable by ctors (mt-safety)
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ICurvesSchema::init()" );
 
     Abc::Arguments args;
@@ -77,44 +79,29 @@ void ICurvesSchema::init( const Abc::Argument &iArg0,
 
     AbcA::CompoundPropertyReaderPtr _this = this->getPtr();
 
-    m_positions = Abc::IV3fArrayProperty( _this, "P",
-                                          args.getSchemaInterpMatching() );
+    // no matching so we pick up old assets written as V3f
+    m_positionsProperty = Abc::IP3fArrayProperty( _this, "P", kNoMatching );
 
-    m_nVertices = Abc::IInt32ArrayProperty( _this, "nVertices",
+    m_nVerticesProperty = Abc::IInt32ArrayProperty( _this, "nVertices",
                                             args.getSchemaInterpMatching());
 
-    m_basisAndType = Abc::IScalarProperty( _this, "curveBasisAndType",
+    m_basisAndTypeProperty = Abc::IScalarProperty( _this, "curveBasisAndType",
                                           args.getSchemaInterpMatching());
-
-    m_selfBounds = Abc::IBox3dProperty( _this, ".selfBnds", iArg0, iArg1 );
-
-    if ( this->getPropertyHeader( ".childBnds" ) != NULL )
-    {
-        m_childBounds = Abc::IBox3dProperty( _this, ".childBnds", iArg0,
-                                             iArg1 );
-    }
 
     // none of the things below here are guaranteed to exist
     if ( this->getPropertyHeader( "uv" ) != NULL )
     {
-        m_uvs = IV2fGeomParam( _this, "uv", iArg0, iArg1 );
+        m_uvsParam = IV2fGeomParam( _this, "uv", iArg0, iArg1 );
     }
 
     if ( this->getPropertyHeader( "N" ) != NULL )
     {
-        m_normals = IN3fGeomParam( _this, "N", iArg0, iArg1 );
+        m_normalsParam = IN3fGeomParam( _this, "N", iArg0, iArg1 );
     }
 
     if ( this->getPropertyHeader( "width" ) != NULL )
     {
-        m_widths = IFloatGeomParam( _this, "width", iArg0, iArg1 );
-    }
-
-    if ( this->getPropertyHeader( ".arbGeomParams" ) != NULL )
-    {
-        m_arbGeomParams = Abc::ICompoundProperty( _this, ".arbGeomParams",
-                                                  args.getErrorHandlerPolicy()
-                                                );
+        m_widthsParam = IFloatGeomParam( _this, "width", iArg0, iArg1 );
     }
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
@@ -128,29 +115,30 @@ void ICurvesSchema::get( ICurvesSchema::Sample &oSample,
 
     if ( ! valid() ) { return; }
 
-    m_positions.get( oSample.m_positions, iSS );
-    m_nVertices.get( oSample.m_nVertices, iSS );
+    m_positionsProperty.get( oSample.m_positions, iSS );
+    m_nVerticesProperty.get( oSample.m_nVertices, iSS );
 
     Alembic::Util::uint8_t basisAndType[4];
-    m_basisAndType.get( basisAndType, iSS );
+    m_basisAndTypeProperty.get( basisAndType, iSS );
 
     oSample.m_type = static_cast<CurveType>( basisAndType[0] );
     oSample.m_wrap = static_cast<CurvePeriodicity>( basisAndType[1] );
     oSample.m_basis = static_cast<BasisType>( basisAndType[2] );
     // we ignore basisAndType[3] since it is the same as basisAndType[2]
 
-    if ( m_selfBounds )
+    if ( m_selfBoundsProperty )
     {
-        m_selfBounds.get( oSample.m_selfBounds, iSS );
+        m_selfBoundsProperty.get( oSample.m_selfBounds, iSS );
     }
 
-    if ( m_childBounds && m_childBounds.getNumSamples() > 0 )
+    if ( m_childBoundsProperty && m_childBoundsProperty.getNumSamples() > 0 )
     {
-        m_childBounds.get( oSample.m_childBounds, iSS );
+        m_childBoundsProperty.get( oSample.m_childBounds, iSS );
     }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 }
 
+} // End namespace ALEMBIC_VERSION_NS
 } // End namespace AbcGeom
 } // End namespace Alembic

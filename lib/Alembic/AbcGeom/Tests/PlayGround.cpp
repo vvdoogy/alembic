@@ -189,7 +189,8 @@ void StupidData()
         {
             std::vector<int32_t> v( i, i );
             intArrayProp.set( v );
-            TESTING_ASSERT( intArrayProp.getNumSamples() == i + 1 );
+            TESTING_ASSERT( intArrayProp.getNumSamples() ==
+                            ( size_t ) ( i + 1 ) );
         }
         std::cout << std::endl << "Writing " << archiveName << std::endl;
     }
@@ -219,7 +220,7 @@ void StupidData()
         else
         { std::cout << "non-existent Property doesn't exist." << std::endl; }
 
-        for ( int32_t i = 0 ; i < 10 ; ++i )
+        for ( size_t i = 0 ; i < 10 ; ++i )
         {
             std::vector<int32_t> v( i, i );
             Int32ArraySamplePtr samp = intArrayProp.getValue( i );

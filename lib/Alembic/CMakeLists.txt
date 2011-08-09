@@ -1,6 +1,6 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2010,
+## Copyright (c) 2009-2011,
 ##  Sony Pictures Imageworks Inc. and
 ##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
@@ -37,11 +37,6 @@
 # Recurse into all the subdirectories
 
 ADD_SUBDIRECTORY( Util )
-
-IF ( GLUT_Xmu_LIBRARY OR WINDOWS )
-  ADD_SUBDIRECTORY( GLUtil )
-ENDIF()
-
 ADD_SUBDIRECTORY( AbcCoreAbstract )
 ADD_SUBDIRECTORY( AbcCoreHDF5 )
 ADD_SUBDIRECTORY( Abc )

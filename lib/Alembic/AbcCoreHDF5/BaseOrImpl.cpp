@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -192,7 +192,7 @@ const AbcA::ObjectHeader & BaseOrImpl::getChildHeader( size_t i )
 {
     // m_protoObjects filled by ctor via VisitAllLinksCB via createProtoObject
     // so multithread safe.
-    if ( i < 0 || i >= m_protoObjects.size() )
+    if ( i >= m_protoObjects.size() )
     {
         ABCA_THROW( "Out of range index in OrImpl::getChildHeader: "
                      << i );

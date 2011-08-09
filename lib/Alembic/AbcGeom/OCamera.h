@@ -43,6 +43,7 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 class OCameraSchema : public Abc::OSchema<CameraSchemaInfo>
@@ -130,6 +131,7 @@ public:
 
     //! Copy constructor.
     OCameraSchema(const OCameraSchema& iCopy)
+        : Abc::OSchema<CameraSchemaInfo>()
     {
         *this = iCopy;
     }
@@ -162,6 +164,7 @@ public:
     void setTimeSampling( uint32_t iIndex );
     void setTimeSampling( AbcA::TimeSamplingPtr iTime );
 
+    Abc::OCompoundProperty getUserProperties();
     Abc::OCompoundProperty getArbGeomParams();
 
     //-*************************************************************************
@@ -175,7 +178,8 @@ public:
     void reset()
     {
         m_coreProperties.reset();
-        m_childBounds.reset();
+        m_childBoundsProperty.reset();
+        m_userProperties.reset();
         m_arbGeomParams.reset();
 
         Abc::OSchema<CameraSchemaInfo>::reset();
@@ -197,13 +201,14 @@ protected:
 
     Abc::OScalarProperty m_coreProperties;
 
-    Abc::OBox3dProperty m_childBounds;
+    Abc::OBox3dProperty m_childBoundsProperty;
 
+    Abc::OCompoundProperty m_userProperties;
     Abc::OCompoundProperty m_arbGeomParams;
 
-    Abc::ODoubleArrayProperty m_bigFilmBackChannels;
+    Abc::ODoubleArrayProperty m_bigFilmBackChannelsProperty;
 
-    Abc::OScalarProperty m_smallFilmBackChannels;
+    Abc::OScalarProperty m_smallFilmBackChannelsProperty;
 
 private:
     CameraSample m_initialSample;
@@ -214,6 +219,10 @@ private:
 // SCHEMA OBJECT
 //-*****************************************************************************
 typedef Abc::OSchemaObject<OCameraSchema> OCamera;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

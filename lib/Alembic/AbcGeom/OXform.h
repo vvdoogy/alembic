@@ -44,6 +44,7 @@
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //! The default value for determining whether a property is actually
 //! different from the default.
@@ -133,6 +134,7 @@ public:
 
     //! Explicit copy constructor to work around MSVC bug
     OXformSchema( const OXformSchema &iCopy )
+        : Abc::OSchema<XformSchemaInfo>()
     { *this = iCopy; }
 
     //! Default assignment operator used.
@@ -143,7 +145,7 @@ public:
 
     AbcA::TimeSamplingPtr getTimeSampling() const
     {
-        return m_inherits.getTimeSampling();
+        return m_inheritsProperty.getTimeSampling();
     }
 
     //-*************************************************************************
@@ -152,7 +154,7 @@ public:
 
     //! Get number of samples written so far.
     //! ...
-    size_t getNumSamples() { return m_ops->getNumSamples(); }
+    size_t getNumSamples() const;
 
     //! Set an animated sample.  On first call to set, the sample is modified,
     //! so it can't be const.
@@ -165,6 +167,7 @@ public:
     void setTimeSampling( AbcA::TimeSamplingPtr iTime );
 
     Abc::OCompoundProperty getArbGeomParams();
+    Abc::OCompoundProperty getUserProperties();
 
     //-*************************************************************************
     // ABC BASE MECHANISMS
@@ -176,15 +179,18 @@ public:
     //! state.
     void reset()
     {
-        m_childBounds.reset();
-        m_inherits.reset();
-        m_ops.reset();
-        m_vals.reset();
+        m_childBoundsProperty.reset();
+        m_inheritsProperty.reset();
+        m_opsPWPtr.reset();
+        m_valsPWPtr.reset();
         m_protoSample.reset();
-        m_animChannels.reset();
+        m_animChannelsProperty.reset();
 
         m_staticChans.clear();
         m_staticChans.resize( 0 );
+
+        m_arbGeomParams.reset();
+        m_userProperties.reset();
 
         super_type::reset();
     }
@@ -192,7 +198,7 @@ public:
     //! Valid returns whether this function set is valid.
     bool valid() const
     {
-        return ( m_ops && super_type::valid() );
+        return ( m_opsPWPtr && super_type::valid() );
     }
 
     //! unspecified-bool-type operator overload.
@@ -217,17 +223,17 @@ private:
 
 protected:
 
-    Abc::OBox3dProperty m_childBounds;
+    Abc::OBox3dProperty m_childBoundsProperty;
 
-    AbcA::ScalarPropertyWriterPtr m_ops;
+    AbcA::ScalarPropertyWriterPtr m_opsPWPtr;
 
-    AbcA::BasePropertyWriterPtr m_vals;
+    AbcA::BasePropertyWriterPtr m_valsPWPtr;
 
-    Abc::OBoolProperty m_inherits;
+    Abc::OBoolProperty m_inheritsProperty;
 
-    Abc::OBoolProperty m_isNotConstantIdentity;
+    Abc::OBoolProperty m_isNotConstantIdentityProperty;
 
-    Abc::OUInt32ArrayProperty m_animChannels;
+    Abc::OUInt32ArrayProperty m_animChannelsProperty;
 
     // ensure that our sample's topology is unchanging between
     // calls to set; see usage in OXformSchema::set()
@@ -238,12 +244,18 @@ protected:
     bool m_isIdentity;
 
     Abc::OCompoundProperty m_arbGeomParams;
+
+    Abc::OCompoundProperty m_userProperties;
 };
 
 //-*****************************************************************************
 // SCHEMA OBJECT
 //-*****************************************************************************
 typedef Abc::OSchemaObject<OXformSchema> OXform;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

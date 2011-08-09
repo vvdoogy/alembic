@@ -1,7 +1,8 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2010, Industrial Light & Magic,
-##   a division of Lucasfilm Entertainment Company Ltd.
+## Copyright (c) 2009-2011,
+##  Sony Pictures Imageworks Inc. and
+##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
 ## All rights reserved.
 ##
@@ -33,9 +34,6 @@
 ##-*****************************************************************************
 
 IF ( GLUT_Xmu_LIBRARY OR WINDOWS)
-  MESSAGE( STATUS "Including GlutSkeleton" )
-  ADD_SUBDIRECTORY( GlutSkeleton )
-
   IF ( Boost_PROGRAM_OPTIONS_FOUND )
     MESSAGE( STATUS "Including SimpleAbcViewer" )
     ADD_SUBDIRECTORY( SimpleAbcViewer )
@@ -44,12 +42,8 @@ IF ( GLUT_Xmu_LIBRARY OR WINDOWS)
   ENDIF()
 
 ELSE()
-  MESSAGE( STATUS "Not including GlutSkeleton" )
   MESSAGE( STATUS "Not including SimpleAbcViewer" )
 ENDIF()
 
 ADD_SUBDIRECTORY( AbcEcho )
-
-# NOTE: uncomment the following line if you have the GTO libraries and wish
-# to try building the GTO->Alembic conversion utility.
-#ADD_SUBDIRECTORY( GtoMeshesToAbc EXCLUDE_FROM_ALL )
+ADD_SUBDIRECTORY( AbcStitcher )

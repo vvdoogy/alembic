@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -79,7 +79,7 @@ size_t BaseCpwImpl::getNumProperties()
 const AbcA::PropertyHeader &
 BaseCpwImpl::getPropertyHeader( size_t i )
 {
-    if ( i < 0 || i > m_propertyHeaders.size() )
+    if ( i > m_propertyHeaders.size() )
     {
         ABCA_THROW( "Out of range index in " <<
                     "CpwImpl::getPropertyHeader: " << i );

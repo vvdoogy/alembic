@@ -1,7 +1,8 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2010, Industrial Light & Magic,
-##   a division of Lucasfilm Entertainment Company Ltd.
+## Copyright (c) 2009-2011,
+##  Sony Pictures Imageworks Inc. and
+##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
 ## All rights reserved.
 ##
@@ -49,9 +50,9 @@ IF (NOT DEFINED QUIET)
 ENDIF()
 
 # Declare the version
-SET( PROJECT_VERSION_MAJOR 1 )
-SET( PROJECT_VERSION_MINOR 0rc1 )
-SET( PROJECT_VERSION_PATCH  )
+SET( PROJECT_VERSION_MAJOR  1 )
+SET( PROJECT_VERSION_MINOR  0 )
+SET( PROJECT_VERSION_PATCH  0 )
 SET( PROJECT_VERSION
      ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} )
 SET( VERSION ${PROJECT_VERSION} )
@@ -77,6 +78,9 @@ ENDIF()
 # Set some debug vs opt flags
 IF ( "${CMAKE_BUILD_TYPE}" MATCHES "Debug" )
   ADD_DEFINITIONS( -DDEBUG=1 -UNDEBUG )
+  IF ( NOT WINDOWS )
+    ADD_DEFINITIONS( -Wall -Werror -Wextra -Wno-unused-parameter)
+  ENDIF()
 ELSEIF ( "${CMAKE_BUILD_TYPE}" MATCHES "Release" )
   ADD_DEFINITIONS( -DNDEBUG=1 -UDEBUG )
   IF ( NOT WINDOWS )
@@ -88,10 +92,6 @@ IF ( NOT WINDOWS )
   SET(EXTERNAL_MATH_LIBS "-lm")
 ELSE()
   SET(EXTERNAL_MATH_LIBS "")
-ENDIF()
-
-IF ( NOT WINDOWS )
-  SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreturn-type -Werror" )
 ENDIF()
 
 IF( ${WINDOWS} )
@@ -252,6 +252,21 @@ ELSE()
         MESSAGE(STATUS "For some reason, ALEMBIC_PRMAN_FOUND is False?")
     ENDIF()
 ENDIF()
+
+# Include Arnold stuff
+IF(DEFINED USE_ARNOLD AND NOT USE_ARNOLD)
+    MESSAGE(STATUS "Skipping Arnold plugins")
+ELSE()
+    MESSAGE( STATUS "About to include AlembicArnold.cmake" )
+    INCLUDE( "./build/AlembicArnold.cmake" )
+    IF( ALEMBIC_ARNOLD_FOUND )
+        MESSAGE(STATUS "Building Arnold plugins" )
+        ADD_SUBDIRECTORY( arnold )
+    ELSE()
+        MESSAGE(STATUS "For some reason, ALEMBIC_ARNOLD_FOUND is False?")
+    ENDIF()
+ENDIF()
+
 
 ADD_SUBDIRECTORY( python EXCLUDE_FROM_ALL )
 

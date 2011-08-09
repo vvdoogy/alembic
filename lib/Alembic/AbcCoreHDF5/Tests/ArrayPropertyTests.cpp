@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -624,323 +624,323 @@ void testReadWriteArrays()
 
             switch (ap->getDataType().getPod())
             {
-            case Alembic::Util::kBooleanPOD:
-            {
-                TESTING_ASSERT(ap->getName() == "bool");
-                TESTING_ASSERT(!ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 3);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.numPoints() == 3);
-                TESTING_ASSERT(dims0.rank() == 1);
-
-                Alembic::Util::bool_t * data =
-                    (Alembic::Util::bool_t *)(val->getData());
-                TESTING_ASSERT(data[0] == false);
-                TESTING_ASSERT(data[1] == true);
-                TESTING_ASSERT(data[2] == false);
-
-                TESTING_ASSERT(ap->getKey(0, key));
-                TESTING_ASSERT(key.numBytes == 3);
-                TESTING_ASSERT(key.origPOD == Alembic::Util::kBooleanPOD);
-                TESTING_ASSERT(key.readPOD == Alembic::Util::kBooleanPOD);
-                TESTING_ASSERT(key.digest.str() ==
-                               "bbde8ffe4b7e061c7e03081c2bf184c4");
-            }
-            break;
-
-            case Alembic::Util::kUint8POD:
-            {
-                TESTING_ASSERT(ap->getName() == "uint8" ||
-                               ap->getName() == "uint8_newDims");
-                TESTING_ASSERT(!ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-
-                Alembic::Util::uint8_t * data =
-                    (Alembic::Util::uint8_t *)(val->getData());
-                TESTING_ASSERT(data[0] == 200);
-                TESTING_ASSERT(data[1] == 45);
-                TESTING_ASSERT(data[2] == 37);
-                TESTING_ASSERT(data[3] == 192);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 4);
-                TESTING_ASSERT(ap->getKey(0, key));
-                TESTING_ASSERT(key.numBytes == 4);
-                TESTING_ASSERT(key.origPOD == Alembic::Util::kUint8POD);
-                TESTING_ASSERT(key.readPOD == Alembic::Util::kUint8POD);
-                TESTING_ASSERT(key.digest.str() ==
-                               "2972c92c7f534e37ee116ae01c707741");
-
-                if (ap->getName() == "uint8")
+                case Alembic::Util::kBooleanPOD:
                 {
+                    TESTING_ASSERT(ap->getName() == "bool");
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 3);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+
                     Dimensions dims0;
                     ap->getDimensions(0, dims0);
+                    TESTING_ASSERT(dims0.numPoints() == 3);
                     TESTING_ASSERT(dims0.rank() == 1);
-                    TESTING_ASSERT(dims0[0] == 4);
+
+                    Alembic::Util::bool_t * data =
+                        (Alembic::Util::bool_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == false);
+                    TESTING_ASSERT(data[1] == true);
+                    TESTING_ASSERT(data[2] == false);
+
+                    TESTING_ASSERT(ap->getKey(0, key));
+                    TESTING_ASSERT(key.numBytes == 3);
+                    TESTING_ASSERT(key.origPOD == Alembic::Util::kBooleanPOD);
+                    TESTING_ASSERT(key.readPOD == Alembic::Util::kBooleanPOD);
+                    TESTING_ASSERT(key.digest.str() ==
+                        "bbde8ffe4b7e061c7e03081c2bf184c4");
                 }
-                else if (ap->getName() == "uint8_newDims")
+                break;
+
+                case Alembic::Util::kUint8POD:
                 {
-                    Dimensions dims0;
-                    ap->getDimensions(0, dims0);
-                    TESTING_ASSERT(dims0.rank() == 2);
-                    TESTING_ASSERT(dims0[0] == 2);
-                    TESTING_ASSERT(dims0[1] == 2);
-                }
-            }
-            break;
+                    TESTING_ASSERT(ap->getName() == "uint8" ||
+                        ap->getName() == "uint8_newDims");
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
 
-            case Alembic::Util::kInt8POD:
-            {
-                TESTING_ASSERT(ap->getName() == "int8");
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.rank() == 1);
-                TESTING_ASSERT(dims0.numPoints() == 2);
-                TESTING_ASSERT(!ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 2);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Alembic::Util::int8_t * data =
-                    (Alembic::Util::int8_t *)(val->getData());
-                TESTING_ASSERT(data[0] == -20);
-                TESTING_ASSERT(data[1] == 45);
-            }
-            break;
-
-            case Alembic::Util::kUint16POD:
-            {
-                TESTING_ASSERT(ap->getName() == "uint16");
-                TESTING_ASSERT(!ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 3);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.rank() == 1);
-                TESTING_ASSERT(dims0.numPoints() == 3);
-                Alembic::Util::uint16_t * data =
-                    (Alembic::Util::uint16_t *)(val->getData());
-                TESTING_ASSERT(data[0] == 60000);
-                TESTING_ASSERT(data[1] == 2);
-                TESTING_ASSERT(data[2] == 3987);
-            }
-            break;
-
-            case Alembic::Util::kInt16POD:
-            {
-                TESTING_ASSERT(ap->getName() == "int16");
-                TESTING_ASSERT(!ap->isScalarLike());
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.rank() == 1);
-                TESTING_ASSERT(dims0.numPoints() == 2);
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 2);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Alembic::Util::int16_t * data =
-                    (Alembic::Util::int16_t *)(val->getData());
-                TESTING_ASSERT(data[0] == -20000);
-                TESTING_ASSERT(data[1] == 77);
-            }
-            break;
-
-            case Alembic::Util::kUint32POD:
-            {
-                TESTING_ASSERT(ap->getName() == "uint32");
-                TESTING_ASSERT(ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 1);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.rank() == 1);
-                TESTING_ASSERT(dims0.numPoints() == 1);
-                Alembic::Util::uint32_t * data =
-                    (Alembic::Util::uint32_t *)(val->getData());
-                TESTING_ASSERT(data[0] == 1000000);
-            }
-            break;
-
-            case Alembic::Util::kInt32POD:
-            {
-                TESTING_ASSERT(ap->getName() == "int32");
-                TESTING_ASSERT(!ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 4);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.rank() == 1);
-                TESTING_ASSERT(dims0.numPoints() == 4);
-                Alembic::Util::int32_t * data =
-                    (Alembic::Util::int32_t *)(val->getData());
-                TESTING_ASSERT(data[0] == -1000000);
-                TESTING_ASSERT(data[1] == 42);
-                TESTING_ASSERT(data[2] == -20000);
-                TESTING_ASSERT(data[3] == 123456);
-            }
-            break;
-
-            case Alembic::Util::kUint64POD:
-            {
-                TESTING_ASSERT(ap->getName() == "uint64");
-                TESTING_ASSERT(!ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 3);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.rank() == 1);
-                TESTING_ASSERT(dims0.numPoints() == 3);
-                Alembic::Util::uint64_t * data =
-                    (Alembic::Util::uint64_t *)(val->getData());
-                TESTING_ASSERT(data[0] == 5000000000LL);
-                TESTING_ASSERT(data[1] == 1234567891011LL);
-                TESTING_ASSERT(data[2] == 12);
-            }
-            break;
-
-            case Alembic::Util::kInt64POD:
-            {
-                TESTING_ASSERT(ap->getName() == "int64");
-                TESTING_ASSERT(!ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 2);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.rank() == 1);
-                TESTING_ASSERT(dims0.numPoints() == 2);
-                Alembic::Util::int64_t * data =
-                    (Alembic::Util::int64_t *)(val->getData());
-                TESTING_ASSERT(data[0] == -5000000000LL);
-                TESTING_ASSERT(data[1] == 9876543210LL);
-            }
-            break;
-
-            case Alembic::Util::kFloat16POD:
-            {
-                TESTING_ASSERT(ap->getName() == "float16");
-                TESTING_ASSERT(!ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().numPoints() == 2);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.rank() == 1);
-                TESTING_ASSERT(dims0.numPoints() == 2);
-                Alembic::Util::float16_t * data =
-                    (Alembic::Util::float16_t *)(val->getData());
-                TESTING_ASSERT(data[0] == 16.0);
-                TESTING_ASSERT(data[1] == -3.0);
-            }
-            break;
-
-            case Alembic::Util::kFloat32POD:
-            {
-                TESTING_ASSERT(ap->getName() == "float32" ||
-                               ap->getName() == "float32_ext1");
-                TESTING_ASSERT(!ap->isScalarLike());
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-
-                if (ap->getName() == "float32_ext1")
-                {
+                    Alembic::Util::uint8_t * data =
+                        (Alembic::Util::uint8_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == 200);
+                    TESTING_ASSERT(data[1] == 45);
+                    TESTING_ASSERT(data[2] == 37);
+                    TESTING_ASSERT(data[3] == 192);
                     TESTING_ASSERT(val->getDimensions().numPoints() == 4);
-                    Dimensions dims0;
-                    ap->getDimensions(0, dims0);
-                    TESTING_ASSERT(dims0.rank() == 1);
-                    TESTING_ASSERT(dims0.numPoints() == 4);
-                }
+                    TESTING_ASSERT(ap->getKey(0, key));
+                    TESTING_ASSERT(key.numBytes == 4);
+                    TESTING_ASSERT(key.origPOD == Alembic::Util::kUint8POD);
+                    TESTING_ASSERT(key.readPOD == Alembic::Util::kUint8POD);
+                    TESTING_ASSERT(key.digest.str() ==
+                        "2972c92c7f534e37ee116ae01c707741");
 
-                if (ap->getName() == "float32")
+                    if (ap->getName() == "uint8")
+                    {
+                        Dimensions dims0;
+                        ap->getDimensions(0, dims0);
+                        TESTING_ASSERT(dims0.rank() == 1);
+                        TESTING_ASSERT(dims0[0] == 4);
+                    }
+                    else if (ap->getName() == "uint8_newDims")
+                    {
+                        Dimensions dims0;
+                        ap->getDimensions(0, dims0);
+                        TESTING_ASSERT(dims0.rank() == 2);
+                        TESTING_ASSERT(dims0[0] == 2);
+                        TESTING_ASSERT(dims0[1] == 2);
+                    }
+                }
+                break;
+
+                case Alembic::Util::kInt8POD:
                 {
-                    TESTING_ASSERT( ap->getDataType().getExtent() == 2);
-                    TESTING_ASSERT(val->getDimensions().numPoints() == 2);
+                    TESTING_ASSERT(ap->getName() == "int8");
                     Dimensions dims0;
                     ap->getDimensions(0, dims0);
                     TESTING_ASSERT(dims0.rank() == 1);
                     TESTING_ASSERT(dims0.numPoints() == 2);
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 2);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+                    Alembic::Util::int8_t * data =
+                        (Alembic::Util::int8_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == -20);
+                    TESTING_ASSERT(data[1] == 45);
                 }
+                break;
 
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Alembic::Util::float32_t * data =
-                    (Alembic::Util::float32_t *)(val->getData());
-                TESTING_ASSERT(data[0] == 128.0);
-                TESTING_ASSERT(data[1] == -13.25);
-                TESTING_ASSERT(data[2] == 35.5);
-                TESTING_ASSERT(data[3] == 128.125);
-            }
-            break;
-
-            case Alembic::Util::kFloat64POD:
-            {
-                TESTING_ASSERT(ap->getName() == "float64" ||
-                               ap->getName() == "float64_ext3");
-                TESTING_ASSERT(!ap->isScalarLike());
-
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-
-                if (ap->getName() == "float64")
+                case Alembic::Util::kUint16POD:
                 {
+                    TESTING_ASSERT(ap->getName() == "uint16");
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 3);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
                     Dimensions dims0;
                     ap->getDimensions(0, dims0);
                     TESTING_ASSERT(dims0.rank() == 1);
-                    TESTING_ASSERT(dims0.numPoints() == 30);
-                    TESTING_ASSERT(val->getDimensions().numPoints() == 30);
+                    TESTING_ASSERT(dims0.numPoints() == 3);
+                    Alembic::Util::uint16_t * data =
+                        (Alembic::Util::uint16_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == 60000);
+                    TESTING_ASSERT(data[1] == 2);
+                    TESTING_ASSERT(data[2] == 3987);
                 }
+                break;
 
-                if (ap->getName() == "float64_ext3")
+                case Alembic::Util::kInt16POD:
                 {
+                    TESTING_ASSERT(ap->getName() == "int16");
+                    TESTING_ASSERT(!ap->isScalarLike());
                     Dimensions dims0;
                     ap->getDimensions(0, dims0);
                     TESTING_ASSERT(dims0.rank() == 1);
-                    TESTING_ASSERT(dims0.numPoints() == 10);
-                    TESTING_ASSERT( ap->getDataType().getExtent() == 3);
-                    TESTING_ASSERT(val->getDimensions().numPoints() == 10);
+                    TESTING_ASSERT(dims0.numPoints() == 2);
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 2);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+                    Alembic::Util::int16_t * data =
+                        (Alembic::Util::int16_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == -20000);
+                    TESTING_ASSERT(data[1] == 77);
                 }
+                break;
 
-                Alembic::Util::float64_t * data =
-                    (Alembic::Util::float64_t *)(val->getData());
-                for (size_t i = 0; i < val->size(); ++i)
-                    TESTING_ASSERT(data[i] == i* 100);
-            }
-            break;
+                case Alembic::Util::kUint32POD:
+                {
+                    TESTING_ASSERT(ap->getName() == "uint32");
+                    TESTING_ASSERT(ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 1);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+                    Dimensions dims0;
+                    ap->getDimensions(0, dims0);
+                    TESTING_ASSERT(dims0.rank() == 1);
+                    TESTING_ASSERT(dims0.numPoints() == 1);
+                    Alembic::Util::uint32_t * data =
+                        (Alembic::Util::uint32_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == 1000000);
+                }
+                break;
 
-            case Alembic::Util::kStringPOD:
-            {
-                TESTING_ASSERT(ap->getName() == "str");
-                ABC::ArraySamplePtr val;
-                ap->getSample(0, val);
-                TESTING_ASSERT(!ap->isScalarLike());
-                TESTING_ASSERT(val->getDimensions().numPoints() == 4);
-                TESTING_ASSERT(val->getDimensions().rank() == 1);
-                Dimensions dims0;
-                ap->getDimensions(0, dims0);
-                TESTING_ASSERT(dims0.rank() == 1);
-                TESTING_ASSERT(dims0.numPoints() == 4);
-                Alembic::Util::string * data =
-                    (Alembic::Util::string *)(val->getData());
-                TESTING_ASSERT(data[0] == "Now it's time");
-                TESTING_ASSERT(data[1] == "");
-                TESTING_ASSERT(data[2] == "for");
-                TESTING_ASSERT(data[3] == "cake!");
-            }
-            break;
+                case Alembic::Util::kInt32POD:
+                {
+                    TESTING_ASSERT(ap->getName() == "int32");
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 4);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+                    Dimensions dims0;
+                    ap->getDimensions(0, dims0);
+                    TESTING_ASSERT(dims0.rank() == 1);
+                    TESTING_ASSERT(dims0.numPoints() == 4);
+                    Alembic::Util::int32_t * data =
+                        (Alembic::Util::int32_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == -1000000);
+                    TESTING_ASSERT(data[1] == 42);
+                    TESTING_ASSERT(data[2] == -20000);
+                    TESTING_ASSERT(data[3] == 123456);
+                }
+                break;
+
+                case Alembic::Util::kUint64POD:
+                {
+                    TESTING_ASSERT(ap->getName() == "uint64");
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 3);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+                    Dimensions dims0;
+                    ap->getDimensions(0, dims0);
+                    TESTING_ASSERT(dims0.rank() == 1);
+                    TESTING_ASSERT(dims0.numPoints() == 3);
+                    Alembic::Util::uint64_t * data =
+                        (Alembic::Util::uint64_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == 5000000000LL);
+                    TESTING_ASSERT(data[1] == 1234567891011LL);
+                    TESTING_ASSERT(data[2] == 12);
+                }
+                break;
+
+                case Alembic::Util::kInt64POD:
+                {
+                    TESTING_ASSERT(ap->getName() == "int64");
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 2);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+                    Dimensions dims0;
+                    ap->getDimensions(0, dims0);
+                    TESTING_ASSERT(dims0.rank() == 1);
+                    TESTING_ASSERT(dims0.numPoints() == 2);
+                    Alembic::Util::int64_t * data =
+                        (Alembic::Util::int64_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == -5000000000LL);
+                    TESTING_ASSERT(data[1] == 9876543210LL);
+                }
+                break;
+
+                case Alembic::Util::kFloat16POD:
+                {
+                    TESTING_ASSERT(ap->getName() == "float16");
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 2);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+                    Dimensions dims0;
+                    ap->getDimensions(0, dims0);
+                    TESTING_ASSERT(dims0.rank() == 1);
+                    TESTING_ASSERT(dims0.numPoints() == 2);
+                    Alembic::Util::float16_t * data =
+                        (Alembic::Util::float16_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == 16.0);
+                    TESTING_ASSERT(data[1] == -3.0);
+                }
+                break;
+
+                case Alembic::Util::kFloat32POD:
+                {
+                    TESTING_ASSERT(ap->getName() == "float32" ||
+                        ap->getName() == "float32_ext1");
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+
+                    if (ap->getName() == "float32_ext1")
+                    {
+                        TESTING_ASSERT(val->getDimensions().numPoints() == 4);
+                        Dimensions dims0;
+                        ap->getDimensions(0, dims0);
+                        TESTING_ASSERT(dims0.rank() == 1);
+                        TESTING_ASSERT(dims0.numPoints() == 4);
+                    }
+
+                    if (ap->getName() == "float32")
+                    {
+                        TESTING_ASSERT( ap->getDataType().getExtent() == 2);
+                        TESTING_ASSERT(val->getDimensions().numPoints() == 2);
+                        Dimensions dims0;
+                        ap->getDimensions(0, dims0);
+                        TESTING_ASSERT(dims0.rank() == 1);
+                        TESTING_ASSERT(dims0.numPoints() == 2);
+                    }
+
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+                    Alembic::Util::float32_t * data =
+                        (Alembic::Util::float32_t *)(val->getData());
+                    TESTING_ASSERT(data[0] == 128.0);
+                    TESTING_ASSERT(data[1] == -13.25);
+                    TESTING_ASSERT(data[2] == 35.5);
+                    TESTING_ASSERT(data[3] == 128.125);
+                }
+                break;
+
+                case Alembic::Util::kFloat64POD:
+                {
+                    TESTING_ASSERT(ap->getName() == "float64" ||
+                        ap->getName() == "float64_ext3");
+                    TESTING_ASSERT(!ap->isScalarLike());
+
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+
+                    if (ap->getName() == "float64")
+                    {
+                        Dimensions dims0;
+                        ap->getDimensions(0, dims0);
+                        TESTING_ASSERT(dims0.rank() == 1);
+                        TESTING_ASSERT(dims0.numPoints() == 30);
+                        TESTING_ASSERT(val->getDimensions().numPoints() == 30);
+                    }
+
+                    if (ap->getName() == "float64_ext3")
+                    {
+                        Dimensions dims0;
+                        ap->getDimensions(0, dims0);
+                        TESTING_ASSERT(dims0.rank() == 1);
+                        TESTING_ASSERT(dims0.numPoints() == 10);
+                        TESTING_ASSERT( ap->getDataType().getExtent() == 3);
+                        TESTING_ASSERT(val->getDimensions().numPoints() == 10);
+                    }
+
+                    Alembic::Util::float64_t * data =
+                        (Alembic::Util::float64_t *)(val->getData());
+                    for (size_t i = 0; i < val->size(); ++i)
+                        TESTING_ASSERT(data[i] == i* 100);
+                }
+                break;
+
+                case Alembic::Util::kStringPOD:
+                {
+                    TESTING_ASSERT(ap->getName() == "str");
+                    ABC::ArraySamplePtr val;
+                    ap->getSample(0, val);
+                    TESTING_ASSERT(!ap->isScalarLike());
+                    TESTING_ASSERT(val->getDimensions().numPoints() == 4);
+                    TESTING_ASSERT(val->getDimensions().rank() == 1);
+                    Dimensions dims0;
+                    ap->getDimensions(0, dims0);
+                    TESTING_ASSERT(dims0.rank() == 1);
+                    TESTING_ASSERT(dims0.numPoints() == 4);
+                    Alembic::Util::string * data =
+                        (Alembic::Util::string *)(val->getData());
+                    TESTING_ASSERT(data[0] == "Now it's time");
+                    TESTING_ASSERT(data[1] == "");
+                    TESTING_ASSERT(data[2] == "for");
+                    TESTING_ASSERT(data[3] == "cake!");
+                }
+                break;
 
             case Alembic::Util::kWstringPOD:
             {

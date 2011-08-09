@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -50,20 +50,22 @@ class MeshDrwHelper : private boost::noncopyable
 public:
     // Default constructor
     MeshDrwHelper();
-    
+
     // Destructor
     ~MeshDrwHelper();
 
     // This is a "full update" of all parameters.
     // If N is empty, normals will be computed.
-    void update( V3fArraySamplePtr iP,
+    void update( P3fArraySamplePtr iP,
                  V3fArraySamplePtr iN,
                  Int32ArraySamplePtr iIndices,
-                 Int32ArraySamplePtr iCounts );
+                 Int32ArraySamplePtr iCounts,
+                 Abc::Box3d iBounds = Abc::Box3d() );
 
     // Update just positions and possibly normals
-    void update( V3fArraySamplePtr iP,
-                 V3fArraySamplePtr iN );
+    void update( P3fArraySamplePtr iP,
+                 V3fArraySamplePtr iN,
+                 Abc::Box3d iBounds = Abc::Box3d() );
 
     // Update just normals
     void updateNormals( V3fArraySamplePtr iN );
@@ -80,14 +82,14 @@ public:
     // This is a weird thing. Just makes the helper invalid
     // by nulling everything out. For internal use.
     void makeInvalid();
-    
+
 protected:
     void computeBounds();
-    
+
     typedef Imath::Vec3<unsigned int> Tri;
     typedef std::vector<Tri> TriArray;
 
-    V3fArraySamplePtr m_meshP;
+    P3fArraySamplePtr m_meshP;
     V3fArraySamplePtr m_meshN;
     Int32ArraySamplePtr m_meshIndices;
     Int32ArraySamplePtr m_meshCounts;

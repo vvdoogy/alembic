@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -43,10 +43,12 @@
 #include <maya/MArgParser.h>
 #include <maya/MBoundingBox.h>
 #include <maya/MColor.h>
+#include <maya/MComputation.h>
 #include <maya/MDagModifier.h>
 #include <maya/MDagPath.h>
 #include <maya/MDagPathArray.h>
 #include <maya/MDoubleArray.h>
+#include <maya/MFileIO.h>
 #include <maya/MFloatArray.h>
 #include <maya/MFloatPointArray.h>
 #include <maya/MFloatVector.h>
@@ -129,5 +131,6 @@
 
 #include <Alembic/AbcGeom/All.h>
 
+#define ABCEXPORT_VERSION "1.0"
 
 #endif  // _AbcExport_Foundation_h_

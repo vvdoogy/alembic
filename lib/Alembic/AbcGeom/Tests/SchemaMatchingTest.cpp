@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -68,7 +68,6 @@ void Example1_MeshIn( const std::string &arkiveFile )
     IArchive archive( Alembic::AbcCoreHDF5::ReadArchive(), arkiveFile  );
 
     IPolyMesh pmeshyObj( IObject( archive, kTop ), "polymeshy" );
-    IPolyMeshSchema &pmesh = pmeshyObj.getSchema();
 
     IObject smeshyObj( archive.getTop(), "subdmeshy" );
 

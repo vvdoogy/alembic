@@ -40,12 +40,14 @@
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
 #include <Alembic/AbcGeom/IGeomParam.h>
+#include <Alembic/AbcGeom/IGeomBase.h>
 
 namespace Alembic {
 namespace AbcGeom {
+namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
-class INuPatchSchema : public Abc::ISchema<NuPatchSchemaInfo>
+class INuPatchSchema : public IGeomBaseSchema<NuPatchSchemaInfo>
 {
 public:
     class Sample
@@ -56,7 +58,7 @@ public:
         // Users don't ever create this data directly.
         Sample() { reset(); }
 
-        Abc::V3fArraySamplePtr getPositions() const { return m_positions; }
+        Abc::P3fArraySamplePtr getPositions() const { return m_positions; }
         int32_t getNumU() const { return m_numU; }
         int32_t getNumV() const { return m_numV; }
         int32_t getUOrder() const { return m_uOrder; }
@@ -64,11 +66,12 @@ public:
         Abc::FloatArraySamplePtr getUKnot() const { return m_uKnot; }
         Abc::FloatArraySamplePtr getVKnot() const { return m_vKnot; }
 
-        Abc::Box3d getSelfBounds() const { return m_selfBounds; }
-        Abc::Box3d getChildBounds() const { return m_childBounds; }
+        // if this is NULL then the weight value of the position for each
+        // point is 1
+        Abc::FloatArraySamplePtr getPositionWeights() const { return m_positionWeights; }
 
         // trim curve
-	int32_t getTrimNumLoops() const { return m_trimNumLoops; }
+        int32_t getTrimNumLoops() const { return m_trimNumLoops; }
         Abc::Int32ArraySamplePtr getTrimNumVertices() const { return m_trimNumVertices; }
         Abc::Int32ArraySamplePtr getTrimNumCurves() const { return m_trimNumCurves; }
         Abc::Int32ArraySamplePtr getTrimOrders() const { return m_trimOrder; }
@@ -87,6 +90,9 @@ public:
                 m_uKnot && m_vKnot;
         }
 
+        Abc::Box3d getSelfBounds() const { return m_selfBounds; }
+        Abc::Box3d getChildBounds() const { return m_childBounds; }
+
         void reset()
         {
             m_positions.reset();
@@ -96,6 +102,7 @@ public:
             m_vOrder = 0;
             m_uKnot.reset();
             m_vKnot.reset();
+            m_positionWeights.reset();
 
             m_selfBounds.makeEmpty();
             m_childBounds.makeEmpty();
@@ -119,13 +126,14 @@ public:
 
         friend class INuPatchSchema;
 
-        Abc::V3fArraySamplePtr m_positions;
+        Abc::P3fArraySamplePtr m_positions;
         int32_t m_numU;
         int32_t m_numV;
         int32_t m_uOrder;
         int32_t m_vOrder;
         Abc::FloatArraySamplePtr m_uKnot;
         Abc::FloatArraySamplePtr m_vKnot;
+        Abc::FloatArraySamplePtr m_positionWeights;
 
         // trim curve
         int32_t m_trimNumLoops;
@@ -164,6 +172,7 @@ public:
 
     //! copy constructor
     INuPatchSchema(const INuPatchSchema& iCopy)
+        : IGeomBaseSchema<NuPatchSchemaInfo>()
     {
         *this = iCopy;
     }
@@ -180,7 +189,7 @@ public:
                     const std::string &iName,
                     const Abc::Argument &iArg0 = Abc::Argument(),
                     const Abc::Argument &iArg1 = Abc::Argument() )
-      : Abc::ISchema<NuPatchSchemaInfo>( iParent, iName,
+      : IGeomBaseSchema<NuPatchSchemaInfo>( iParent, iName,
                                          iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
@@ -193,7 +202,7 @@ public:
                              const Abc::Argument &iArg0 = Abc::Argument(),
                              const Abc::Argument &iArg1 = Abc::Argument() )
 
-      : Abc::ISchema<NuPatchSchemaInfo>( iParent,
+      : IGeomBaseSchema<NuPatchSchemaInfo>( iParent,
                                          iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
@@ -206,7 +215,7 @@ public:
                     const Abc::Argument &iArg0 = Abc::Argument(),
                     const Abc::Argument &iArg1 = Abc::Argument() )
 
-      : Abc::ISchema<NuPatchSchemaInfo>( iThis, iFlag, iArg0, iArg1 )
+      : IGeomBaseSchema<NuPatchSchemaInfo>( iThis, iFlag, iArg0, iArg1 )
     {
         init( iArg0, iArg1 );
     }
@@ -216,7 +225,7 @@ public:
     //! This returns the number of samples that were written, independently
     //! of whether or not they were constant.
     size_t getNumSamples()
-    { return m_positions.getNumSamples(); }
+    { return m_positionsProperty.getNumSamples(); }
 
     //! Return the topological variance.
     //! This indicates how the mesh may change.
@@ -229,7 +238,7 @@ public:
     //! Time information.
     AbcA::TimeSamplingPtr getTimeSampling()
     {
-        return m_positions.getTimeSampling();
+        return m_positionsProperty.getTimeSampling();
     }
 
     void get( sample_type &oSample,
@@ -242,18 +251,23 @@ public:
         return smp;
     }
 
-    Abc::IV3fArrayProperty getPositions(){ return m_positions; }
-    Abc::IFloatArrayProperty getUKnots(){ return m_uKnot; }
-    Abc::IFloatArrayProperty getVKnots(){ return m_vKnot; }
+    Abc::IP3fArrayProperty getPositionsProperty(){ return m_positionsProperty; }
+    Abc::IFloatArrayProperty getUKnotsProperty(){ return m_uKnotProperty; }
+    Abc::IFloatArrayProperty getVKnotsProperty(){ return m_vKnotProperty; }
 
-    Abc::IBox3dProperty getSelfBounds() { return m_selfBounds; }
-    Abc::IBox3dProperty getChildBounds() { return m_childBounds; }
+    // if this property is invalid then the weight for every point is 1
+    Abc::IFloatArrayProperty getPositionWeightsProperty()
+    {
+        return m_positionWeightsProperty;
+    }
+
+    IN3fGeomParam &getNormalsParam() { return m_normalsParam; }
+    IV2fGeomParam &getUVsParam() { return m_uvsParam; }
 
     bool hasTrimCurve() { return m_hasTrimCurve; }
     bool trimCurveTopologyIsHomogenous();
     bool trimCurveTopologyIsConstant();
 
-    ICompoundProperty getArbGeomParams() { return m_arbGeomParams; }
 
     //-*************************************************************************
     // ABC BASE MECHANISMS
@@ -265,47 +279,45 @@ public:
     //! state.
     void reset()
     {
-        m_positions.reset();
-        m_numU.reset();
-        m_numV.reset();
-        m_uOrder.reset();
-        m_vOrder.reset();
-        m_uKnot.reset();
-        m_vKnot.reset();
+        m_positionsProperty.reset();
+        m_numUProperty.reset();
+        m_numVProperty.reset();
+        m_uOrderProperty.reset();
+        m_vOrderProperty.reset();
+        m_uKnotProperty.reset();
+        m_vKnotProperty.reset();
+        m_positionWeightsProperty.reset();
 
-        m_normals.reset();
-        m_uvs.reset();
-
-        m_selfBounds.reset();
-        m_childBounds.reset();
+        m_normalsParam.reset();
+        m_uvsParam.reset();
 
         // reset trim curve attributes
-        m_trimNumLoops.reset();
-        m_trimNumCurves.reset();
-        m_trimNumVertices.reset();
-        m_trimOrder.reset();
-        m_trimKnot.reset();
-        m_trimMin.reset();
-        m_trimMax.reset();
-        m_trimU.reset();
-        m_trimV.reset();
-        m_trimW.reset();
+        m_trimNumLoopsProperty.reset();
+        m_trimNumCurvesProperty.reset();
+        m_trimNumVerticesProperty.reset();
+        m_trimOrderProperty.reset();
+        m_trimKnotProperty.reset();
+        m_trimMinProperty.reset();
+        m_trimMaxProperty.reset();
+        m_trimUProperty.reset();
+        m_trimVProperty.reset();
+        m_trimWProperty.reset();
 
-        Abc::ISchema<NuPatchSchemaInfo>::reset();
+        IGeomBaseSchema<NuPatchSchemaInfo>::reset();
     }
 
     //! Valid returns whether this function set is
     //! valid.
     bool valid() const
     {
-        return ( Abc::ISchema<NuPatchSchemaInfo>::valid() &&
-                 m_positions.valid() &&
-		 m_numU.valid() &&
-		 m_numV.valid() &&
-		 m_uOrder.valid() &&
-		 m_vOrder.valid() &&
-		 m_uKnot.valid() &&
-		 m_vKnot.valid() );
+        return ( IGeomBaseSchema<NuPatchSchemaInfo>::valid() &&
+                 m_positionsProperty.valid() &&
+                 m_numUProperty.valid() &&
+                 m_numVProperty.valid() &&
+                 m_uOrderProperty.valid() &&
+                 m_vOrderProperty.valid() &&
+                 m_uKnotProperty.valid() &&
+                 m_vKnotProperty.valid() );
     }
 
     //! unspecified-bool-type operator overload.
@@ -320,41 +332,40 @@ protected:
                const Abc::Argument &iArg1 );
 
     // required properties
-    Abc::IV3fArrayProperty m_positions;
-    Abc::IInt32Property m_numU;
-    Abc::IInt32Property m_numV;
-    Abc::IInt32Property m_uOrder;
-    Abc::IInt32Property m_vOrder;
-    Abc::IFloatArrayProperty m_uKnot;
-    Abc::IFloatArrayProperty m_vKnot;
+    Abc::IP3fArrayProperty m_positionsProperty;
+    Abc::IInt32Property m_numUProperty;
+    Abc::IInt32Property m_numVProperty;
+    Abc::IInt32Property m_uOrderProperty;
+    Abc::IInt32Property m_vOrderProperty;
+    Abc::IFloatArrayProperty m_uKnotProperty;
+    Abc::IFloatArrayProperty m_vKnotProperty;
 
     // optional
-    IN3fGeomParam m_normals;
-    IV2fGeomParam m_uvs;
+    Abc::IFloatArrayProperty m_positionWeightsProperty;
+    IN3fGeomParam m_normalsParam;
+    IV2fGeomParam m_uvsParam;
 
     // optional trim curve properties
-    Abc::IInt32Property m_trimNumLoops;
-    Abc::IInt32ArrayProperty m_trimNumVertices;
-    Abc::IInt32ArrayProperty m_trimNumCurves;
-    Abc::IInt32ArrayProperty m_trimOrder;
-    Abc::IFloatArrayProperty m_trimKnot;
-    Abc::IFloatArrayProperty m_trimMin;
-    Abc::IFloatArrayProperty m_trimMax;
-    Abc::IFloatArrayProperty m_trimU;
-    Abc::IFloatArrayProperty m_trimV;
-    Abc::IFloatArrayProperty m_trimW;
-
-    // bounds
-    Abc::IBox3dProperty m_selfBounds;
-    Abc::IBox3dProperty m_childBounds;
-
-    Abc::ICompoundProperty m_arbGeomParams;
+    Abc::IInt32Property m_trimNumLoopsProperty;
+    Abc::IInt32ArrayProperty m_trimNumVerticesProperty;
+    Abc::IInt32ArrayProperty m_trimNumCurvesProperty;
+    Abc::IInt32ArrayProperty m_trimOrderProperty;
+    Abc::IFloatArrayProperty m_trimKnotProperty;
+    Abc::IFloatArrayProperty m_trimMinProperty;
+    Abc::IFloatArrayProperty m_trimMaxProperty;
+    Abc::IFloatArrayProperty m_trimUProperty;
+    Abc::IFloatArrayProperty m_trimVProperty;
+    Abc::IFloatArrayProperty m_trimWProperty;
 
     bool m_hasTrimCurve;
 };
 
 //-*****************************************************************************
 typedef Abc::ISchemaObject<INuPatchSchema> INuPatch;
+
+} // End namespace ALEMBIC_VERSION_NS
+
+using namespace ALEMBIC_VERSION_NS;
 
 } // End namespace AbcGeom
 } // End namespace Alembic

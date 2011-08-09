@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -59,7 +59,7 @@ public:
 
 protected:
     ICurves m_curves;
-    V3fArraySamplePtr m_positions;
+    P3fArraySamplePtr m_positions;
     Int32ArraySamplePtr m_nVertices;
     std::size_t m_nCurves;
 

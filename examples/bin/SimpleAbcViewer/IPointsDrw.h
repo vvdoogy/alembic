@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -63,7 +63,7 @@ protected:
     IC3fArrayProperty m_colorProp;
     IN3fArrayProperty m_normalProp;
     
-    V3fArraySamplePtr m_positions;
+    P3fArraySamplePtr m_positions;
     C3fArraySamplePtr m_colors;
     N3fArraySamplePtr m_normals;
     

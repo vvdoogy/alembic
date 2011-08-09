@@ -1,7 +1,8 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2010, Industrial Light & Magic,
-##   a division of Lucasfilm Entertainment Company Ltd.
+## Copyright (c) 2009-2011,
+##  Sony Pictures Imageworks Inc. and
+##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
 ## All rights reserved.
 ##
@@ -85,6 +86,10 @@ TARGET_LINK_LIBRARIES( Abc_ArrayPropertyTest ${TEST_LIBS} )
 ADD_TEST( Abc_Array_Property_TEST Abc_ArrayPropertyTest )
 
 #-******************************************************************************
+
+ADD_EXECUTABLE( Abc_ArchiveTest ArchiveTest.cpp )
+TARGET_LINK_LIBRARIES( Abc_ArchiveTest ${TEST_LIBS} )
+ADD_TEST( Abc_Archive_TEST Abc_ArchiveTest )
 
 ADD_EXECUTABLE( Abc_CyclicPropertyTest CyclicPropertyTest.cpp )
 TARGET_LINK_LIBRARIES( Abc_CyclicPropertyTest ${TEST_LIBS} )

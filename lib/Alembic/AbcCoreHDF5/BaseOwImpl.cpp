@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -91,7 +91,7 @@ size_t BaseOwImpl::getNumChildren()
 //-*****************************************************************************
 const AbcA::ObjectHeader & BaseOwImpl::getChildHeader( size_t i )
 {
-    if ( i < 0 || i >= m_childHeaders.size() )
+    if ( i >= m_childHeaders.size() )
     {
         ABCA_THROW( "Out of range index in OwImpl::getChildHeader: "
                      << i );

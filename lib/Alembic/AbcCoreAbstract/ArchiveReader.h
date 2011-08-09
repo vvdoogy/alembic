@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2010,
+// Copyright (c) 2009-2011,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -111,6 +111,10 @@ public:
     //! Returns the total number of TimeSamplingPtrs in the Archive
     //! TimeSampling pool.
     virtual uint32_t getNumTimeSamplings() = 0;
+
+    //! Returns the Alembic library numeric version (see Foundation.h)
+    //! of this archive file.
+    virtual int32_t getArchiveVersion() = 0;
 
     //! Return self
     //! ...
