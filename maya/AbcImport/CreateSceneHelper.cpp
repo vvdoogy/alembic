@@ -34,6 +34,18 @@
 //
 //-*****************************************************************************
 
+#include "util.h"
+#include "CameraHelper.h"
+#include "LocatorHelper.h"
+#include "MeshHelper.h"
+#include "NurbsCurveHelper.h"
+#include "NurbsSurfaceHelper.h"
+#include "PointHelper.h"
+#include "XformHelper.h"
+#include "CreateSceneHelper.h"
+
+#include <Alembic/AbcGeom/Visibility.h>
+
 #include <maya/MString.h>
 #include <maya/MStringArray.h>
 #include <maya/MIntArray.h>
@@ -52,22 +64,10 @@
 #include <maya/MFnSet.h>
 #include <maya/MFnTypedAttribute.h>
 
-#include <Alembic/AbcGeom/Visibility.h>
-
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
-
-#include "util.h"
-#include "CameraHelper.h"
-#include "LocatorHelper.h"
-#include "MeshHelper.h"
-#include "NurbsCurveHelper.h"
-#include "NurbsSurfaceHelper.h"
-#include "PointHelper.h"
-#include "XformHelper.h"
-#include "CreateSceneHelper.h"
 
 namespace
 {
@@ -558,21 +558,38 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICurves & iNode)
             curvesObj = mConnectDagNode.node();
             if (!isConstant)
             {
-                mData.mNurbsCurveObjList.push_back(curvesObj);
+                if (numCurves == 1)
+                {
+                    mData.mNurbsCurveObjList.push_back(curvesObj);
+                }
+                else
+                {
+                    unsigned int childCurves = mConnectDagNode.childCount();
+
+                    for (unsigned int i = 0; i < numCurves; ++i)
+                    {
+                        if (i < childCurves)
+                        {
+                            mData.mNurbsCurveObjList.push_back(
+                                mConnectDagNode.child(i));
+                        }
+                        else
+                        {
+                            // push a null object since we have more Alembic
+                            // curves than we have Maya curves
+                            MObject obj;
+                            mData.mNurbsCurveObjList.push_back(obj);
+                        }
+                    }
+                } // else
             }
-        }
+        } // if hasDag
     }
 
     if (!hasDag && (mAction == CREATE || mAction == CREATE_REMOVE))
     {
-
         curvesObj = createCurves(iNode.getName(), samp, widthSamp, mParent,
             mData.mNurbsCurveObjList, !isConstant);
-
-        if (!isConstant)
-        {
-            mData.mNurbsCurveObjList.push_back(curvesObj);
-        }
     }
 
     if (curvesObj != MObject::kNullObj)

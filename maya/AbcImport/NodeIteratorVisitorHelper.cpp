@@ -34,6 +34,13 @@
 //
 //-*****************************************************************************
 
+#include "util.h"
+#include "AlembicNode.h"
+#include "CreateSceneHelper.h"
+#include "NodeIteratorVisitorHelper.h"
+
+#include <Alembic/AbcCoreHDF5/ReadWrite.h>
+
 #include <maya/MDoubleArray.h>
 #include <maya/MIntArray.h>
 #include <maya/MFnIntArrayData.h>
@@ -62,13 +69,6 @@
 #include <maya/MFnCamera.h>
 #include <maya/MTime.h>
 
-#include <Alembic/AbcCoreHDF5/ReadWrite.h>
-
-#include "util.h"
-#include "AlembicNode.h"
-#include "CreateSceneHelper.h"
-#include "NodeIteratorVisitorHelper.h"
-
 void unsupportedWarning(Alembic::Abc::IArrayProperty & iProp)
 {
     MString warn = "Unsupported attr, skipping: ";
@@ -88,13 +88,21 @@ void addString(MObject & iParent, const std::string & iAttrName,
     MFnStringData fnStringData;
     MString attrValue(iValue.c_str());
     MString attrName(iAttrName.c_str());
-    MObject strAttrObject = fnStringData.create(attrValue);
+    MObject strAttrObject = fnStringData.create("");
 
     MFnTypedAttribute attr;
     MObject attrObj = attr.create(attrName, attrName, MFnData::kString,
         strAttrObject);
     MFnDependencyNode parentFn(iParent);
     parentFn.addAttribute(attrObj, MFnDependencyNode::kLocalDynamicAttr);
+
+    // work around bug where this string wasn't getting saved to a file when 
+    // it is the default value
+    MPlug plug = parentFn.findPlug(attrName);
+    if (!plug.isNull())
+    {
+        plug.setString(attrValue);
+    }
 }
 
 void addArbAttrAndScope(MObject & iParent, const std::string & iAttrName,
@@ -392,13 +400,13 @@ bool addProp(Alembic::Abc::IArrayProperty & iProp, MObject & iParent)
                         Alembic::AbcCoreAbstract::ArraySamplePtr samp;
                         iProp.get(samp);
 
-                        std::size_t sampSize = samp->size();
+                        unsigned int sampSize = (unsigned int)samp->size();
                         MVectorArray arr(sampSize);
                         MVector vec;
                         const Alembic::Util::float32_t * sampData =
                             (const Alembic::Util::float32_t *) samp->getData();
 
-                        for (std::size_t i = 0; i < sampSize; ++i)
+                        for (unsigned int i = 0; i < sampSize; ++i)
                         {
                             vec.x = sampData[extent*i];
                             vec.y = sampData[extent*i+1];
@@ -436,14 +444,14 @@ bool addProp(Alembic::Abc::IArrayProperty & iProp, MObject & iParent)
                         Alembic::AbcCoreAbstract::ArraySamplePtr samp;
                         iProp.get(samp);
 
-                        std::size_t sampSize = samp->size();
+                        unsigned int sampSize = (unsigned int)samp->size();
                         MPointArray arr(sampSize);
                         MPoint pt;
 
                         const Alembic::Util::float32_t * sampData =
                             (const Alembic::Util::float32_t *) samp->getData();
 
-                        for (std::size_t i = 0; i < sampSize; ++i)
+                        for (unsigned int i = 0; i < sampSize; ++i)
                         {
                             pt.x = sampData[extent*i];
                             pt.y = sampData[extent*i+1];
@@ -578,13 +586,13 @@ bool addProp(Alembic::Abc::IArrayProperty & iProp, MObject & iParent)
                         Alembic::AbcCoreAbstract::ArraySamplePtr samp;
                         iProp.get(samp);
 
-                        std::size_t sampSize = samp->size();
+                        unsigned int sampSize = (unsigned int)samp->size();
                         MVectorArray arr(sampSize);
                         MVector vec;
                         const Alembic::Util::float64_t * sampData =
                             (const Alembic::Util::float64_t *) samp->getData();
 
-                        for (std::size_t i = 0; i < sampSize; ++i)
+                        for (unsigned int i = 0; i < sampSize; ++i)
                         {
                             vec.x = sampData[extent*i];
                             vec.y = sampData[extent*i+1];
@@ -623,13 +631,13 @@ bool addProp(Alembic::Abc::IArrayProperty & iProp, MObject & iParent)
                         Alembic::AbcCoreAbstract::ArraySamplePtr samp;
                         iProp.get(samp);
 
-                        std::size_t sampSize = samp->size();
+                        unsigned int sampSize = (unsigned int)samp->size();
                         MPointArray arr(sampSize);
                         MPoint pt;
                         const Alembic::Util::float64_t * sampData =
                             (const Alembic::Util::float64_t *) samp->getData();
 
-                        for (std::size_t i = 0; i < sampSize; ++i)
+                        for (unsigned int i = 0; i < sampSize; ++i)
                         {
                             pt.x = sampData[extent*i];
                             pt.y = sampData[extent*i+1];
@@ -776,14 +784,14 @@ bool addProp(Alembic::Abc::IArrayProperty & iProp, MObject & iParent)
                     Alembic::AbcCoreAbstract::ArraySamplePtr samp;
                     iProp.get(samp);
 
-                    std::size_t sampSize = samp->size();
+                    unsigned int sampSize = (unsigned int)samp->size();
                     MStringArray arr;
                     arr.setLength(sampSize);
 
                     Alembic::Util::string * strData =
                         (Alembic::Util::string *) samp->getData();
 
-                    for (std::size_t i = 0; i < sampSize; ++i)
+                    for (unsigned int i = 0; i < sampSize; ++i)
                     {
                         arr[i] = strData[i].c_str();
                     }
@@ -852,14 +860,14 @@ bool addProp(Alembic::Abc::IArrayProperty & iProp, MObject & iParent)
                     Alembic::AbcCoreAbstract::ArraySamplePtr samp;
                     iProp.get(samp);
 
-                    std::size_t sampSize = samp->size();
+                    unsigned int sampSize = (unsigned int)samp->size();
                     MStringArray arr;
                     arr.setLength(sampSize);
 
                     Alembic::Util::wstring * strData =
                         (Alembic::Util::wstring *) samp->getData();
 
-                    for (std::size_t i = 0; i < sampSize; ++i)
+                    for (unsigned int i = 0; i < sampSize; ++i)
                     {
                         arr[i] = (wchar_t *)(strData[i].c_str());
                     }
@@ -1275,7 +1283,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                     else
                     {
                         int * hi = (int *) ceilSamp->getData();
-                        for (std::size_t i = 0; i < sampSize; ++i)
+                        for (unsigned int i = 0; i < sampSize; ++i)
                         {
                             arr[i] = simpleLerp<int>(alpha, arr[i], hi[i]);
                         }
@@ -1347,7 +1355,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                 {
                     MFnVectorArrayData fnData;
                     iProp.get(samp, Alembic::Abc::ISampleSelector(index));
-                    std::size_t sampSize = samp->size();
+                    unsigned int sampSize = (unsigned int)samp->size();
                     MVectorArray arr(sampSize);
                     MVector vec;
 
@@ -1360,7 +1368,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                         if (sampSize != ceilSamp->size())
                         {
                             float * vals = (float *) samp->getData();
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 vec.x = vals[extent*i];
                                 vec.y = vals[extent*i+1];
@@ -1379,7 +1387,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                             float * lo = (float *) samp->getData();
                             float * hi = (float *) ceilSamp->getData();
 
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 vec.x = simpleLerp<double>(alpha,
                                     lo[extent*i], hi[extent*i]);
@@ -1400,7 +1408,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                     else
                     {
                         float * vals = (float *) samp->getData();
-                        for (std::size_t i = 0; i < sampSize; ++i)
+                        for (unsigned int i = 0; i < sampSize; ++i)
                         {
                             vec.x = vals[extent*i];
                             vec.y = vals[extent*i+1];
@@ -1419,7 +1427,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                     MFnPointArrayData fnData;
                     iProp.get(samp, Alembic::Abc::ISampleSelector(index));
 
-                    std::size_t sampSize = samp->size();
+                    unsigned int sampSize = (unsigned int)samp->size();
                     MPointArray arr(sampSize);
                     MPoint pt;
 
@@ -1432,7 +1440,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                         if (sampSize != ceilSamp->size())
                         {
                             float * vals = (float *) samp->getData();
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 pt.x = vals[extent*i];
                                 pt.y = vals[extent*i+1];
@@ -1451,7 +1459,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                             float * lo = (float *) samp->getData();
                             float * hi = (float *) ceilSamp->getData();
 
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 pt.x = simpleLerp<double>(alpha,
                                     lo[extent*i], hi[extent*i]);
@@ -1472,7 +1480,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                     else
                     {
                         float * vals = (float *) samp->getData();
-                        for (std::size_t i = 0; i < sampSize; ++i)
+                        for (unsigned int i = 0; i < sampSize; ++i)
                         {
                             pt.x = vals[extent*i];
                             pt.y = vals[extent*i+1];
@@ -1508,7 +1516,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                         else
                         {
                             float * hi = (float *) ceilSamp->getData();
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 arr[i] = simpleLerp<double>(alpha, arr[i],
                                     hi[i]);
@@ -1591,7 +1599,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                 {
                     MFnVectorArrayData fnData;
                     iProp.get(samp, Alembic::Abc::ISampleSelector(index));
-                    std::size_t sampSize = samp->size();
+                    unsigned int sampSize = (unsigned int)samp->size();
                     MVectorArray arr(sampSize);
                     MVector vec;
 
@@ -1604,7 +1612,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                         if (sampSize != ceilSamp->size())
                         {
                             double * vals = (double *) samp->getData();
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 vec.x = vals[extent*i];
                                 vec.y = vals[extent*i+1];
@@ -1623,7 +1631,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                             double * lo = (double *) samp->getData();
                             double * hi = (double *) ceilSamp->getData();
 
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 vec.x = simpleLerp<double>(alpha,
                                     lo[extent*i], hi[extent*i]);
@@ -1644,7 +1652,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                     else
                     {
                         double * vals = (double *) samp->getData();
-                        for (std::size_t i = 0; i < sampSize; ++i)
+                        for (unsigned int i = 0; i < sampSize; ++i)
                         {
                             vec.x = vals[extent*i];
                             vec.y = vals[extent*i+1];
@@ -1662,7 +1670,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                 {
                     MFnPointArrayData fnData;
                     iProp.get(samp, Alembic::Abc::ISampleSelector(index));
-                    std::size_t sampSize = samp->size();
+                    unsigned int sampSize = (unsigned int)samp->size();
                     MPointArray arr(sampSize);
                     MPoint pt;
 
@@ -1675,7 +1683,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                         if (sampSize != ceilSamp->size())
                         {
                             double * vals = (double *) samp->getData();
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 pt.x = vals[extent*i];
                                 pt.y = vals[extent*i+1];
@@ -1694,7 +1702,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                             double * lo = (double *) samp->getData();
                             double * hi = (double *) ceilSamp->getData();
 
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 pt.x = simpleLerp<double>(alpha,
                                     lo[extent*i], hi[extent*i]);
@@ -1715,7 +1723,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                     else
                     {
                         double * vals = (double *) samp->getData();
-                        for (std::size_t i = 0; i < sampSize; ++i)
+                        for (unsigned int i = 0; i < sampSize; ++i)
                         {
                             pt.x = vals[extent*i];
                             pt.y = vals[extent*i+1];
@@ -1751,7 +1759,7 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                         else
                         {
                             double * hi = (double *) ceilSamp->getData();
-                            for (std::size_t i = 0; i < sampSize; ++i)
+                            for (unsigned int i = 0; i < sampSize; ++i)
                             {
                                 arr[i] = simpleLerp<double>(alpha, arr[i],
                                     hi[i]);
@@ -1784,14 +1792,14 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                 MFnStringArrayData fnData;
                 iProp.get(samp, Alembic::Abc::ISampleSelector(index));
 
-                std::size_t sampSize = samp->size();
+                unsigned int sampSize = (unsigned int)samp->size();
                 MStringArray arr;
                 arr.setLength(sampSize);
                 attrObj = fnData.create(arr);
                 Alembic::Util::string * strData =
                     (Alembic::Util::string *) samp->getData();
 
-                for (std::size_t i = 0; i < sampSize; ++i)
+                for (unsigned int i = 0; i < sampSize; ++i)
                 {
                     arr[i] = strData[i].c_str();
                 }
@@ -1813,14 +1821,14 @@ void readProp(double iFrame, Alembic::Abc::IArrayProperty & iProp,
                 MFnStringArrayData fnData;
                 iProp.get(samp, Alembic::Abc::ISampleSelector(index));
 
-                std::size_t sampSize = samp->size();
+                unsigned int sampSize = (unsigned int)samp->size();
                 MStringArray arr;
                 arr.setLength(sampSize);
                 attrObj = fnData.create(arr);
                 Alembic::Util::wstring * strData =
                     (Alembic::Util::wstring *) samp->getData();
 
-                for (std::size_t i = 0; i < sampSize; ++i)
+                for (unsigned int i = 0; i < sampSize; ++i)
                 {
                     arr[i] = (wchar_t *)strData[i].c_str();
                 }
@@ -2155,11 +2163,68 @@ MString connectAttr(ArgData & iArgData)
     std::size_t propSize       = iArgData.mData.mPropObjList.size();
     std::size_t locatorSize    = iArgData.mData.mLocObjList.size();
 
-    // making dynamic connections
-    if (particleSize > 0)
+    if (xformSize > 0)
     {
-        printWarning("Currently no support for animated particle system");
+        unsigned int logicalIndex = 0;
+        MPlug srcArrayPlug = alembicNodeFn.findPlug("transOp", true);
+
+        for (unsigned int i = 0 ; i < xformSize; i++)
+        {
+            SampledPair & sampPair = iArgData.mData.mXformOpList[i];
+            MObject mObject = sampPair.getObject();
+            MFnTransform mFn(mObject, &status);
+            unsigned int sampleSize = sampPair.sampledChannelSize();
+            for (unsigned int j = 0; j < sampleSize; j ++)
+            {
+
+                srcPlug = srcArrayPlug.elementByLogicalIndex(logicalIndex++);
+
+                std::string attrName = sampPair.getSampleElement(j);
+                dstPlug = mFn.findPlug(attrName.c_str(), true);
+                if (dstPlug.isNull())
+                    continue;
+
+                modifier.connect(srcPlug, dstPlug);
+                status = modifier.doIt();
+            }
+        }
     }
+
+    if (subDSize > 0)
+    {
+        MPlug srcArrayPlug = alembicNodeFn.findPlug("outSubDMesh", true);
+        for (unsigned int i = 0; i < subDSize; i++)
+        {
+            srcPlug = srcArrayPlug.elementByLogicalIndex(i);
+            MFnMesh mFn(iArgData.mData.mSubDObjList[i], &status);
+            dstPlug = mFn.findPlug("inMesh", true, &status);
+            status = modifier.connect(srcPlug, dstPlug);
+            status = modifier.doIt();
+            if (status != MS::kSuccess)
+            {
+                MString theError("AlembicNode.outSubDMesh[");
+                theError += i;
+                theError += "] --> ";
+                theError += mFn.name();
+                theError += ".inMesh connection not made";
+                printError(theError);
+            }
+        }
+    }
+
+    if (polySize > 0)
+    {
+        MPlug srcArrayPlug = alembicNodeFn.findPlug("outPolyMesh", true);
+        for (unsigned int i = 0; i < polySize; i++)
+        {
+            srcPlug = srcArrayPlug.elementByLogicalIndex(i);
+            MFnMesh mFn(iArgData.mData.mPolyMeshObjList[i]);
+            dstPlug = mFn.findPlug("inMesh", true);
+            modifier.connect(srcPlug, dstPlug);
+            status = modifier.doIt();
+        }
+    }
+
     if (locatorSize > 0)
     {
         MPlug srcArrayPlug = alembicNodeFn.findPlug("outLoc", true);
@@ -2196,6 +2261,7 @@ MString connectAttr(ArgData & iArgData)
             status = modifier.doIt();
         }
     }
+
     if (cameraSize > 0)
     {
         MPlug srcArrayPlug = alembicNodeFn.findPlug("outCamera", true);
@@ -2280,30 +2346,6 @@ MString connectAttr(ArgData & iArgData)
             status = modifier.doIt();
         }
     }
-    if (nSurfaceSize > 0)
-    {
-        MPlug srcArrayPlug = alembicNodeFn.findPlug("outNSurface", true);
-        for (unsigned int i = 0; i < nSurfaceSize; i++)
-        {
-            srcPlug = srcArrayPlug.elementByLogicalIndex(i);
-            MFnNurbsSurface fnNSurface(iArgData.mData.mNurbsObjList[i]);
-            dstPlug = fnNSurface.findPlug("create", true);
-            modifier.connect(srcPlug, dstPlug);
-            status = modifier.doIt();
-        }
-    }
-    if (nCurveSize > 0)
-    {
-        MPlug srcArrayPlug = alembicNodeFn.findPlug("outNCurveGrp", true);
-        for (unsigned int i = 0; i < nCurveSize; i++)
-        {
-            srcPlug = srcArrayPlug.elementByLogicalIndex(i);
-            MFnNurbsCurve fnNCurve(iArgData.mData.mNurbsCurveObjList[i]);
-            dstPlug = fnNCurve.findPlug("create", true);
-            modifier.connect(srcPlug, dstPlug);
-            status = modifier.doIt();
-        }
-    }
 
     if (propSize > 0)
     {
@@ -2355,62 +2397,38 @@ MString connectAttr(ArgData & iArgData)
         }
     }
 
-    if (subDSize > 0)
+    if (particleSize > 0)
     {
-        MPlug srcArrayPlug = alembicNodeFn.findPlug("outSubDMesh", true);
-        for (unsigned int i = 0; i < subDSize; i++)
-        {
-            srcPlug = srcArrayPlug.elementByLogicalIndex(i);
-            MFnMesh mFn(iArgData.mData.mSubDObjList[i], &status);
-            dstPlug = mFn.findPlug("inMesh", true, &status);
-            status = modifier.connect(srcPlug, dstPlug);
-            status = modifier.doIt();
-            if (status != MS::kSuccess)
-            {
-                MString theError("AlembicNode.outSubDMesh[");
-                theError += i;
-                theError += "] --> ";
-                theError += mFn.name();
-                theError += ".inMesh connection not made";
-                printError(theError);
-            }
-        }
+        printWarning("Currently no support for animated particle system");
     }
 
-    if (polySize > 0)
+    if (nSurfaceSize > 0)
     {
-        MPlug srcArrayPlug = alembicNodeFn.findPlug("outPolyMesh", true);
-        for (unsigned int i = 0; i < polySize; i++)
+        MPlug srcArrayPlug = alembicNodeFn.findPlug("outNSurface", true);
+        for (unsigned int i = 0; i < nSurfaceSize; i++)
         {
             srcPlug = srcArrayPlug.elementByLogicalIndex(i);
-            MFnMesh mFn(iArgData.mData.mPolyMeshObjList[i]);
-            dstPlug = mFn.findPlug("inMesh", true);
+            MFnNurbsSurface fnNSurface(iArgData.mData.mNurbsObjList[i]);
+            dstPlug = fnNSurface.findPlug("create", true);
             modifier.connect(srcPlug, dstPlug);
             status = modifier.doIt();
         }
     }
 
-    if (xformSize > 0)
+    if (nCurveSize > 0)
     {
-        unsigned int logicalIndex = 0;
-        MPlug srcArrayPlug = alembicNodeFn.findPlug("transOp", true);
-
-        for (unsigned int i = 0 ; i < xformSize; i++)
+        MPlug srcArrayPlug = alembicNodeFn.findPlug("outNCurveGrp", true);
+        for (unsigned int i = 0; i < nCurveSize; i++)
         {
-            SampledPair & sampPair = iArgData.mData.mXformOpList[i];
-            MObject mObject = sampPair.getObject();
-            MFnTransform mFn(mObject, &status);
-            unsigned int sampleSize = sampPair.sampledChannelSize();
-            for (unsigned int j = 0; j < sampleSize; j ++)
+            srcPlug = srcArrayPlug.elementByLogicalIndex(i);
+            MObject curveObj = iArgData.mData.mNurbsCurveObjList[i];
+
+            // this could be null if there were more Alembic curves in a curve
+            // group than there was dag nodes
+            if (!curveObj.isNull())
             {
-
-                srcPlug = srcArrayPlug.elementByLogicalIndex(logicalIndex++);
-
-                std::string attrName = sampPair.getSampleElement(j);
-                dstPlug = mFn.findPlug(attrName.c_str(), true);
-                if (dstPlug.isNull())
-                    continue;
-
+                MFnNurbsCurve fnNCurve(curveObj);
+                dstPlug = fnNCurve.findPlug("create", true);
                 modifier.connect(srcPlug, dstPlug);
                 status = modifier.doIt();
             }
