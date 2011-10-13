@@ -362,3 +362,14 @@ double getWeightAndIndex(double iFrame,
     return (iFrame - floorIndex.second) /
         (ceilIndex.second - floorIndex.second);
 }
+
+bool isColorSet(const Alembic::AbcCoreAbstract::MetaData & iMetaData,
+    bool iUnmarkedFaceVaryingColors)
+{
+    return (Alembic::AbcGeom::IC3fGeomParam::matches(iMetaData) ||
+            Alembic::AbcGeom::IC4fGeomParam::matches(iMetaData)) && 
+            Alembic::AbcGeom::GetGeometryScope(iMetaData) ==
+                Alembic::AbcGeom::kFacevaryingScope &&
+            (iUnmarkedFaceVaryingColors ||
+            iMetaData.get("mayaColorSet") != "");
+}
