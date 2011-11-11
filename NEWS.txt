@@ -1,3 +1,53 @@
+2011-11-11, Alembic 1.0.3
+
+Hello, Alembic users, thanks to your feedback we have another collection of
+small but useful bug fixes to our plugins.
+
+Some highlights:
+
+Renderman Procedural:
+
+ - Addition of Windows export information for ConvertParameters/Subdivide/Free
+
+ - Fixed an uninitialized variable for -flipv
+
+ - Fixed a string-related memory bug for declarations in ParamListBuilder
+(issue 241)
+
+ - Addition of support for reading, caching and sharing argument strings from
+files.
+
+ - Addition of support for restoring named resource blocks at specified paths
+or names for objects and facesets
+
+ - Fixed support for getInheritsXforms in IXforms (issue 247)
+
+ - Fixed CMake where it failed to find libprman.lib because of a typo
+(issue 229)
+
+Maya AbcImport:
+
+ - Fixed compilation with Maya 2011 by adding an ifdef for the
+setDisplayColors(true) call.  (issue 244)
+
+ - Fixed some issues with the -connect option.  Transforms weren't being
+properly cleared when connection.
+
+Maya AbcExport:
+
+ - Change for FBIK joints, there isn't always a connection to translate or
+scale (like rotate for IK joints).  We now treat them like they are animated.
+
+ - Return an error if the file can't be written to.
+
+ - The full -renderableOnly flag was not properly being detected (issue 252)
+
+We welcome your comments on the discussion list.
+
+http://groups.google.com/group/alembic-discussion
+
+##-*****************************************************************************
+
 2011-10-12, Alembic 1.0.2
 
 Hello, Alembic users, thanks to your feedback we have another collection of
