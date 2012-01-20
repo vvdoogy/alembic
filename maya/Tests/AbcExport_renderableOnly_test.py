@@ -1,7 +1,7 @@
 ##-*****************************************************************************
 ##
 ## Copyright (c) 2009-2011,
-##  Sony Pictures Imageworks Inc. and
+##  Sony Pictures Imageworks, Inc. and
 ##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
 ## All rights reserved.
@@ -15,9 +15,10 @@
 ## copyright notice, this list of conditions and the following disclaimer
 ## in the documentation and/or other materials provided with the
 ## distribution.
-## *       Neither the name of Industrial Light & Magic nor the names of
-## its contributors may be used to endorse or promote products derived
-## from this software without specific prior written permission.
+## *       Neither the name of Sony Pictures Imageworks, nor
+## Industrial Light & Magic nor the names of their contributors may be used
+## to endorse or promote products derived from this software without specific
+## prior written permission.
 ##
 ## THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 ## "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -33,107 +34,26 @@
 ##
 ##-*****************************************************************************
 
-# C++ files for this project
-SET( CXX_FILES
+from maya import cmds as MayaCmds
+import os
+import unittest
+import util
 
-  ArchiveBounds.cpp
+class renderableOnlyTest(unittest.TestCase):
+    def setUp(self):
+        MayaCmds.file(new=True, force=True)
+        self.__files = []
 
-  GeometryScope.cpp
+    def tearDown(self):
+        for f in self.__files:
+            os.remove(f)
 
-  FilmBackXformOp.cpp
-  CameraSample.cpp
-  ICamera.cpp
-  OCamera.cpp
-
-  Basis.cpp
-  ICurves.cpp
-  OCurves.cpp
-
-  OFaceSet.cpp
-  IFaceSet.cpp
-
-  ONuPatch.cpp
-  INuPatch.cpp
-
-  OPoints.cpp
-  IPoints.cpp
-
-  OPolyMesh.cpp
-  IPolyMesh.cpp
-
-  OSubD.cpp
-  ISubD.cpp
-
-  Visibility.cpp
-
-  XformOp.cpp
-  XformSample.cpp
-  IXform.cpp
-  OXform.cpp
-)
-
-SET( H_FILES
-
-  All.h
-
-  Foundation.h
-
-  ArchiveBounds.h
-
-  IGeomBase.h
-  OGeomBase.h
-
-  GeometryScope.h
-
-  SchemaInfoDeclarations.h
-
-  FilmBackXformOp.h
-  CameraSample.h
-  ICamera.h
-  OCamera.h
-
-  Basis.h
-  CurveType.h
-  ICurves.h
-  OCurves.h
-
-  FaceSetExclusivity.h
-  OFaceSet.h
-  IFaceSet.h
-
-  ONuPatch.h
-  INuPatch.h
-
-  OGeomParam.h
-  IGeomParam.h
-
-  OPoints.h
-  IPoints.h
-
-  OPolyMesh.h
-  IPolyMesh.h
-
-  OSubD.h
-  ISubD.h
-
-  Visibility.h
-
-  XformOp.h
-  XformSample.h
-  IXform.h
-  OXform.h
-)
-
-SET( SOURCE_FILES ${CXX_FILES} ${H_FILES} )
-
-ADD_LIBRARY( AlembicAbcGeom ${SOURCE_FILES} )
-
-INSTALL( TARGETS AlembicAbcGeom
-         LIBRARY DESTINATION lib
-         ARCHIVE DESTINATION lib/static )
-
-INSTALL( FILES ${H_FILES}
-         DESTINATION include/Alembic/AbcGeom
-         PERMISSIONS OWNER_READ GROUP_READ WORLD_READ )
-
-ADD_SUBDIRECTORY( Tests )
+    def testRenderableOnly(self):
+        MayaCmds.polyPlane(name='potato')
+        MayaCmds.polyPlane(name='hidden')
+        MayaCmds.setAttr("hidden.visibility", 0)
+        self.__files.append(util.expandFileName('renderableOnlyTest.abc'))
+        MayaCmds.AbcExport(j='-renderableOnly -file ' + self.__files[-1])
+        MayaCmds.AbcImport(self.__files[-1], m='open')
+        self.failUnless(MayaCmds.objExists('potato'))
+        self.failIf(MayaCmds.objExists('hidden'))
