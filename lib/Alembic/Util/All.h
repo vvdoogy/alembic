@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -43,9 +43,6 @@
 #include <Alembic/Util/Murmur3.h>
 #include <Alembic/Util/OperatorBool.h>
 #include <Alembic/Util/PlainOldDataType.h>
-#include <Alembic/Util/Singleton.h>
-#include <Alembic/Util/SmartPtrHelp.h>
 #include <Alembic/Util/TokenMap.h>
-#include <Alembic/Util/VecN.h>
 
 #endif

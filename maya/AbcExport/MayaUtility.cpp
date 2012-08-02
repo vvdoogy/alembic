@@ -272,18 +272,6 @@ bool util::isAnimated(MObject & object, bool checkParent)
         MObject node = iter.thisNode();
         MPlug plug = iter.thisPlug();
 
-        if (node.hasFn(MFn::kExpression))
-        {
-            MFnExpression fn(node, &stat);
-            if (stat == MS::kSuccess && fn.isAnimated())
-            {
-                return true;
-            }
-        }
-        if (MAnimUtil::isAnimated(node, checkParent))
-        {
-            return true;
-        }
         if (node.hasFn(MFn::kPluginDependNode) ||
                 node.hasFn( MFn::kConstraint ) ||
                 node.hasFn(MFn::kPointConstraint) ||
@@ -305,6 +293,20 @@ bool util::isAnimated(MObject & object, bool checkParent)
                 node.hasFn(MFn::kCluster) ||
                 node.hasFn(MFn::kFluid) || 
                 node.hasFn(MFn::kPolyBoolOp))
+        {
+            return true;
+        }
+
+        if (node.hasFn(MFn::kExpression))
+        {
+            MFnExpression fn(node, &stat);
+            if (stat == MS::kSuccess && fn.isAnimated())
+            {
+                return true;
+            }
+        }
+
+        if (MAnimUtil::isAnimated(node, checkParent))
         {
             return true;
         }
@@ -386,10 +388,11 @@ MString util::getHelpText()
 "-jobArg flags:\n"
 "\n"
 "-a / -attr string\n"
-"A specific attribute to write out.  This flag may occur more than once.\n"
+"A specific geometric attribute to write out.\n"
+"This flag may occur more than once.\n"
 "\n"
 "-atp / -attrPrefix string (default ABC_)\n"
-"Prefix filter for determining which attributes to write out.\n"
+"Prefix filter for determining which geometric attributes to write out.\n"
 "This flag may occur more than once.\n"
 "\n"
 "-f / -file string REQUIRED\n"
@@ -428,6 +431,13 @@ MString util::getHelpText()
 "being written to Alembic.  Be careful that the new stripped name does not\n"
 "collide with other sibling node names.\n"
 "Example:  taco:foo:bar would be written as just bar.\n"
+"\n"
+"-u / -userAttr string\n"
+"A specific user attribute to write out.  This flag may occur more than once.\n"
+"\n"
+"-uatp / -userAttrPrefix string\n"
+"Prefix filter for determining which user attributes to write out.\n"
+"This flag may occur more than once.\n"
 "\n"
 "-uv / -uvWrite\n"
 "If this flag is present, uv data for PolyMesh and SubD shapes will be written to\n"

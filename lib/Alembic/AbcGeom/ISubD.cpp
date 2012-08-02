@@ -104,11 +104,34 @@ void ISubDSchema::get( ISubDSchema::Sample &oSample,
     m_faceIndicesProperty.get( oSample.m_faceIndices, iSS );
     m_faceCountsProperty.get( oSample.m_faceCounts, iSS );
 
-    m_faceVaryingInterpolateBoundaryProperty.get(
-        oSample.m_faceVaryingInterpolateBoundary, iSS );
-    m_faceVaryingPropagateCornersProperty.get(
-        oSample.m_faceVaryingPropagateCorners, iSS );
-    m_interpolateBoundaryProperty.get( oSample.m_interpolateBoundary, iSS );
+    if ( m_faceVaryingInterpolateBoundaryProperty )
+    {
+        m_faceVaryingInterpolateBoundaryProperty.get(
+            oSample.m_faceVaryingInterpolateBoundary, iSS );
+    }
+    else
+    {
+        oSample.m_faceVaryingInterpolateBoundary = 0;
+    }
+
+    if ( m_faceVaryingPropagateCornersProperty )
+    {
+        m_faceVaryingPropagateCornersProperty.get(
+            oSample.m_faceVaryingPropagateCorners, iSS );
+    }
+    else
+    {
+        oSample.m_faceVaryingPropagateCorners = 0;
+    }
+
+    if ( m_interpolateBoundaryProperty )
+    {
+        m_interpolateBoundaryProperty.get( oSample.m_interpolateBoundary, iSS );
+    }
+    else
+    {
+        oSample.m_interpolateBoundary = 0;
+    }
 
     m_selfBoundsProperty.get( oSample.m_selfBounds, iSS );
 
@@ -130,7 +153,14 @@ void ISubDSchema::get( ISubDSchema::Sample &oSample,
     if ( m_holesProperty )
     { m_holesProperty.get( oSample.m_holes, iSS ); }
 
-    m_subdSchemeProperty.get( oSample.m_subdScheme, iSS );
+    if ( m_subdSchemeProperty )
+    {
+        m_subdSchemeProperty.get( oSample.m_subdScheme, iSS );
+    }
+    else
+    {
+        oSample.m_subdScheme = "catmull-clark";
+    }
 
     if ( m_childBoundsProperty && m_childBoundsProperty.getNumSamples() > 0 )
     { m_childBoundsProperty.get( oSample.m_childBounds, iSS ); }
@@ -168,7 +198,7 @@ ISubDSchema::operator=(const ISubDSchema & rhs)
         rhs.m_faceVaryingInterpolateBoundaryProperty;
 
     // lock, reset
-    boost::mutex::scoped_lock l(m_faceSetsMutex);
+    Alembic::Util::scoped_lock l(m_faceSetsMutex);
     m_faceSetsLoaded = false;
     m_faceSets.clear();
     return *this;
@@ -193,15 +223,26 @@ void ISubDSchema::init( const Abc::Argument &iArg0,
     m_faceCountsProperty = Abc::IInt32ArrayProperty( _this, ".faceCounts",
                                            args.getSchemaInterpMatching() );
 
-    m_faceVaryingInterpolateBoundaryProperty =
-        Abc::IInt32Property( _this, ".faceVaryingInterpolateBoundary",
-                           args.getSchemaInterpMatching() );
-    m_faceVaryingPropagateCornersProperty =
-        Abc::IInt32Property( _this, ".faceVaryingPropagateCorners",
-                           args.getSchemaInterpMatching() );
-    m_interpolateBoundaryProperty =
-        Abc::IInt32Property( _this, ".interpolateBoundary",
-                           args.getSchemaInterpMatching() );
+    if ( this->getPropertyHeader(".faceVaryingInterpolateBoundary") != NULL )
+    {
+        m_faceVaryingInterpolateBoundaryProperty =
+            Abc::IInt32Property( _this, ".faceVaryingInterpolateBoundary",
+                                 args.getSchemaInterpMatching() );
+    }
+
+    if ( this->getPropertyHeader(".faceVaryingPropagateCorners") != NULL )
+    {
+        m_faceVaryingPropagateCornersProperty =
+            Abc::IInt32Property( _this, ".faceVaryingPropagateCorners",
+                                 args.getSchemaInterpMatching() );
+    }
+
+    if ( this->getPropertyHeader(".interpolateBoundary") != NULL )
+    {
+        m_interpolateBoundaryProperty =
+            Abc::IInt32Property( _this, ".interpolateBoundary",
+                                 args.getSchemaInterpMatching() );
+    }
 
     // creases, corners, and holes optionally exist
     if ( this->getPropertyHeader(".creaseIndices") != NULL)
@@ -245,8 +286,11 @@ void ISubDSchema::init( const Abc::Argument &iArg0,
                                       args.getSchemaInterpMatching() );
     }
 
-    m_subdSchemeProperty = Abc::IStringProperty( _this, ".scheme",
-                                         args.getSchemaInterpMatching() );
+    if ( this->getPropertyHeader(".scheme") != NULL)
+    {
+        m_subdSchemeProperty = Abc::IStringProperty( _this, ".scheme",
+                                             args.getSchemaInterpMatching() );
+    }
 
     // none of the things below here are guaranteed to exist
     if ( this->getPropertyHeader( "uv" ) != NULL )
@@ -270,7 +314,7 @@ void ISubDSchema::getFaceSetNames (std::vector <std::string> & oFaceSetNames)
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ISubDSchema::getFaceSetNames()" );
 
-    boost::mutex::scoped_lock l(m_faceSetsMutex);
+    Alembic::Util::scoped_lock l(m_faceSetsMutex);
     loadFaceSetNames();
 
     for (std::map<std::string, IFaceSet>::const_iterator faceSetIter =
@@ -293,7 +337,7 @@ void ISubDSchema::loadFaceSetNames()
     {
         // iterate over childHeaders, and if header matches 
         // FaceSet add to our vec
-        IObject _thisObject = this->getParent().getObject();
+        IObject _thisObject = getObject();
 
         size_t numChildren = _thisObject.getNumChildren();
         for ( size_t childIndex = 0 ; childIndex < numChildren; childIndex++ )
@@ -318,7 +362,7 @@ ISubDSchema::hasFaceSet( const std::string &faceSetName )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ISubDSchema::hasFaceSet (faceSetName)" );
 
-    boost::mutex::scoped_lock l(m_faceSetsMutex);
+    Alembic::Util::scoped_lock l(m_faceSetsMutex);
     if (!m_faceSetsLoaded)
     {
         loadFaceSetNames();
@@ -336,7 +380,7 @@ IFaceSet
 ISubDSchema::getFaceSet( const std::string &iFaceSetName )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ISubDSchema::getFaceSet()" );
-    boost::mutex::scoped_lock l(m_faceSetsMutex);
+    Alembic::Util::scoped_lock l(m_faceSetsMutex);
     if (!m_faceSetsLoaded)
     {
         loadFaceSetNames();
@@ -348,8 +392,7 @@ ISubDSchema::getFaceSet( const std::string &iFaceSetName )
     if (!m_faceSets [iFaceSetName])
     {
         // We haven't yet loaded the faceSet, so create/load it
-        m_faceSets [iFaceSetName] = IFaceSet ( this->getParent().getObject(),
-                                               iFaceSetName );
+        m_faceSets [iFaceSetName] = IFaceSet ( getObject(), iFaceSetName );
     }
 
     return m_faceSets [iFaceSetName];

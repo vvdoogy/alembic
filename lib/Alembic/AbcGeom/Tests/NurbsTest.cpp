@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -62,7 +62,7 @@
 
 #include <Alembic/AbcGeom/Tests/NurbsData.h>
 
-#include "Assert.h"
+#include <Alembic/AbcCoreAbstract/Tests/Assert.h>
 
 using namespace std;
 using namespace Alembic::AbcGeom;

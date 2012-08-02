@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -41,7 +41,7 @@
 // to keep this example code clean.
 #include <Alembic/AbcGeom/Tests/CurvesData.h>
 
-#include "Assert.h"
+#include <Alembic/AbcCoreAbstract/Tests/Assert.h>
 
 using namespace std;
 using namespace Alembic::AbcGeom; // Contains Abc, AbcCoreAbstract

@@ -37,6 +37,9 @@
 #ifndef _Alembic_Prman_ProcArgs_h_
 #define _Alembic_Prman_ProcArgs_h_
 
+#define PRMAN_USE_ABCMATERIAL
+
+
 #include <string>
 #include <map>
 #include <vector>

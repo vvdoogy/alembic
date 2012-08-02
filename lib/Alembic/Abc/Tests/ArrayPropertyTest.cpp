@@ -36,8 +36,6 @@
 
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <Alembic/Abc/All.h>
-#include <boost/random.hpp>
-#include <boost/lexical_cast.hpp>
 
 namespace Abc = Alembic::Abc;
 using namespace Abc;

@@ -51,8 +51,8 @@ ENDIF()
 
 # Declare the version
 SET( PROJECT_VERSION_MAJOR  1 )
-SET( PROJECT_VERSION_MINOR  0 )
-SET( PROJECT_VERSION_PATCH  5 )
+SET( PROJECT_VERSION_MINOR  1 )
+SET( PROJECT_VERSION_PATCH  0 )
 SET( PROJECT_VERSION
      ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} )
 SET( VERSION ${PROJECT_VERSION} )
@@ -226,6 +226,9 @@ INCLUDE_DIRECTORIES( ${ALEMBIC_BOOST_INCLUDE_PATH} )
 INCLUDE( "./build/AlembicIlmBase.cmake" )
 INCLUDE_DIRECTORIES( ${ALEMBIC_ILMBASE_INCLUDE_DIRECTORY} )
 
+INCLUDE( "./build/AlembicPyIlmBase.cmake" )
+INCLUDE_DIRECTORIES( ${ALEMBIC_PYILMBASE_INCLUDE_DIRECTORY} )
+
 # Include Python stuff
 INCLUDE("./build/AlembicPython.cmake")
 
@@ -267,9 +270,6 @@ ELSE()
     ENDIF()
 ENDIF()
 
-
-ADD_SUBDIRECTORY( python EXCLUDE_FROM_ALL )
-
 # Include Maya stuff
 IF(DEFINED USE_MAYA AND NOT USE_MAYA)
     MESSAGE(STATUS "Skipping Maya plugins")
@@ -284,7 +284,18 @@ ELSE()
     ENDIF()
 ENDIF()
 
+# Include PyAlembic stuff
+IF(DEFINED USE_PYALEMBIC AND NOT USE_PYALEMBIC)
+    MESSAGE(STATUS "Skipping Alembic Python bindings")
+ELSE()
+    MESSAGE(STATUS "About to include Python cmake files")
+    ADD_SUBDIRECTORY( python )
+ENDIF()
+
 # example code not supported
 ADD_SUBDIRECTORY( examples )
+
+# docs
+ADD_SUBDIRECTORY( doc )
 
 ENDIF()
