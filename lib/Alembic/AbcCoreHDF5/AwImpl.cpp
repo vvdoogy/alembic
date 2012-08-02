@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -35,9 +35,12 @@
 //-*****************************************************************************
 
 #include <Alembic/AbcCoreHDF5/AwImpl.h>
-#include <Alembic/AbcCoreHDF5/TopOwImpl.h>
+#include <Alembic/AbcCoreHDF5/OwData.h>
+#include <Alembic/AbcCoreHDF5/OwImpl.h>
 #include <Alembic/AbcCoreHDF5/WriteUtil.h>
 #include <Alembic/AbcCoreHDF5/HDF5Util.h>
+#include <Alembic/AbcCoreHDF5/HDF5HierarchyWriter.h>
+#include <Alembic/AbcCoreHDF5/HDF5Hierarchy.h>
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
@@ -45,10 +48,12 @@ namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
 AwImpl::AwImpl( const std::string &iFileName,
-                const AbcA::MetaData &iMetaData )
+                const AbcA::MetaData &iMetaData,
+                bool iCacheHierarchy )
   : m_fileName( iFileName )
   , m_metaData( iMetaData )
   , m_file( -1 )
+  , m_cacheHierarchy( iCacheHierarchy )
 {
 
     // add default time sampling
@@ -89,8 +94,7 @@ AwImpl::AwImpl( const std::string &iFileName,
 
     m_metaData.set("_ai_AlembicVersion", AbcA::GetLibraryVersion());
 
-    // Create top explicitly.
-    m_top = new TopOwImpl( *this, m_file, m_metaData );
+    m_data.reset( new OwData( m_file, "ABC", m_metaData ) );
 }
 
 //-*****************************************************************************
@@ -114,10 +118,14 @@ AbcA::ArchiveWriterPtr AwImpl::asArchivePtr()
 //-*****************************************************************************
 AbcA::ObjectWriterPtr AwImpl::getTop()
 {
-    assert( m_top );
+    AbcA::ObjectWriterPtr ret = m_top.lock();
+    if ( ! ret )
+    {
+        // time to make a new one
+        ret.reset( new OwImpl( asArchivePtr(), m_data, m_metaData ) );
+        m_top = ret;
+    }
 
-    AbcA::ObjectWriterPtr ret( m_top,
-                               Alembic::Util::NullDeleter() );
     return ret;
 }
 
@@ -157,11 +165,18 @@ AbcA::TimeSamplingPtr AwImpl::getTimeSampling( uint32_t iIndex )
 //-*****************************************************************************
 AwImpl::~AwImpl()
 {
-    delete m_top;
-    m_top = NULL;
+    // write the cache if necessary
+    if ( m_file >= 0 && m_cacheHierarchy )
+    {
+        HDF5Hierarchy h5H;
+        HDF5HierarchyWriter writer( m_file, h5H );
+    }
 
     // empty out the map so any dataset IDs will be freed up
     m_writtenArraySampleMap.m_map.clear();
+
+    // let go of our reference to the data for the top object
+    m_data.reset();
 
     if ( m_file >= 0 )
     {
@@ -178,18 +193,15 @@ AwImpl::~AwImpl()
 
         if ( objCount != 0 )
         {
-            std::string excStr =
-                ( boost::format(
-                      "Open HDF5 handles detected during writing:\n"
-                      "DataSets: %d, Groups: %d, "
-                      "DataTypes: %d, Attributes: %d" )
-                  % dsetCount
-                  % grpCount
-                  % dtypCount
-                  % attrCount ).str();
+            std::stringstream strm;
+            strm << "Open HDF5 handles detected during reading:" << std::endl
+                 << "DataSets: " << dsetCount
+                 << ", Groups: " << grpCount
+                 << ", DataTypes: " << dtypCount 
+                 << ", Attributes: " << attrCount;
 
             m_file = -1;
-            ABCA_THROW( excStr );
+            ABCA_THROW( strm.str() );
         }
 
         H5Fclose( m_file );

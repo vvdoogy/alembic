@@ -148,10 +148,12 @@ public:
                      const Abc::Argument &iArg0 = Abc::Argument(),
                      const Abc::Argument &iArg1 = Abc::Argument(),
                      const Abc::Argument &iArg2 = Abc::Argument() )
-      : OGeomBaseSchema<FaceSetSchemaInfo>( iParentCompound, iName,
-                                   iArg0, iArg1, iArg2 )
+      : OGeomBaseSchema<FaceSetSchemaInfo>( 
+                    GetCompoundPropertyWriterPtr( iParentCompound ),
+                    iName, iArg0, iArg1, iArg2 )
     {
-        _initTimeSampling ( iParentCompound, iArg0, iArg1, iArg2 );
+        _initTimeSampling ( GetCompoundPropertyWriterPtr( iParentCompound ),
+                            iArg0, iArg1, iArg2 );
     }
 
     template <class CPROP_PTR>
@@ -182,10 +184,12 @@ public:
                               const Abc::Argument &iArg0 = Abc::Argument(),
                               const Abc::Argument &iArg1 = Abc::Argument(),
                               const Abc::Argument &iArg2 = Abc::Argument() )
-      : OGeomBaseSchema<FaceSetSchemaInfo>( iParentCompound,
-                                            iArg0, iArg1, iArg2 )
+      : OGeomBaseSchema<FaceSetSchemaInfo>(
+                            GetCompoundPropertyWriterPtr( iParentCompound ),
+                            iArg0, iArg1, iArg2 )
     {
-        _initTimeSampling ( iParentCompound, iArg0, iArg1, iArg2 );
+        _initTimeSampling ( GetCompoundPropertyWriterPtr( iParentCompound ),
+                            iArg0, iArg1, iArg2 );
     }
 
     //! Copy constructor.
@@ -220,7 +224,7 @@ public:
     FaceSetExclusivity getFaceExclusivity() { return m_facesExclusive; }
     //-*************************************************************************
     // ABC BASE MECHANISMS
-    // These functions are used by Abc to deal with errors, rewrapping,
+    // These functions are used by Abc to deal with errors, validity,
     // and so on.
     //-*************************************************************************
 
@@ -266,6 +270,8 @@ protected:
 // Nice to use typedef for users of this class.
 //-*****************************************************************************
 typedef Abc::OSchemaObject<OFaceSetSchema> OFaceSet;
+
+typedef Util::shared_ptr< OFaceSet > OFaceSetPtr;
 
 Abc::Box3d computeBoundsFromPositionsByFaces (const Int32ArraySample & faces,
     const Int32ArraySample & meshFaceCounts,

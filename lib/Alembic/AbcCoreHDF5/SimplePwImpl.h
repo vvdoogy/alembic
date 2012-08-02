@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -178,6 +178,9 @@ SimplePwImpl<ABSTRACT,IMPL,SAMPLE,KEY>::SimplePwImpl
     // Check the validity of all inputs.
     ABCA_ASSERT( m_parent, "Invalid parent" );
 
+    ABCA_ASSERT( iName != "" && iName.find('/') == std::string::npos,
+                 "Invalid name" );
+
     // will assert if TimeSamplingPtr not found
     AbcA::TimeSamplingPtr ts =
         m_parent->getObject()->getArchive()->getTimeSampling(
@@ -203,9 +206,6 @@ SimplePwImpl<ABSTRACT,IMPL,SAMPLE,KEY>::SimplePwImpl
         ABCA_ASSERT( m_fileDataType >= 0, "Couldn't get file datatype" );
         ABCA_ASSERT( m_nativeDataType >= 0, "Couldn't get native datatype" );
     }
-
-    WriteMetaData( m_parentGroup, m_header->getName() + ".meta",
-        m_header->getMetaData() );
 }
 
 //-*****************************************************************************
@@ -365,7 +365,7 @@ void SimplePwImpl<ABSTRACT,IMPL,SAMPLE,KEY>::setTimeSamplingIndex
             iIndex );
 
     ABCA_ASSERT( !ts->getTimeSamplingType().isAcyclic() ||
-        ts->getNumStoredTimes() > m_nextSampleIndex,
+        ts->getNumStoredTimes() >= m_nextSampleIndex,
         "Already have written more samples than we have times for when using "
         "Acyclic sampling." );
 

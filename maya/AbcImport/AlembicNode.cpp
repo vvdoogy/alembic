@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -65,6 +65,7 @@
 #include <maya/MFnNumericAttribute.h>
 #include <maya/MFnTypedAttribute.h>
 #include <maya/MFnUnitAttribute.h>
+#include <maya/MFnEnumAttribute.h>
 
 #include <Alembic/AbcCoreHDF5/ReadWrite.h>
 #include <Alembic/AbcGeom/Visibility.h>
@@ -72,6 +73,9 @@
 MObject AlembicNode::mTimeAttr;
 MObject AlembicNode::mAbcFileNameAttr;
 
+MObject AlembicNode::mSpeedAttr;
+MObject AlembicNode::mOffsetAttr;
+MObject AlembicNode::mCycleTypeAttr;
 MObject AlembicNode::mStartFrameAttr;
 MObject AlembicNode::mEndFrameAttr;
 
@@ -84,6 +88,27 @@ MObject AlembicNode::mOutTransOpArrayAttr;
 MObject AlembicNode::mOutPropArrayAttr;
 MObject AlembicNode::mOutLocatorPosScaleArrayAttr;
 
+namespace
+{
+    MString UITemplateMELScriptStr(
+"global proc AEAlembicNodeTemplate( string $nodeName )\n"
+"{\n"
+"editorTemplate -beginScrollLayout;\n"
+"editorTemplate -beginLayout \"Alembic Attributes\" -collapse 0;\n"
+"editorTemplate -addControl \"abc_File\";\n"
+"editorTemplate -addControl \"startFrame\";\n"
+"editorTemplate -addControl \"endFrame\";\n"
+"editorTemplate -addControl \"time\";\n"
+"editorTemplate -addControl \"speed\";\n"
+"editorTemplate -addControl \"offset\";\n"
+"editorTemplate -addControl \"cycleType\";\n"
+"editorTemplate -endLayout;\n"
+"AEdependNodeTemplate $nodeName;\n"
+"editorTemplate -addExtraControls;\n"
+"editorTemplate -endScrollLayout;\n}"
+    );
+};
+
 MStatus AlembicNode::initialize()
 {
     MStatus status;
@@ -92,6 +117,7 @@ MStatus AlembicNode::initialize()
     MFnTypedAttribute   tAttr;
     MFnNumericAttribute nAttr;
     MFnGenericAttribute gAttr;
+    MFnEnumAttribute    eAttr;
 
     // add the input attributes: time, file, sequence time
     mTimeAttr = uAttr.create("time", "tm", MFnUnitAttribute::kTime, 0.0);
@@ -106,6 +132,33 @@ MStatus AlembicNode::initialize()
     status = tAttr.setStorable(true);
     status = tAttr.setUsedAsFilename(true);
     status = addAttribute(mAbcFileNameAttr);
+
+    // playback speed 
+    mSpeedAttr = nAttr.create("speed", "sp",
+        MFnNumericData::kDouble, 1.0, &status);
+    status = nAttr.setWritable(true);
+    status = nAttr.setStorable(true);
+    status = nAttr.setKeyable(true);
+    status = addAttribute(mSpeedAttr);
+
+    // frame offset
+    mOffsetAttr = nAttr.create("offset", "of",
+        MFnNumericData::kDouble, 0, &status);
+    status = nAttr.setWritable(true);
+    status = nAttr.setStorable(true);
+    status = nAttr.setKeyable(true);
+    status = addAttribute(mOffsetAttr);
+
+    // cycle type
+    mCycleTypeAttr = eAttr.create("cycleType", "ct", 0,  &status );
+    status = eAttr.addField("Hold", PLAYTYPE_HOLD);
+    status = eAttr.addField("Loop", PLAYTYPE_LOOP);
+    status = eAttr.addField("Reverse", PLAYTYPE_REVERSE);
+    status = eAttr.addField("Bounce", PLAYTYPE_BOUNCE);
+    status = eAttr.setWritable(true);
+    status = eAttr.setStorable(true);
+    status = eAttr.setKeyable(true);
+    status = addAttribute(mCycleTypeAttr);
 
     // sequence min and max in frames
     mStartFrameAttr = nAttr.create("startFrame", "sf",
@@ -232,7 +285,126 @@ MStatus AlembicNode::initialize()
     status = attributeAffects(mTimeAttr, mOutPropArrayAttr);
     status = attributeAffects(mTimeAttr, mOutLocatorPosScaleArrayAttr);
 
+    status = attributeAffects(mSpeedAttr, mOutSubDArrayAttr);
+    status = attributeAffects(mSpeedAttr, mOutPolyArrayAttr);
+    status = attributeAffects(mSpeedAttr, mOutNurbsSurfaceArrayAttr);
+    status = attributeAffects(mSpeedAttr, mOutNurbsCurveGrpArrayAttr);
+    status = attributeAffects(mSpeedAttr, mOutTransOpArrayAttr);
+    status = attributeAffects(mSpeedAttr, mOutCameraArrayAttr);
+    status = attributeAffects(mSpeedAttr, mOutPropArrayAttr);
+    status = attributeAffects(mSpeedAttr, mOutLocatorPosScaleArrayAttr);
+
+    status = attributeAffects(mOffsetAttr, mOutSubDArrayAttr);
+    status = attributeAffects(mOffsetAttr, mOutPolyArrayAttr);
+    status = attributeAffects(mOffsetAttr, mOutNurbsSurfaceArrayAttr);
+    status = attributeAffects(mOffsetAttr, mOutNurbsCurveGrpArrayAttr);
+    status = attributeAffects(mOffsetAttr, mOutTransOpArrayAttr);
+    status = attributeAffects(mOffsetAttr, mOutCameraArrayAttr);
+    status = attributeAffects(mOffsetAttr, mOutPropArrayAttr);
+    status = attributeAffects(mOffsetAttr, mOutLocatorPosScaleArrayAttr);
+
+    status = attributeAffects(mCycleTypeAttr, mOutSubDArrayAttr);
+    status = attributeAffects(mCycleTypeAttr, mOutPolyArrayAttr);
+    status = attributeAffects(mCycleTypeAttr, mOutNurbsSurfaceArrayAttr);
+    status = attributeAffects(mCycleTypeAttr, mOutNurbsCurveGrpArrayAttr);
+    status = attributeAffects(mCycleTypeAttr, mOutTransOpArrayAttr);
+    status = attributeAffects(mCycleTypeAttr, mOutCameraArrayAttr);
+    status = attributeAffects(mCycleTypeAttr, mOutPropArrayAttr);
+    status = attributeAffects(mCycleTypeAttr, mOutLocatorPosScaleArrayAttr);
+
+    MGlobal::executeCommand( UITemplateMELScriptStr );
+
     return status;
+}
+
+double AlembicNode::getFPS()
+{
+    float fps = 24.0f;
+    MTime::Unit unit = MTime::uiUnit();
+    if (unit!=MTime::kInvalid)
+    {
+        MTime time(1.0, MTime::kSeconds);
+        fps = time.as(unit);
+    }
+
+    if (fps <= 0.f )
+    {
+        fps = 24.0f;
+    }
+
+    return fps;
+}
+
+double AlembicNode::computeAdjustedTime(const double inputTime,
+                                        const double speed,
+                                        const double timeOffset)
+{
+   return ( inputTime - timeOffset ) * speed;
+}
+
+double AlembicNode::computeRetime(const double inputTime,
+                                  const double firstTime,
+                                  const double lastTime,
+                                  const short playStyle)
+{
+    const double playTime = lastTime - firstTime;
+    static const double eps = 0.001;
+    double retime = inputTime;
+    
+    switch (playStyle)
+    {
+      case PLAYTYPE_HOLD:
+          break;
+      case PLAYTYPE_LOOP:
+          if (inputTime < (firstTime - eps) || inputTime > (lastTime + eps))
+          {
+              const double timeOffset = inputTime - firstTime;
+              const double playOffset = floor(timeOffset/playTime);
+              const double fraction = fabs(timeOffset/playTime - playOffset);
+
+              retime = firstTime + playTime * fraction;
+          }
+          break;
+      case PLAYTYPE_REVERSE:
+          if (inputTime > (firstTime + eps) && inputTime < (lastTime - eps))
+          {
+              const double timeOffset = inputTime - firstTime;
+              const double playOffset = floor(timeOffset/playTime);
+              const double fraction = fabs(timeOffset/playTime - playOffset);
+
+              retime = lastTime - playTime * fraction;
+          }
+          else if (inputTime < (firstTime + eps))
+          {
+              retime = lastTime;
+          }
+          else
+          {
+              retime = firstTime;
+          }
+          break;
+      case PLAYTYPE_BOUNCE:
+          if (inputTime < (firstTime - eps) || inputTime > (lastTime + eps))
+          {
+              const double timeOffset = inputTime - firstTime;
+              const double playOffset = floor(timeOffset/playTime);
+              const double fraction = fabs(timeOffset/playTime - playOffset);
+
+              // forward loop
+              if (fmodf(playOffset, 2.0)==0.0)
+              {
+                  retime = firstTime + playTime * fraction;
+              }
+              // backward loop
+              else
+              {
+                  retime = lastTime - playTime * fraction;
+              }
+          }
+          break;
+    }
+
+    return retime;
 }
 
 MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
@@ -240,10 +412,21 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
     MStatus status;
 
     // update the frame number to be imported
+    MDataHandle speedHandle = dataBlock.inputValue(mSpeedAttr, &status);
+    double speed = speedHandle.asDouble();
+
+    MDataHandle offsetHandle = dataBlock.inputValue(mOffsetAttr, &status);
+    double offset = offsetHandle.asDouble();
+
     MDataHandle timeHandle = dataBlock.inputValue(mTimeAttr, &status);
     MTime t = timeHandle.asTime();
     double inputTime = t.as(MTime::kSeconds);
 
+    double fps = getFPS();
+
+    // scale and offset inputTime.
+    inputTime = computeAdjustedTime(inputTime, speed, offset/fps);
+ 
     // this should be done only once per file
     if (mFileInitialized == false)
     {
@@ -255,8 +438,8 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
         MString fileName = fileObject.resolvedFullName();
 
         // no caching!
-        Alembic::Abc::IArchive archive(Alembic::AbcCoreHDF5::ReadArchive(),
-            fileName.asChar(), Alembic::Abc::ErrorHandler::Policy(),
+        Alembic::Abc::IArchive archive(Alembic::AbcCoreHDF5::ReadArchive(true),
+            fileName.asUTF8(), Alembic::Abc::ErrorHandler::Policy(),
             Alembic::AbcCoreAbstract::ReadArraySampleCachePtr());
 
         if (!archive.valid())
@@ -282,8 +465,20 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
             // and given to AlembicNode to provide update
             visitor.getData(mData);
             mData.getFrameRange(mSequenceStartTime, mSequenceEndTime);
+            MDataHandle startFrameHandle = dataBlock.inputValue(mStartFrameAttr,
+                                                                &status);
+            startFrameHandle.set(mSequenceStartTime*fps);
+            MDataHandle endFrameHandle = dataBlock.inputValue(mEndFrameAttr,
+                                                                &status);
+            endFrameHandle.set(mSequenceEndTime*fps);
         }
     }
+
+    // Retime
+    MDataHandle cycleHandle = dataBlock.inputValue(mCycleTypeAttr, &status);
+    short playType = cycleHandle.asShort();
+    inputTime = computeRetime(inputTime, mSequenceStartTime, mSequenceEndTime,
+                              playType);
 
     clamp<double>(mSequenceStartTime, mSequenceEndTime, inputTime);
 
@@ -335,9 +530,9 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                 {
                     readProp(mCurTime, mData.mPropList[i].mArray, outHandle);
                 }
-                // meant for special properties (like visible)
-                else
+                else if (mData.mPropList[i].mScalar.valid())
                 {
+                    // for visibility only
                     if (mData.mPropList[i].mScalar.getName() ==
                         Alembic::AbcGeom::kVisibilityPropertyName)
                     {
@@ -346,6 +541,11 @@ MStatus AlembicNode::compute(const MPlug & plug, MDataBlock & dataBlock)
                             Alembic::Abc::ISampleSelector(mCurTime,
                                 Alembic::Abc::ISampleSelector::kNearIndex ));
                         outHandle.setGenericBool(visVal != 0, false);
+                    }
+                    else
+                    {
+                        // for all scalar props
+                        readProp(mCurTime, mData.mPropList[i].mScalar, outHandle);
                     }
                 }
                 outArrayHandle.next();

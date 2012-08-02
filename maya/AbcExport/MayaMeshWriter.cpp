@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -117,24 +117,24 @@ void MayaMeshWriter::getUVs(std::vector<float> & uvs,
 
         unsigned int len = uArray.length();
         uvs.clear();
-        uvs.reserve(len);
+        uvs.reserve(len * 2);
         for (unsigned int i = 0; i < len; i++)
         {
             uvs.push_back(uArray[i]); uvs.push_back(vArray[i]);
         }
 
-        MIntArray uvCounts, uvIds;
-        status = lMesh.getAssignedUVs(uvCounts, uvIds, &uvSetName);
         indices.clear();
-        indices.reserve(uvIds.length());
-        unsigned int faceCount = uvCounts.length();
-        unsigned int uvIndex = 0;
-        for (unsigned int f = 0; f < faceCount; f++)
+        indices.reserve(lMesh.numFaceVertices());
+        int faceCount = lMesh.numPolygons();
+        int uvId = 0;
+        for (int f = 0; f < faceCount; f++)
         {
-            len = uvCounts[f];
+            int len = lMesh.polygonVertexCount(f);
             for (int i = len-1; i >= 0; i--)
-                indices.push_back(uvIds[uvIndex+i]);
-            uvIndex += len;
+            {
+                lMesh.getPolygonUVid(f, i, uvId);
+                indices.push_back(uvId);
+            }
         }
     }
 }
@@ -196,11 +196,13 @@ MayaMeshWriter::MayaMeshWriter(MDagPath & iDag,
         }
 
         Alembic::Abc::OCompoundProperty cp;
+        Alembic::Abc::OCompoundProperty up;
         if (AttributesWriter::hasAnyAttr(lMesh, iArgs))
         {
             cp = mSubDSchema.getArbGeomParams();
+            up = mSubDSchema.getUserProperties();
         }
-        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, lMesh,
+        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, up, obj, lMesh,
             iTimeIndex, iArgs));
 
         writeSubD(uvSamp);
@@ -231,13 +233,15 @@ MayaMeshWriter::MayaMeshWriter(MDagPath & iDag,
         }
 
         Alembic::Abc::OCompoundProperty cp;
+        Alembic::Abc::OCompoundProperty up;
         if (AttributesWriter::hasAnyAttr(lMesh, iArgs))
         {
             cp = mPolySchema.getArbGeomParams();
+            up = mPolySchema.getUserProperties();
         }
 
         // set the rest of the props and write to the writer node
-        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, obj, lMesh,
+        mAttrs = AttributesWriterPtr(new AttributesWriter(cp, up, obj, lMesh,
             iTimeIndex, iArgs));
 
         writePoly(uvSamp);

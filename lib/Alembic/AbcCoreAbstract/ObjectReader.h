@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -52,7 +52,7 @@ namespace ALEMBIC_VERSION_NS {
 //! Objects have MetaData, which is identical to the MetaData of the root
 //! Compound Property.
 class ObjectReader
-    : private boost::noncopyable
+    : private Alembic::Util::noncopyable
 {
 public:
     //! Virtual destructor
@@ -144,11 +144,11 @@ public:
     //! the various named "get" functions here.
     virtual ObjectReaderPtr getChild( const std::string &iName ) = 0;
 
-    //! Get a base property by index.
+    //! Get a child object by index.
     //! It is an error to call with out-of-range indices.
     //! This is a convenience function that uses getChildHeader and
     //! the various named "get" functions here.
-    ObjectReaderPtr getChild( size_t i );
+    virtual ObjectReaderPtr getChild( size_t i ) = 0;
 
     //-*************************************************************************
     // YUP

@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -127,7 +127,7 @@ public:
 
     //! Destructor
     //! ...
-    ~OObject();
+    virtual ~OObject();
 
     //-*************************************************************************
     // OBJECT WRITER FUNCTIONALITY

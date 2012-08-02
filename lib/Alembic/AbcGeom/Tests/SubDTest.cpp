@@ -37,7 +37,7 @@
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 
-#include "Assert.h"
+#include <Alembic/AbcCoreAbstract/Tests/Assert.h>
 
 #include <iostream>
 #include <stdio.h>
@@ -246,7 +246,6 @@ void Example1_MeshIn()
     for (int i = 0; i < 2; ++ i)
     {
         PropertyHeader p = arbattrs.getPropertyHeader(i);
-        TESTING_ASSERT( IC3fGeomParam::matches( p.getMetaData() ) );
 
         TESTING_ASSERT( IC3fGeomParam::matches( p ) );
         TESTING_ASSERT( OC3fGeomParam::matches( p ) );
@@ -294,10 +293,84 @@ void Example1_MeshIn()
 }
 
 //-*****************************************************************************
+void optPropTest()
+{
+    std::string name = "subdVelocTest.abc";
+    {
+        OArchive archive( Alembic::AbcCoreHDF5::WriteArchive(), name );
+        OSubD meshyObj( OObject( archive, kTop ), "subd" );
+        OSubDSchema &mesh = meshyObj.getSchema();
+
+        // copy because we'll be changing these values
+        std::vector< V3f > verts( g_numVerts );
+        for ( size_t i = 0; i < g_numVerts; ++i )
+        {
+            verts[i] = V3f( g_verts[3*i], g_verts[3*i+1], g_verts[3*i+2] );
+        }
+
+        OSubDSchema::Sample mesh_samp(
+            V3fArraySample( verts ),
+            Int32ArraySample( g_indices, g_numIndices ),
+            Int32ArraySample( g_counts, g_numCounts ) );
+
+        for ( size_t i = 0; i < 2; ++i )
+        {
+            mesh.set( mesh_samp );
+            for ( size_t j = 0; j < g_numVerts; ++j )
+            {
+                verts[j] *= 2;
+            }
+        }
+
+        OV2fGeomParam::Sample uvsamp( V2fArraySample( (const V2f *)g_uvs,
+                                      g_numUVs ), kFacevaryingScope );
+        mesh_samp.setUVs( uvsamp );
+
+        mesh_samp.setVelocities( V3fArraySample( ( const V3f * )g_veloc,
+                                               g_numVerts ) );
+
+        mesh.set( mesh_samp );
+
+        mesh_samp.setUVs( OV2fGeomParam::Sample() );
+        mesh_samp.setVelocities( V3fArraySample() );
+        mesh.set( mesh_samp );
+
+
+        mesh_samp.setVelocities( V3fArraySample( ( const V3f * )g_veloc,
+                                               g_numVerts ) );
+        mesh_samp.setUVs( uvsamp );
+
+        for ( size_t i = 0; i < 2; ++i )
+        {
+            mesh.set( mesh_samp );
+            for ( size_t j = 0; j < g_numVerts; ++j )
+            {
+                verts[j] *= 2;
+            }
+        }
+
+        mesh_samp.setUVs( OV2fGeomParam::Sample() );
+        mesh_samp.setVelocities( V3fArraySample() );
+        mesh.set( mesh_samp );
+    }
+
+    {
+        IArchive archive( Alembic::AbcCoreHDF5::ReadArchive(), name );
+
+        ISubD meshyObj( IObject( archive, kTop ), "subd" );
+        ISubDSchema &mesh = meshyObj.getSchema();
+        TESTING_ASSERT( 7 == mesh.getNumSamples() );
+        TESTING_ASSERT( 7 == mesh.getVelocitiesProperty().getNumSamples() );
+        TESTING_ASSERT( 7 == mesh.getUVsParam().getNumSamples() );
+    }
+}
+
+//-*****************************************************************************
 int main( int argc, char *argv[] )
 {
     Example1_MeshOut();
     Example1_MeshIn();
 
+    optPropTest();
     return 0;
 }

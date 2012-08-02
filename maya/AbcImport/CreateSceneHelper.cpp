@@ -298,40 +298,45 @@ void CreateSceneVisitor::checkShaderSelection(MFnMesh & iMesh,
 
 void CreateSceneVisitor::visit(Alembic::Abc::IObject & iObj)
 {
-    if ( Alembic::AbcGeom::IXform::matches(iObj.getHeader()) )
+    const Alembic::AbcCoreAbstract::ObjectHeader & header = iObj.getHeader();
+    if ( Alembic::AbcGeom::IXform::matches(header) )
     {
         Alembic::AbcGeom::IXform xform(iObj, Alembic::Abc::kWrapExisting);
         (*this)(xform);
     }
-    else if ( Alembic::AbcGeom::ISubD::matches(iObj.getHeader()) )
+    else if ( Alembic::AbcGeom::ISubD::matches(header) )
     {
         Alembic::AbcGeom::ISubD mesh(iObj, Alembic::Abc::kWrapExisting);
         (*this)(mesh);
     }
-    else if ( Alembic::AbcGeom::IPolyMesh::matches(iObj.getHeader()) )
+    else if ( Alembic::AbcGeom::IPolyMesh::matches(header) )
     {
         Alembic::AbcGeom::IPolyMesh mesh(iObj, Alembic::Abc::kWrapExisting);
         (*this)(mesh);
     }
-    else if ( Alembic::AbcGeom::ICamera::matches(iObj.getHeader()) )
+    else if ( Alembic::AbcGeom::ICamera::matches(header) )
     {
         Alembic::AbcGeom::ICamera cam(iObj, Alembic::Abc::kWrapExisting);
         (*this)(cam);
     }
-    else if ( Alembic::AbcGeom::ICurves::matches(iObj.getHeader()) )
+    else if ( Alembic::AbcGeom::ICurves::matches(header) )
     {
         Alembic::AbcGeom::ICurves curves(iObj, Alembic::Abc::kWrapExisting);
         (*this)(curves);
     }
-    else if ( Alembic::AbcGeom::INuPatch::matches(iObj.getHeader()) )
+    else if ( Alembic::AbcGeom::INuPatch::matches(header) )
     {
         Alembic::AbcGeom::INuPatch nurbs(iObj, Alembic::Abc::kWrapExisting);
         (*this)(nurbs);
     }
-    else if ( Alembic::AbcGeom::IPoints::matches(iObj.getHeader()) )
+    else if ( Alembic::AbcGeom::IPoints::matches(header) )
     {
         Alembic::AbcGeom::IPoints pts(iObj, Alembic::Abc::kWrapExisting);
         (*this)(pts);
+    }
+    else if ( header.getMetaData().get("schema") == "" )
+    {
+        createEmptyObject(iObj);
     }
     else
     {
@@ -396,6 +401,14 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
                 this->visit(obj);
                 mParent = saveParent;
             }
+            else if (mAction != CREATE && mAction != CREATE_REMOVE)
+            {
+                MString theWarning("Could not find: ");
+                theWarning += name.c_str();
+                theWarning += " in the scene.";
+                theWarning += "  Skipping it and all descendants.";
+                printWarning(theWarning);
+            }
             else
             {
                 mConnectDagNode = MDagPath();
@@ -456,8 +469,12 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICamera & iNode)
     Alembic::Abc::ICompoundProperty arbProp =
         iNode.getSchema().getArbGeomParams();
 
+    Alembic::Abc::ICompoundProperty userProp =
+        iNode.getSchema().getUserProperties();
+
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList, false);
+    getAnimatedProps(userProp, mData.mPropList, false);
     Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
         mData.mPropList, mData.mAnimVisStaticObjList);
 
@@ -488,6 +505,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICamera & iNode)
     {
         setConstantVisibility(visProp, cameraObj);
         addProps(arbProp, cameraObj, false);
+        addProps(userProp, cameraObj, false);
     }
 
     if ( mAction >= CONNECT )
@@ -524,8 +542,13 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICurves & iNode)
     // curves.  We can't support changing the number of curves over time.
     Alembic::AbcGeom::ICurvesSchema::Sample samp;
     iNode.getSchema().get(samp);
+
     Alembic::Abc::ICompoundProperty arbProp =
         iNode.getSchema().getArbGeomParams();
+
+    Alembic::Abc::ICompoundProperty userProp =
+        iNode.getSchema().getUserProperties();
+
     Alembic::AbcGeom::IFloatGeomParam::Sample widthSamp;
     if (iNode.getSchema().getWidthsParam())
     {
@@ -549,6 +572,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICurves & iNode)
 
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList, false);
+    getAnimatedProps(userProp, mData.mPropList, false);
     Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
         mData.mPropList, mData.mAnimVisStaticObjList);
 
@@ -599,6 +623,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICurves & iNode)
     {
         setConstantVisibility(visProp, curvesObj);
         addProps(arbProp, curvesObj, false);
+        addProps(userProp, curvesObj, false);
     }
 
 
@@ -626,7 +651,13 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ICurves & iNode)
             return status;
         }
 
-        addToPropList(firstProp, curvesObj);
+        if (!fncurve.object().isNull())
+        {
+            MPlug dstPlug = fncurve.findPlug("create");
+            disconnectAllPlugsTo(dstPlug);
+            disconnectProps(fncurve, mData.mPropList, firstProp);
+            addToPropList(firstProp, curvesObj);
+        }
     }
 
     if (hasDag)
@@ -679,9 +710,14 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPoints& iNode)
             getVisible(iNode, false, fakePropList, fakeObjList);
 
         setConstantVisibility(visProp, particleObj);
+
         Alembic::Abc::ICompoundProperty arbProp =
             iNode.getSchema().getArbGeomParams();
+        Alembic::Abc::ICompoundProperty userProp =
+            iNode.getSchema().getUserProperties();
+
         addProps(arbProp, particleObj, false);
+        addProps(userProp, particleObj, false);
     }
 
     if (hasDag)
@@ -703,6 +739,9 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ISubD& iNode)
     Alembic::Abc::ICompoundProperty arbProp =
         iNode.getSchema().getArbGeomParams();
 
+    Alembic::Abc::ICompoundProperty userProp =
+        iNode.getSchema().getUserProperties();
+
     bool colorAnim = getColorAttrs(arbProp, subdColors.mC3s,
         subdColors.mC4s, mUnmarkedFaceVaryingColors);
 
@@ -715,7 +754,9 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ISubD& iNode)
     }
 
     std::size_t firstProp = mData.mPropList.size();
+
     getAnimatedProps(arbProp, mData.mPropList, mUnmarkedFaceVaryingColors);
+    getAnimatedProps(userProp, mData.mPropList, mUnmarkedFaceVaryingColors);
     Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
         mData.mPropList, mData.mAnimVisStaticObjList);
 
@@ -746,6 +787,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ISubD& iNode)
     {
         setConstantVisibility(visProp, subDObj);
         addProps(arbProp, subDObj, mUnmarkedFaceVaryingColors);
+        addProps(userProp, subDObj, mUnmarkedFaceVaryingColors);
     }
 
     if ( mAction >= CONNECT )
@@ -771,9 +813,12 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ISubD& iNode)
         }
 
         disconnectMesh(subDObj, mData.mPropList, firstProp);
+        if (isConstant && CONNECT == mAction)
+        {
+            readSubD(mFrame, fn, subDObj, subdColors, false);
+        }
         addToPropList(firstProp, subDObj);
         addFaceSets(subDObj, iNode);
-
     }
 
     if (hasDag)
@@ -797,6 +842,9 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPolyMesh& iNode)
     Alembic::Abc::ICompoundProperty arbProp =
         iNode.getSchema().getArbGeomParams();
 
+    Alembic::Abc::ICompoundProperty userProp =
+        iNode.getSchema().getUserProperties();
+
     bool colorAnim = getColorAttrs(arbProp, meshColors.mC3s,
         meshColors.mC4s, mUnmarkedFaceVaryingColors);
 
@@ -806,6 +854,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPolyMesh& iNode)
 
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList, mUnmarkedFaceVaryingColors);
+    getAnimatedProps(userProp, mData.mPropList, mUnmarkedFaceVaryingColors);
     Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
         mData.mPropList, mData.mAnimVisStaticObjList);
 
@@ -836,6 +885,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPolyMesh& iNode)
     {
         setConstantVisibility(visProp, polyObj);
         addProps(arbProp, polyObj, mUnmarkedFaceVaryingColors);
+        addProps(userProp, polyObj, mUnmarkedFaceVaryingColors);
         addFaceSets(polyObj, iNode);
     }
 
@@ -860,6 +910,10 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IPolyMesh& iNode)
             checkShaderSelection(fn, mConnectDagNode.instanceNumber());
 
         disconnectMesh(polyObj, mData.mPropList, firstProp);
+        if (isConstant && CONNECT == mAction)
+        {
+            readPoly(mFrame, fn, polyObj, meshColors, false);
+        }
         addToPropList(firstProp, polyObj);
     }
 
@@ -885,8 +939,12 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::INuPatch& iNode)
     Alembic::Abc::ICompoundProperty arbProp =
         iNode.getSchema().getArbGeomParams();
 
+    Alembic::Abc::ICompoundProperty userProp =
+        iNode.getSchema().getUserProperties();
+
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList, false);
+    getAnimatedProps(userProp, mData.mPropList, false);
     Alembic::Abc::IScalarProperty visProp = getVisible(iNode, isConstant,
         mData.mPropList, mData.mAnimVisStaticObjList);
 
@@ -916,6 +974,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::INuPatch& iNode)
     if (nurbsObj != MObject::kNullObj)
     {
         addProps(arbProp, nurbsObj, false);
+        addProps(userProp, nurbsObj, false);
         setConstantVisibility(visProp, nurbsObj);
     }
 
@@ -937,7 +996,9 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::INuPatch& iNode)
             return status;
         }
 
-        disconnectMesh(nurbsObj, mData.mPropList, firstProp);
+        MPlug dstPlug = fn.findPlug("create");
+        disconnectAllPlugsTo(dstPlug);
+        disconnectProps(fn, mData.mPropList, firstProp);
         addToPropList(firstProp, nurbsObj);
     }
 
@@ -956,8 +1017,12 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
     Alembic::Abc::ICompoundProperty arbProp =
         iNode.getSchema().getArbGeomParams();
 
+    Alembic::Abc::ICompoundProperty userProp =
+        iNode.getSchema().getUserProperties();
+
     std::size_t firstProp = mData.mPropList.size();
     getAnimatedProps(arbProp, mData.mPropList, false);
+    getAnimatedProps(userProp, mData.mPropList, false);
 
     if (iNode.getProperties().getPropertyHeader("locator") != NULL)
     {
@@ -985,6 +1050,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
                     iNode.getName());
                 if (hasDag)
                 {
+                    xformObj = mConnectDagNode.node();
                     if (!isConstant)
                     {
                         mData.mLocObjList.push_back(xformObj);
@@ -1004,6 +1070,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
             if (xformObj != MObject::kNullObj)
             {
                 addProps(arbProp, xformObj, false);
+                addProps(userProp, xformObj, false);
                 setConstantVisibility(visProp, xformObj);
             }
 
@@ -1064,8 +1131,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
         // There might be children under the current DAG node that
         // doesn't exist in the file.
         // Remove them if the -removeIfNoUpdate flag is set
-        if ((mAction == REMOVE || mAction == CREATE_REMOVE) &&
-            mConnectDagNode.isValid())
+        if ((mAction == REMOVE || mAction == CREATE_REMOVE) && hasDag)
         {
             unsigned int numDags = mConnectDagNode.childCount();
             std::vector<MDagPath> dagToBeRemoved;
@@ -1132,6 +1198,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
         {
             setConstantVisibility(visProp, xformObj);
             addProps(arbProp, xformObj, false);
+            addProps(userProp, xformObj, false);
         }
 
         if (mAction >= CONNECT)
@@ -1149,7 +1216,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
                 }
                 addToPropList(firstProp, xformObj);
             }
-            else
+            else if (xformObj != MObject::kNullObj)
             {
                 MString theError = mConnectDagNode.partialPathName();
                 theError += MString(" is not compatible as a transform node. ");
@@ -1177,3 +1244,107 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
 
     return status;
 }
+
+MStatus CreateSceneVisitor::createEmptyObject(Alembic::Abc::IObject & iNode)
+{
+    MStatus status = MS::kSuccess;
+    MObject xformObj = MObject::kNullObj;
+
+    MString name(iNode.getName().c_str());
+
+    size_t numChildren = iNode.getNumChildren();
+
+    bool hasDag = false;
+
+    if (mAction != NONE && mConnectDagNode.isValid())
+    {
+        hasDag = getDagPathByChildName(mConnectDagNode, iNode.getName());
+        if (hasDag)
+        {
+            xformObj = mConnectDagNode.node();
+        }
+    }
+
+    // There might be children under the current DAG node that
+    // doesn't exist in the file.
+    // Remove them if the -removeIfNoUpdate flag is set
+    if ((mAction == REMOVE || mAction == CREATE_REMOVE) &&
+        mConnectDagNode.isValid())
+    {
+        unsigned int numDags = mConnectDagNode.childCount();
+        std::vector<MDagPath> dagToBeRemoved;
+
+        // get names of immediate children so we can compare with
+        // the hierarchy in the scene
+        std::set< std::string > childNodesInFile;
+        for (size_t j = 0; j < numChildren; ++j)
+        {
+            Alembic::Abc::IObject child = iNode.getChild(j);
+            childNodesInFile.insert(child.getName());
+        }
+
+        for (unsigned int i = 0; i < numDags; i++)
+        {
+            MObject child = mConnectDagNode.child(i);
+            MFnDagNode fn(child, &status);
+            if ( status == MS::kSuccess )
+            {
+                std::string childName = fn.fullPathName().asChar();
+                size_t found = childName.rfind("|");
+
+                if (found != std::string::npos)
+                {
+                    childName = childName.substr(
+                        found+1, childName.length() - found);
+                    if (childNodesInFile.find(childName)
+                        == childNodesInFile.end())
+                    {
+                        MDagPath dagPath;
+                        getDagPathByName(fn.fullPathName(), dagPath);
+                        dagToBeRemoved.push_back(dagPath);
+                    }
+                }
+            }
+        }
+        if (dagToBeRemoved.size() > 0)
+        {
+            unsigned int dagSize =
+                static_cast<unsigned int>(dagToBeRemoved.size());
+            for ( unsigned int i = 0; i < dagSize; i++ )
+                removeDagNode(dagToBeRemoved[i]);
+        }
+    }
+
+    // just create the node
+    if (!hasDag && (mAction == CREATE || mAction == CREATE_REMOVE ))
+    {
+        MFnTransform trans;
+        xformObj = trans.create(mParent, &status);
+
+        if (status != MS::kSuccess)
+        {
+            MString theError("Failed to create transform node ");
+            theError += name;
+            printError(theError);
+            return status;
+        }
+
+        trans.setName(name);
+    }
+
+    MObject saveParent = xformObj;
+    for (size_t i = 0; i < numChildren; ++i)
+    {
+        Alembic::Abc::IObject child = iNode.getChild(i);
+        mParent = saveParent;
+
+        this->visit(child);
+    }
+
+    if (hasDag)
+    {
+        mConnectDagNode.pop();
+    }
+    return status;
+}
+

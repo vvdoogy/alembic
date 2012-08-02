@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -38,24 +38,26 @@
 #define _Alembic_AbcCoreHDF5_ArImpl_h_
 
 #include <Alembic/AbcCoreHDF5/Foundation.h>
+#include <Alembic/AbcCoreHDF5/HDF5Hierarchy.h>
 
 namespace Alembic {
 namespace AbcCoreHDF5 {
 namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
-class TopOrImpl;
+class OrData;
 
 //-*****************************************************************************
 class ArImpl
     : public AbcA::ArchiveReader
-    , public boost::enable_shared_from_this<ArImpl>
+    , public Alembic::Util::enable_shared_from_this<ArImpl>
 {
 private:
     friend struct ReadArchive;
 
     ArImpl( const std::string &iFileName,
-            AbcA::ReadArraySampleCachePtr iCache );
+            AbcA::ReadArraySampleCachePtr iCache,
+            const bool iCacheHierarchy );
 
 public:
     virtual ~ArImpl();
@@ -99,13 +101,17 @@ private:
     std::string m_fileName;
     hid_t m_file;
 
-    TopOrImpl *m_top;
+    Alembic::Util::weak_ptr< AbcA::ObjectReader > m_top;
+    Alembic::Util::shared_ptr < OrData > m_data;
+    ObjectHeaderPtr m_header;
 
     int32_t m_archiveVersion;
 
     std::vector <  AbcA::TimeSamplingPtr > m_timeSamples;
 
     AbcA::ReadArraySampleCachePtr m_readArraySampleCache;
+
+    HDF5Hierarchy m_H5H;
 };
 
 } // End namespace ALEMBIC_VERSION_NS

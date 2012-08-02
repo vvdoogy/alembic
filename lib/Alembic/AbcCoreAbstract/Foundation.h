@@ -39,11 +39,6 @@
 
 #include <Alembic/Util/All.h>
 
-#include <boost/smart_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/operators.hpp>
-#include <boost/format.hpp>
-
 #include <limits>
 #include <utility>
 #include <vector>
@@ -89,7 +84,7 @@ typedef float64_t chrono_t;
 //     to express data types and samples in Alembic
 
 //! Alembic version number Major/Minor/Patch XX.YY.ZZ
-#define ALEMBIC_LIBRARY_VERSION 10005
+#define ALEMBIC_LIBRARY_VERSION 10100
 
 //! Helper function which returns the version and date built in a string
 //! e.g. "Alembic 1.0.0 (built Jul  6 2011)"

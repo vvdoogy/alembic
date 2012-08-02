@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -237,6 +237,8 @@ protected:
 // SCHEMA OBJECT
 //-*****************************************************************************
 typedef Abc::ISchemaObject<IFaceSetSchema> IFaceSet;
+
+typedef Util::shared_ptr< IFaceSet > IFaceSetPtr;
 
 } // End namespace ALEMBIC_VERSION_NS
 

@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -165,8 +165,9 @@ public:
                    const Abc::Argument &iArg0 = Abc::Argument(),
                    const Abc::Argument &iArg1 = Abc::Argument(),
                    const Abc::Argument &iArg2 = Abc::Argument() )
-      : OGeomBaseSchema<PointsSchemaInfo>( iParent, iName,
-                                          iArg0, iArg1, iArg2 )
+      : OGeomBaseSchema<PointsSchemaInfo>( 
+                        GetCompoundPropertyWriterPtr( iParent ),
+                        iName, iArg0, iArg1, iArg2 )
     {
         AbcA::TimeSamplingPtr tsPtr =
             Abc::GetTimeSampling( iArg0, iArg1, iArg2 );
@@ -178,8 +179,8 @@ public:
         // 0 index
         if (tsPtr)
         {
-            tsIndex = iParent->getObject()->getArchive(
-                )->addTimeSampling(*tsPtr);
+            tsIndex = GetCompoundPropertyWriterPtr( iParent )->getObject(
+                )->getArchive()->addTimeSampling(*tsPtr);
         }
 
         // Meta data and error handling are eaten up by
@@ -192,8 +193,9 @@ public:
                             const Abc::Argument &iArg0 = Abc::Argument(),
                             const Abc::Argument &iArg1 = Abc::Argument(),
                             const Abc::Argument &iArg2 = Abc::Argument() )
-      : OGeomBaseSchema<PointsSchemaInfo>( iParent,
-                                     iArg0, iArg1, iArg2 )
+      : OGeomBaseSchema<PointsSchemaInfo>( 
+                            GetCompoundPropertyWriterPtr( iParent ),
+                            iArg0, iArg1, iArg2 )
     {
         AbcA::TimeSamplingPtr tsPtr =
             Abc::GetTimeSampling( iArg0, iArg1, iArg2 );
@@ -205,8 +207,8 @@ public:
         // 0 index
         if (tsPtr)
         {
-            tsIndex = iParent->getObject()->getArchive(
-                )->addTimeSampling(*tsPtr);
+            tsIndex = GetCompoundPropertyWriterPtr( iParent )->getObject(
+                    )->getArchive()->addTimeSampling(*tsPtr);
         }
 
         // Meta data and error handling are eaten up by
@@ -252,7 +254,7 @@ public:
 
     //-*************************************************************************
     // ABC BASE MECHANISMS
-    // These functions are used by Abc to deal with errors, rewrapping,
+    // These functions are used by Abc to deal with errors, validity,
     // and so on.
     //-*************************************************************************
 
@@ -295,6 +297,8 @@ protected:
 // SCHEMA OBJECT
 //-*****************************************************************************
 typedef Abc::OSchemaObject<OPointsSchema> OPoints;
+
+typedef Util::shared_ptr< OPoints > OPointsPtr;
 
 } // End namespace ALEMBIC_VERSION_NS
 

@@ -40,8 +40,6 @@
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/GeometryScope.h>
 
-#include <boost/lexical_cast.hpp>
-
 namespace Alembic {
 namespace AbcGeom {
 namespace ALEMBIC_VERSION_NS {
@@ -58,7 +56,7 @@ public:
     {
     public:
         typedef Sample this_type;
-        typedef boost::shared_ptr< Abc::TypedArraySample<TRAITS> > samp_ptr_type;
+        typedef Alembic::Util::shared_ptr< Abc::TypedArraySample<TRAITS> > samp_ptr_type;
 
         Sample()
         {}
@@ -99,17 +97,6 @@ public:
         return sInterpretation;
     }
 
-    static bool matches( const AbcA::MetaData &iMetaData,
-                         SchemaInterpMatching iMatching = kStrictMatching )
-    {
-        if ( iMatching == kStrictMatching )
-        {
-            return ( iMetaData.get( "isGeomParam" ) == "true" &&
-                     iMetaData.get( "interpretation" ) == getInterpretation() );
-        }
-        return true;
-    }
-
     static bool matches( const AbcA::PropertyHeader &iHeader,
                          SchemaInterpMatching iMatching = kStrictMatching )
     {
@@ -118,19 +105,14 @@ public:
             return ( iHeader.getMetaData().get( "podName" ) ==
                     Alembic::Util::PODName( TRAITS::dataType().getPod() ) &&
                     ( getInterpretation() == "" ||
-                      boost::lexical_cast<uint32_t>(
-                        iHeader.getMetaData().get( "podExtent" ) ) ==
-                      TRAITS::dataType().getExtent() ) ) &&
-                    matches( iHeader.getMetaData(), iMatching );
+                      atoi(
+                        iHeader.getMetaData().get( "podExtent" ).c_str() ) ==
+                     TRAITS::dataType().getExtent() ) ) &&
+                    prop_type::matches( iHeader.getMetaData(), iMatching );
         }
         else if ( iHeader.isArray() )
         {
-            return ( iHeader.getDataType().getPod() ==
-                     TRAITS::dataType().getPod() &&
-                     ( iHeader.getDataType().getExtent() ==
-                       TRAITS::dataType().getExtent() ||
-                   getInterpretation() == "" ) ) &&
-                   matches( iHeader.getMetaData(), iMatching );
+            return prop_type::matches( iHeader, iMatching );
         }
 
         return false;
@@ -180,7 +162,7 @@ public:
     {
         std::string e = m_valProp.getMetaData().get( "arrayExtent" );
         if ( e == "" ) { return 1; }
-        else { return boost::lexical_cast<size_t>( e ); }
+        else { return atoi( e.c_str() ); }
     }
 
     bool isIndexed() { return m_isIndexed; }
@@ -383,7 +365,7 @@ ITypedGeomParam<TRAITS>::getExpanded( typename ITypedGeomParam<TRAITS>::Sample &
     }
     else
     {
-        boost::shared_ptr< Abc::TypedArraySample<TRAITS> > valPtr = \
+        Alembic::Util::shared_ptr< Abc::TypedArraySample<TRAITS> > valPtr = \
             m_valProp.getValue( iSS );
         Abc::UInt32ArraySamplePtr idxPtr = m_indicesProperty.getValue( iSS );
 

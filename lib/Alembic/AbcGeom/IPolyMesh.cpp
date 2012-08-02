@@ -104,19 +104,6 @@ void IPolyMeshSchema::init( const Abc::Argument &iArg0,
                                                iArg0, iArg1 );
     }
 
-    IObject _thisObject = this->getParent().getObject();
-    size_t numChildren = _thisObject.getNumChildren();
-    for ( size_t childIndex = 0 ; childIndex < numChildren; childIndex++ )
-    {
-        ObjectHeader const & header = _thisObject.getChildHeader (childIndex);
-        if ( IFaceSet::matches( header ) )
-        {
-            // start out with an empty (invalid IFaceSet)
-            // accessor later on will create real IFaceSet object.
-            m_faceSets [header.getName ()] = IFaceSet ();
-        }
-    }
-
     m_faceSetsLoaded = false;
 
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
@@ -137,7 +124,7 @@ IPolyMeshSchema::operator=(const IPolyMeshSchema & rhs)
     m_normalsParam      = rhs.m_normalsParam;
 
     // lock, reset
-    boost::mutex::scoped_lock l(m_faceSetsMutex);
+    Alembic::Util::scoped_lock l(m_faceSetsMutex);
     m_faceSetsLoaded = false;
     m_faceSets.clear ();
 
@@ -155,7 +142,7 @@ void IPolyMeshSchema::loadFaceSetNames()
     {
         // iterate over childHeaders, and if header matches 
         // FaceSet add to our vec
-        IObject _thisObject = this->getParent().getObject();
+        IObject _thisObject = getObject();
 
         size_t numChildren = _thisObject.getNumChildren();
         for ( size_t childIndex = 0 ; childIndex < numChildren; childIndex++ )
@@ -179,7 +166,7 @@ void IPolyMeshSchema::getFaceSetNames( std::vector<std::string> &oFaceSetNames )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IPolyMeshSchema::getFaceSetNames()" );
 
-    boost::mutex::scoped_lock l(m_faceSetsMutex);
+    Alembic::Util::scoped_lock l(m_faceSetsMutex);
     loadFaceSetNames();
 
     for ( std::map<std::string, IFaceSet>::const_iterator faceSetIter =
@@ -198,7 +185,7 @@ IPolyMeshSchema::hasFaceSet( const std::string &iFaceSetName )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IPolyMeshSchema::hasFaceSet (iFaceSetName)" );
 
-    boost::mutex::scoped_lock l(m_faceSetsMutex);
+    Alembic::Util::scoped_lock l(m_faceSetsMutex);
     if (!m_faceSetsLoaded)
     {
         loadFaceSetNames();
@@ -216,7 +203,7 @@ IFaceSet
 IPolyMeshSchema::getFaceSet ( const std::string &iFaceSetName )
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IPolyMeshSchema::getFaceSet()" );
-    boost::mutex::scoped_lock l(m_faceSetsMutex);
+    Alembic::Util::scoped_lock l(m_faceSetsMutex);
     if (!m_faceSetsLoaded)
     {
         loadFaceSetNames();
@@ -228,8 +215,7 @@ IPolyMeshSchema::getFaceSet ( const std::string &iFaceSetName )
     if (!m_faceSets [iFaceSetName])
     {
         // We haven't yet loaded the faceSet, so create/load it
-        m_faceSets [iFaceSetName] = IFaceSet ( this->getParent().getObject(),
-                                               iFaceSetName );
+        m_faceSets [iFaceSetName] = IFaceSet ( getObject(), iFaceSetName );
     }
 
     return m_faceSets [iFaceSetName];

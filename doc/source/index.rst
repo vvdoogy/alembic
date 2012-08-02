@@ -1,0 +1,60 @@
+.. PyAlemic documentation master file, created by
+   sphinx-quickstart on Tue May  1 11:15:16 2012.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+:mod:`alembic` -- Alembic Python Bindings Documentation
+=======================================================
+
+Alembic is an open source geometry caching format that promotes interoperability
+between authoring tools. From `alembic.io <http://alembic.io>`_:
+
+    *Alembic distills complex, animated scenes into a non-procedural, application-
+    independent set of baked geometric results. This ‘distillation' of scenes into 
+    baked geometry is exactly analogous to the distillation of lighting and rendering 
+    scenes into rendered image data.*
+
+Alembic is focused on efficiently storing the computed results of complex procedural 
+geometric constructions. It is specifically NOT concerned with storing the complex 
+dependency graph of procedural tools used to create the computed results. For example, 
+Alembic will efficiently store the animated vertex positions and animated transforms 
+that result from an arbitrarily complex animation and simulation process, but will not
+attempt to store a representation of the network of computations (rigs, basically) which
+were required to produce the final, animated vertex positions and animated transforms.
+
+This document is intended to serve as a brief introduction and  programmer's guide to
+using the Alembic Python bindings. 
+
+
+Getting Started
+---------------
+
+The Alembic Python bindings have been tested with 
+`Python 2.6 <http://www.python.org/download/releases/2.6.8/>`_, 
+and require `PyImath <http://github.com/openexr/openexr>`_ and 
+`Boost::Python <http://boost.org>`_ libraries to run. 
+In order to use Alembic in Python, you must first build both Alembic and the Alembic 
+Python bindings using the bootstrap script: `build/bootstrap/alembic_bootstrap.py`.
+
+**Usage Examples**: Some basic Alembic tasks are explored here.
+
+.. toctree::
+   :maxdepth: 2
+
+   examples
+
+
+Get Alembic
+-----------
+
+The Alembic code can be found in a Mercurial repository at 
+http://code.google.com/p/alembic.
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+

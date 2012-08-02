@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -37,7 +37,7 @@
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/AbcCoreHDF5/All.h>
 
-#include "Assert.h"
+#include <Alembic/AbcCoreAbstract/Tests/Assert.h>
 
 using namespace Alembic::AbcGeom;
 
@@ -45,10 +45,11 @@ using namespace Alembic::AbcGeom;
 void recurseCreateXform(OObject & iParent, int children, int level,
                         std::vector<OXform> & oCreated)
 {
-    std::string levelName = boost::lexical_cast<std::string>( level );
     for (int i = 0; i < children; ++i)
     {
-        std::string xformName = levelName + "_" + boost::lexical_cast<std::string>( i );
+        std::ostringstream strm;
+        strm << "level" << "_" << i;
+        std::string xformName = strm.str();
         OXform xform( iParent, xformName );
         XformSample samp;
         XformOp transop( kTranslateOperation, kTranslateHint );

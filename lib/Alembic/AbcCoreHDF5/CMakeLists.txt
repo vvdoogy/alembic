@@ -1,6 +1,6 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2011,
+## Copyright (c) 2009-2012,
 ##  Sony Pictures Imageworks Inc. and
 ##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
@@ -39,28 +39,26 @@ SET( CXX_FILES
   ApwImpl.cpp
   ArImpl.cpp
   AwImpl.cpp
-  BaseCprImpl.cpp
-  BaseCpwImpl.cpp
-  BaseOrImpl.cpp
-  BaseOwImpl.cpp
   CacheImpl.cpp
+  CprData.cpp
   CprImpl.cpp
+  CpwData.cpp
   CpwImpl.cpp
   DataTypeRegistry.cpp
+  HDF5Hierarchy.cpp
+  HDF5HierarchyReader.cpp
+  HDF5HierarchyWriter.cpp
   HDF5Util.cpp
+  OrData.cpp
   OrImpl.cpp
+  OwData.cpp
   OwImpl.cpp
-  ProtoObjectReader.cpp
   ReadUtil.cpp
   ReadWrite.cpp
   SprImpl.cpp
   SpwImpl.cpp
   StringReadUtil.cpp
   StringWriteUtil.cpp
-  TopCprImpl.cpp
-  TopCpwImpl.cpp
-  TopOrImpl.cpp
-  TopOwImpl.cpp
   WriteUtil.cpp
 )
 
@@ -70,19 +68,21 @@ SET( H_FILES
   ApwImpl.h
   ArImpl.h
   AwImpl.h
-  BaseCprImpl.h
-  BaseCpwImpl.h
-  BaseOrImpl.h
-  BaseOwImpl.h
   CacheImpl.h
+  CprData.h
   CprImpl.h
+  CpwData.h
   CpwImpl.h
   DataTypeRegistry.h
+  HDF5Hierarchy.h
+  HDF5HierarchyReader.h
+  HDF5HierarchyWriter.h
   HDF5Util.h
   Foundation.h
+  OrData.h
   OrImpl.h
+  OwData.h
   OwImpl.h
-  ProtoObjectReader.h
   ReadUtil.h
   ReadWrite.h
   SimplePrImpl.h
@@ -91,10 +91,6 @@ SET( H_FILES
   SpwImpl.h
   StringReadUtil.h
   StringWriteUtil.h
-  TopCprImpl.h
-  TopCpwImpl.h
-  TopOrImpl.h
-  TopOwImpl.h
   WriteUtil.h
   WrittenArraySampleMap.h
 )

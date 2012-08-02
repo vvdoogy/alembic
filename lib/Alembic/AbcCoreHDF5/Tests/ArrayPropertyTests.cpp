@@ -38,7 +38,7 @@
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <Alembic/Util/All.h>
 
-#include <Alembic/AbcCoreHDF5/Tests/Assert.h>
+#include <Alembic/AbcCoreAbstract/Tests/Assert.h>
 
 #include <iostream>
 #include <vector>
@@ -48,7 +48,7 @@
 //-*****************************************************************************
 namespace A5 = Alembic::AbcCoreHDF5;
 
-namespace ABC = Alembic::AbcCoreAbstract::v2;
+namespace ABC = Alembic::AbcCoreAbstract::v3;
 
 using namespace Alembic::Util;
 

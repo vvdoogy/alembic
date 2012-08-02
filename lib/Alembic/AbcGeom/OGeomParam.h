@@ -40,8 +40,6 @@
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/GeometryScope.h>
 
-#include <boost/lexical_cast.hpp>
-
 namespace Alembic {
 namespace AbcGeom {
 namespace ALEMBIC_VERSION_NS {
@@ -122,17 +120,6 @@ public:
         return sInterpretation;
     }
 
-    static bool matches( const AbcA::MetaData &iMetaData,
-                         SchemaInterpMatching iMatching = kStrictMatching )
-    {
-        if ( iMatching == kStrictMatching )
-        {
-            return ( iMetaData.get( "isGeomParam" ) == "true" &&
-                     iMetaData.get( "interpretation" ) == getInterpretation() );
-        }
-        return true;
-    }
-
     static bool matches( const AbcA::PropertyHeader &iHeader,
                          SchemaInterpMatching iMatching = kStrictMatching )
     {
@@ -141,19 +128,14 @@ public:
             return ( iHeader.getMetaData().get( "podName" ) ==
                     Alembic::Util::PODName( TRAITS::dataType().getPod() ) &&
                     ( getInterpretation() == "" ||
-                      boost::lexical_cast<uint32_t>(
-                        iHeader.getMetaData().get( "podExtent" ) ) ==
-                      TRAITS::dataType().getExtent() ) ) &&
-                    matches( iHeader.getMetaData(), iMatching );
+                      atoi(
+                        iHeader.getMetaData().get( "podExtent" ).c_str() ) ==
+                     TRAITS::dataType().getExtent() ) ) &&
+                    prop_type::matches( iHeader.getMetaData(), iMatching );
         }
         else if ( iHeader.isArray() )
         {
-            return ( iHeader.getDataType().getPod() ==
-                     TRAITS::dataType().getPod() &&
-                     ( iHeader.getDataType().getExtent() ==
-                       TRAITS::dataType().getExtent() ||
-                   getInterpretation() == "" ) ) &&
-                   matches( iHeader.getMetaData(), iMatching );
+            return prop_type::matches( iHeader, iMatching );
         }
 
         return false;
@@ -194,10 +176,15 @@ public:
 
         md.set( "podName", podName );
 
-        md.set( "podExtent", boost::lexical_cast<std::string>( extent ) );
+        std::ostringstream extentStrm;
+        extentStrm << extent;
+        std::string extentStr = extentStrm.str();
+        md.set( "podExtent", extentStr );
 
-        md.set( "arrayExtent",
-                boost::lexical_cast<std::string>( iArrayExtent ) );
+        std::ostringstream arrayExtentStrm;
+        arrayExtentStrm << iArrayExtent;
+        std::string arrayExtentStr = arrayExtentStrm.str();
+        md.set( "arrayExtent", arrayExtentStr );
 
         md.set( "interpretation", TRAITS::interpretation() );
 
@@ -351,7 +338,7 @@ public:
         return 0;
     }
 
-    const AbcA::DataType &getDataType() { return TRAITS::dataType(); }
+    AbcA::DataType getDataType() { return TRAITS::dataType(); }
 
     bool isIndexed() { return m_isIndexed; }
 
@@ -359,7 +346,7 @@ public:
 
     AbcA::TimeSamplingPtr getTimeSampling()
     {
-        return m_valProp->getTimeSampling();
+        return m_valProp.getTimeSampling();
     }
 
     const std::string &getName() { return m_name; }
