@@ -41,7 +41,7 @@ namespace AbcGeom {
 namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
-size_t IFaceSetSchema::getNumSamples()
+size_t IFaceSetSchema::getNumSamples() const
 {
     size_t max = 0;
 
@@ -69,22 +69,11 @@ size_t IFaceSetSchema::getNumSamples()
 
 //-*****************************************************************************
 void IFaceSetSchema::get( IFaceSetSchema::Sample &oSample,
-                       const Abc::ISampleSelector &iSS )
+                       const Abc::ISampleSelector &iSS ) const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IFaceSetSchema::get()" );
 
     m_facesProperty.get( oSample.m_faces, iSS );
-
-    // HERE NYI - templated getFaceIndices
-    //m_selfBoundsProperty.get( oSample.m_selfBounds, iSS );
-
-    if ( m_childBoundsProperty )
-    {
-        if ( m_childBoundsProperty.getNumSamples() > 0 )
-        {
-            m_childBoundsProperty.get( oSample.m_childBounds, iSS );
-        }
-    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 }
@@ -109,7 +98,7 @@ void IFaceSetSchema::init( const Abc::Argument &iArg0,
 }
 
 //-*****************************************************************************
-FaceSetExclusivity IFaceSetSchema::getFaceExclusivity()
+FaceSetExclusivity IFaceSetSchema::getFaceExclusivity() const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IFaceSetSchema::getFaceExclusivity" );
 
@@ -118,7 +107,7 @@ FaceSetExclusivity IFaceSetSchema::getFaceExclusivity()
     if ( facesExclusiveProperty )
     {
         size_t numSamples = facesExclusiveProperty.getNumSamples();
-        uint32_t asInt = FaceSetExclusivity( 
+        uint32_t asInt = FaceSetExclusivity(
             facesExclusiveProperty.getValue( numSamples - 1 ) );
         FaceSetExclusivity exclusivity  = FaceSetExclusivity( asInt );
         return exclusivity;

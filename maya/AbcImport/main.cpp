@@ -36,6 +36,7 @@
 
 #include "AlembicNode.h"
 #include "AbcImport.h"
+#include "AlembicImportFileTranslator.h"
 
 #include <maya/MGlobal.h>
 #include <maya/MFnPlugin.h>
@@ -50,7 +51,9 @@ MStatus initializePlugin(MObject obj)
     const char * pluginVersion = "1.0";
     MFnPlugin plugin(obj, "Alembic", pluginVersion, "Any");
 
-    MStatus status = plugin.registerCommand("AbcImport",
+    MStatus status;
+
+    status = plugin.registerCommand("AbcImport",
                                 AbcImport::creator,
                                 AbcImport::createSyntax);
 
@@ -58,6 +61,13 @@ MStatus initializePlugin(MObject obj)
                                 AlembicNode::mMayaNodeId,
                                 &AlembicNode::creator,
                                 &AlembicNode::initialize);
+
+    status = plugin.registerFileTranslator("Alembic",
+                                NULL,
+                                AlembicImportFileTranslator::creator,
+                                NULL,
+                                NULL,
+                                true);
 
     MString info = "AbcImport v";
     info += pluginVersion;
@@ -76,6 +86,7 @@ MStatus uninitializePlugin(MObject obj)
 
     status = plugin.deregisterCommand("AlembicImport");
     status = plugin.deregisterNode(AlembicNode::mMayaNodeId);
+    status = plugin.deregisterFileTranslator("AlembicImport");
 
     return status;
 }

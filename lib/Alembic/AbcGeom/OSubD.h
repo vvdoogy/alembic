@@ -190,7 +190,7 @@ public:
         const Abc::Int32ArraySample &getHoles() const
         { return m_holes; }
         void setHoles( const Abc::Int32ArraySample &iHoles )
-        { m_holes = iHoles; }
+        { m_cornerIndices = iHoles; }
 
         // subdivision scheme
         std::string getSubdivisionScheme() const
@@ -202,10 +202,6 @@ public:
         const Abc::Box3d &getSelfBounds() const { return m_selfBounds; }
         void setSelfBounds( const Abc::Box3d &iBnds )
         { m_selfBounds = iBnds; }
-
-        const Abc::Box3d &getChildBounds() const { return m_childBounds; }
-        void setChildBounds( const Abc::Box3d &iBnds )
-        { m_childBounds = iBnds; }
 
         // velocities accessor
         const Abc::V3fArraySample &getVelocities() const { return m_velocities; }
@@ -241,7 +237,6 @@ public:
             m_velocities.reset();
 
             m_selfBounds.makeEmpty();
-            m_childBounds.makeEmpty();
 
             m_uvs.reset();
         }
@@ -274,7 +269,6 @@ public:
 
         // bounds
         Abc::Box3d m_selfBounds;
-        Abc::Box3d m_childBounds;
 
         Abc::V3fArraySample m_velocities;
 
@@ -313,7 +307,7 @@ public:
                      const Abc::Argument &iArg0 = Abc::Argument(),
                      const Abc::Argument &iArg1 = Abc::Argument(),
                      const Abc::Argument &iArg2 = Abc::Argument() )
-      : OGeomBaseSchema<SubDSchemaInfo>( 
+      : OGeomBaseSchema<SubDSchemaInfo>(
                         GetCompoundPropertyWriterPtr( iParent ),
                         iName, iArg0, iArg1, iArg2 )
     {
@@ -389,7 +383,7 @@ public:
 
     //! Get number of samples written so far.
     //! ...
-    size_t getNumSamples()
+    size_t getNumSamples() const
     { return m_positionsProperty.getNumSamples(); }
 
     //! Set a sample! Sample zero has to have non-degenerate

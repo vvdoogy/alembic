@@ -41,7 +41,7 @@ namespace AbcGeom {
 namespace ALEMBIC_VERSION_NS {
 
 //-*****************************************************************************
-bool INuPatchSchema::trimCurveTopologyIsConstant()
+bool INuPatchSchema::trimCurveTopologyIsConstant() const
 {
     return hasTrimCurve() && m_trimNumLoopsProperty.isConstant() &&
         m_trimNumVerticesProperty.isConstant() &&
@@ -52,7 +52,7 @@ bool INuPatchSchema::trimCurveTopologyIsConstant()
 }
 
 //-*****************************************************************************
-bool INuPatchSchema::trimCurveTopologyIsHomogenous()
+bool INuPatchSchema::trimCurveTopologyIsHomogenous() const
 {
     return hasTrimCurve() && m_trimNumLoopsProperty.isConstant() &&
         m_trimNumVerticesProperty.isConstant() &&
@@ -61,7 +61,7 @@ bool INuPatchSchema::trimCurveTopologyIsHomogenous()
 }
 
 //-*****************************************************************************
-MeshTopologyVariance INuPatchSchema::getTopologyVariance()
+MeshTopologyVariance INuPatchSchema::getTopologyVariance() const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "INuPatch::getTopologyVariance()" );
 
@@ -87,7 +87,7 @@ MeshTopologyVariance INuPatchSchema::getTopologyVariance()
                 return kHeterogenousTopology;
             }
         }
-        else if ( m_positionWeightsProperty && 
+        else if ( m_positionWeightsProperty &&
                  !m_positionWeightsProperty.isConstant() )
         {
             return kHomogenousTopology;
@@ -126,7 +126,7 @@ MeshTopologyVariance INuPatchSchema::getTopologyVariance()
 }
 
 //-*****************************************************************************
-bool INuPatchSchema::hasTrimProps()
+bool INuPatchSchema::hasTrimProps() const
 {
     return this->getPropertyHeader( "trim_nloops" ) != NULL &&
            this->getPropertyHeader( "trim_n" ) != NULL &&
@@ -141,7 +141,7 @@ bool INuPatchSchema::hasTrimProps()
 
 //-*****************************************************************************
 void INuPatchSchema::get( sample_type &oSample,
-                          const Abc::ISampleSelector &iSS )
+                          const Abc::ISampleSelector &iSS ) const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "INuPatch::get()" );
 
@@ -156,11 +156,6 @@ void INuPatchSchema::get( sample_type &oSample,
     if ( m_selfBoundsProperty )
     {
         m_selfBoundsProperty.get( oSample.m_selfBounds, iSS );
-    }
-
-    if ( m_childBoundsProperty && m_childBoundsProperty.getNumSamples() > 0 )
-    {
-        m_childBoundsProperty.get( oSample.m_childBounds, iSS );
     }
 
     if ( m_velocitiesProperty && m_velocitiesProperty.getNumSamples() > 0 )
