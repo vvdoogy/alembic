@@ -64,7 +64,6 @@ public:
         Abc::Int32ArraySamplePtr getFaceIndices() const { return m_indices; }
         Abc::Int32ArraySamplePtr getFaceCounts() const { return m_counts; }
         Abc::Box3d getSelfBounds() const { return m_selfBounds; }
-        Abc::Box3d getChildBounds() const { return m_childBounds; }
 
         bool valid() const
         {
@@ -77,9 +76,7 @@ public:
             m_velocities.reset();
             m_indices.reset();
             m_counts.reset();
-
             m_selfBounds.makeEmpty();
-            m_childBounds.makeEmpty();
         }
 
         ALEMBIC_OPERATOR_BOOL( valid() );
@@ -90,9 +87,7 @@ public:
         Abc::V3fArraySamplePtr m_velocities;
         Abc::Int32ArraySamplePtr m_indices;
         Abc::Int32ArraySamplePtr m_counts;
-
         Abc::Box3d m_selfBounds;
-        Abc::Box3d m_childBounds;
     };
 
     //-*************************************************************************
@@ -167,21 +162,21 @@ public:
     //! This can be any number, including zero.
     //! This returns the number of samples that were written, independently
     //! of whether or not they were constant.
-    size_t getNumSamples()
+    size_t getNumSamples() const
     { return  m_positionsProperty.getNumSamples(); }
 
     //! Return the topological variance.
     //! This indicates how the mesh may change.
-    MeshTopologyVariance getTopologyVariance();
+    MeshTopologyVariance getTopologyVariance() const;
 
     //! Ask if we're constant - no change in value amongst samples,
     //! regardless of the time sampling.
-    bool isConstant() { return getTopologyVariance() == kConstantTopology; }
+    bool isConstant() const { return getTopologyVariance() == kConstantTopology; }
 
     //! Time information.
     //! Any of the properties could be the bearer of the time
     //! sampling information, which otherwise defaults to Identity.
-    AbcA::TimeSamplingPtr getTimeSampling()
+    AbcA::TimeSamplingPtr getTimeSampling() const
     {
         if ( m_positionsProperty.valid() )
         {
@@ -195,7 +190,7 @@ public:
 
     //-*************************************************************************
     void get( Sample &oSample,
-              const Abc::ISampleSelector &iSS = Abc::ISampleSelector() )
+              const Abc::ISampleSelector &iSS = Abc::ISampleSelector() ) const
     {
         ALEMBIC_ABC_SAFE_CALL_BEGIN( "IPolyMeshSchema::get()" );
 
@@ -204,11 +199,6 @@ public:
         m_countsProperty.get( oSample.m_counts, iSS );
 
         m_selfBoundsProperty.get( oSample.m_selfBounds, iSS );
-
-        if ( m_childBoundsProperty && m_childBoundsProperty.getNumSamples() > 0 )
-        {
-            m_childBoundsProperty.get( oSample.m_childBounds, iSS );
-        }
 
         if ( m_velocitiesProperty && m_velocitiesProperty.getNumSamples() > 0 )
         {
@@ -220,16 +210,22 @@ public:
         ALEMBIC_ABC_SAFE_CALL_END();
     }
 
-    Sample getValue( const Abc::ISampleSelector &iSS = Abc::ISampleSelector() )
+    Sample getValue( const Abc::ISampleSelector &iSS = Abc::ISampleSelector() ) const
     {
         Sample smp;
         get( smp, iSS );
         return smp;
     }
 
-    IV2fGeomParam &getUVsParam() { return m_uvsParam; }
+    IV2fGeomParam getUVsParam() const
+    {
+        return m_uvsParam;
+    }
 
-    IN3fGeomParam &getNormalsParam() { return m_normalsParam; }
+    IN3fGeomParam getNormalsParam() const
+    {
+        return m_normalsParam;
+    }
 
     Abc::IInt32ArrayProperty getFaceCountsProperty() const
     {

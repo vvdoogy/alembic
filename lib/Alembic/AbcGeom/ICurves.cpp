@@ -116,7 +116,7 @@ void ICurvesSchema::init( const Abc::Argument &iArg0,
 
 //-*****************************************************************************
 void ICurvesSchema::get( ICurvesSchema::Sample &oSample,
-                         const Abc::ISampleSelector &iSS )
+                         const Abc::ISampleSelector &iSS ) const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "ICurvesSchema::get()" );
 
@@ -136,11 +136,6 @@ void ICurvesSchema::get( ICurvesSchema::Sample &oSample,
     if ( m_selfBoundsProperty )
     {
         m_selfBoundsProperty.get( oSample.m_selfBounds, iSS );
-    }
-
-    if ( m_childBoundsProperty && m_childBoundsProperty.getNumSamples() > 0 )
-    {
-        m_childBoundsProperty.get( oSample.m_childBounds, iSS );
     }
 
     if ( m_velocitiesProperty && m_velocitiesProperty.getNumSamples() > 0 )

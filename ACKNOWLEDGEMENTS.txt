@@ -9,7 +9,7 @@ Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ("ILM"), we would like to acknowledge and thank the following companies and
 individuals for their contributions to Alembic:
 
-©2010 Christopher Horvath
+©2010-2012 Christopher Horvath
 ©2011-2012 Luxology LLC
 ©2011-2012 Autodesk, Inc.
 ©2011-2012 Side Effects Software Inc.
@@ -18,6 +18,7 @@ individuals for their contributions to Alembic:
 ©2011 Fabric Engine, Inc.
 ©2011 Luma Pictures
 ©2012 Solid Angle S.L.
+©2012 Zhicheng YE
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -51,4 +52,4 @@ Thank You
 
 
 
-Last Changed - 2012-07-27
+Last Changed - 2012-10-17

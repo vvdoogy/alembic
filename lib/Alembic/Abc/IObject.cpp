@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2012,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -62,7 +62,10 @@ const AbcA::ObjectHeader &IObject::getHeader() const
 {
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IObject::getHeader()" );
 
-    return m_object->getHeader();
+    if ( m_object )
+    {
+        return m_object->getHeader();
+    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
@@ -72,13 +75,17 @@ const AbcA::ObjectHeader &IObject::getHeader() const
 };
 
 //-*****************************************************************************
-IArchive IObject::getArchive()
+IArchive IObject::getArchive() const
 {
+
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IObject::getArchive()" );
 
-    return IArchive( m_object->getArchive(),
-                     kWrapExisting,
-                     getErrorHandlerPolicy() );
+    if ( m_object )
+    {
+        return IArchive( m_object->getArchive(),
+                         kWrapExisting,
+                         getErrorHandlerPolicy() );
+    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
@@ -87,13 +94,17 @@ IArchive IObject::getArchive()
 }
 
 //-*****************************************************************************
-IObject IObject::getParent()
+IObject IObject::getParent() const
 {
+
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IObject::getParent()" );
 
-    return IObject( m_object->getParent(),
-                    kWrapExisting,
-                    getErrorHandlerPolicy() );
+    if ( m_object )
+    {
+        return IObject( m_object->getParent(),
+                        kWrapExisting,
+                        getErrorHandlerPolicy() );
+    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
@@ -102,11 +113,15 @@ IObject IObject::getParent()
 }
 
 //-*****************************************************************************
-size_t IObject::getNumChildren()
+size_t IObject::getNumChildren() const
 {
+
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IObject::getNumChildren()" );
 
-    return m_object->getNumChildren();
+    if ( m_object )
+    {
+        return m_object->getNumChildren();
+    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
@@ -115,11 +130,15 @@ size_t IObject::getNumChildren()
 }
 
 //-*****************************************************************************
-const AbcA::ObjectHeader &IObject::getChildHeader( size_t iIdx )
+const AbcA::ObjectHeader &IObject::getChildHeader( size_t iIdx ) const
 {
+
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IObject::getChildHeader()" );
 
-    return m_object->getChildHeader( iIdx );
+    if ( m_object )
+    {
+        return m_object->getChildHeader( iIdx );
+    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
@@ -129,11 +148,16 @@ const AbcA::ObjectHeader &IObject::getChildHeader( size_t iIdx )
 }
 
 //-*****************************************************************************
-const AbcA::ObjectHeader *IObject::getChildHeader( const std::string &iName )
+const AbcA::ObjectHeader *
+IObject::getChildHeader( const std::string &iName ) const
 {
+
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IObject::getChildHeader( name )" );
 
-    return m_object->getChildHeader( iName );
+    if ( m_object )
+    {
+        return m_object->getChildHeader( iName );
+    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
@@ -142,13 +166,17 @@ const AbcA::ObjectHeader *IObject::getChildHeader( const std::string &iName )
 }
 
 //-*****************************************************************************
-IObject IObject::getChild( size_t iChildIndex )
+IObject IObject::getChild( size_t iChildIndex ) const
 {
+
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IObject::getChild()" );
 
-    return IObject( m_object->getChild( iChildIndex ),
-                    kWrapExisting,
-                    getErrorHandlerPolicy() );
+    if ( m_object )
+    {
+        return IObject( m_object->getChild( iChildIndex ),
+                        kWrapExisting,
+                        getErrorHandlerPolicy() );
+    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
@@ -157,13 +185,17 @@ IObject IObject::getChild( size_t iChildIndex )
 }
 
 //-*****************************************************************************
-IObject IObject::getChild( const std::string &iChildName )
+IObject IObject::getChild( const std::string &iChildName ) const
 {
+
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IObject::getChild()" );
 
-    return IObject( m_object->getChild( iChildName ),
-                    kWrapExisting,
-                    getErrorHandlerPolicy() );
+    if ( m_object )
+    {
+        return IObject( m_object->getChild( iChildName ),
+                        kWrapExisting,
+                        getErrorHandlerPolicy() );
+    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 
@@ -172,11 +204,15 @@ IObject IObject::getChild( const std::string &iChildName )
 }
 
 //-*****************************************************************************
-ICompoundProperty IObject::getProperties()
+ICompoundProperty IObject::getProperties() const
 {
+
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "IObject::getProperties()" );
 
-    return ICompoundProperty( m_object->getProperties(), kWrapExisting );
+    if ( m_object )
+    {
+        return ICompoundProperty( m_object->getProperties(), kWrapExisting );
+    }
 
     ALEMBIC_ABC_SAFE_CALL_END();
 

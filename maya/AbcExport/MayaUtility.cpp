@@ -291,7 +291,7 @@ bool util::isAnimated(MObject & object, bool checkParent)
                 node.hasFn(MFn::kPolyTweak) ||
                 node.hasFn(MFn::kSubdTweak) ||
                 node.hasFn(MFn::kCluster) ||
-                node.hasFn(MFn::kFluid) || 
+                node.hasFn(MFn::kFluid) ||
                 node.hasFn(MFn::kPolyBoolOp))
         {
             return true;
@@ -340,22 +340,65 @@ bool util::isRenderable(const MObject & object)
     // visibility or lodVisibility off?  return false
     plug = mFn.findPlug("visibility", false, &stat);
     if (stat == MS::kSuccess && !plug.asBool())
-        return false;
+    {
+        // the value is off. let's check if it has any in-connection,
+        // otherwise, it means it is not animated.
+        MPlugArray arrayIn;
+        plug.connectedTo(arrayIn, true, false, &stat);
+
+        if (stat == MS::kSuccess && arrayIn.length() == 0)
+        {
+            return false;
+        }
+    }
 
     plug = mFn.findPlug("lodVisibility", false, &stat);
     if (stat == MS::kSuccess && !plug.asBool())
-        return false;
+    {
+        MPlugArray arrayIn;
+        plug.connectedTo(arrayIn, true, false, &stat);
+
+        if (stat == MS::kSuccess && arrayIn.length() == 0)
+        {
+            return false;
+        }
+    }
 
     // this shape is renderable
     return true;
 }
 
-MString util::stripNamespaces(const MString & iNodeName)
+MString util::stripNamespaces(const MString & iNodeName, unsigned int iDepth)
 {
-    int lastNamespace = iNodeName.rindex(':');
-    if (lastNamespace != -1)
+    if (iDepth == 0)
     {
-        return iNodeName.substring(lastNamespace + 1, iNodeName.length() - 1);
+        return iNodeName;
+    }
+
+    MStringArray strArray;
+    if (iNodeName.split(':', strArray) == MS::kSuccess)
+    {
+        unsigned int len = strArray.length();
+
+        // we want to strip off more namespaces than what we have
+        // so we just return the last name
+        if (len == 0)
+        {
+            return iNodeName;
+        }
+        else if (len <= iDepth + 1)
+        {
+            return strArray[len-1];
+        }
+
+        MString name;
+        for (unsigned int i = iDepth; i < len - 1; ++i)
+        {
+            name += strArray[i];
+            name += ":";
+        }
+        name += strArray[len-1];
+        return name;
     }
 
     return iNodeName;
@@ -395,6 +438,9 @@ MString util::getHelpText()
 "Prefix filter for determining which geometric attributes to write out.\n"
 "This flag may occur more than once.\n"
 "\n"
+"-ef / -eulerFilter\n"
+"If this flag is present, apply Euler filter while sampling rotations.\n"
+"\n"
 "-f / -file string REQUIRED\n"
 "File location to write the Alembic data.\n"
 "\n"
@@ -426,11 +472,14 @@ MString util::getHelpText()
 "If this flag is present, write out all all selected nodes from the active\n"
 "selection list that are descendents of the roots specified with -root.\n"
 "\n"
-"-sn / -stripNamespaces\n"
+"-sn / -stripNamespaces (optional int)\n"
 "If this flag is present all namespaces will be stripped off of the node before\n"
-"being written to Alembic.  Be careful that the new stripped name does not\n"
-"collide with other sibling node names.\n"
-"Example:  taco:foo:bar would be written as just bar.\n"
+"being written to Alembic.  If an optional int is specified after the flag\n"
+"then that many namespaces will be stripped off of the node name. Be careful\n"
+"that the new stripped name does not collide with other sibling node names.\n\n"
+"Examples: \n"
+"taco:foo:bar would be written as just bar with -sn\n"
+"taco:foo:bar would be written as foo:bar with -sn 1\n"
 "\n"
 "-u / -userAttr string\n"
 "A specific user attribute to write out.  This flag may occur more than once.\n"
@@ -446,6 +495,9 @@ MString util::getHelpText()
 "-wcs / -writeColorSets\n"
 "Write all color sets on MFnMeshes as color 3 or color 4 indexed geometry \n"
 "parameters with face varying scope.\n"
+"\n"
+"-wfs / -writeFaceSets\n"
+"Write all Face sets on MFnMeshes.\n"
 "\n"
 "-wfg / -wholeFrameGeo\n"
 "If this flag is present data for geometry will only be written out on whole\n"

@@ -63,14 +63,107 @@
 #include <maya/MFnNurbsSurface.h>
 #include <maya/MFnSet.h>
 #include <maya/MFnTypedAttribute.h>
+#include <maya/MFnSingleIndexedComponent.h>
+#include <maya/MItSelectionList.h>
+#include <maya/MItDependencyGraph.h>
 
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 
+
 namespace
 {
+    void copyIndicesToNode(MIntArray& iIndices, const MObject& iNode,
+                           MObject& iSet)
+    {   
+        MStatus status;
+
+        MFnDagNode mFnNode(iNode);
+
+        MDagPath dpShape;
+        status = mFnNode.getPath(dpShape);
+
+        // Empty the set
+        MFnSet         fnSet( iSet );    
+        MSelectionList selList;
+        fnSet.getMembers   ( selList, false );    
+        MItSelectionList iterSelList( selList );
+        for( ; iterSelList.isDone()!=true; iterSelList.next() )
+        {
+            MDagPath curDag;
+            MObject  curCompObj;
+            iterSelList.getDagPath(curDag, curCompObj);
+
+            if ((curDag==dpShape) && curCompObj.isNull())
+                fnSet.removeMember(curDag, curCompObj);
+        }
+
+        // Feed the indexed component 
+        MFnSingleIndexedComponent fnSComp;
+        MObject comp = fnSComp.create( MFn::kMeshPolygonComponent );
+        fnSComp.addElements( iIndices );
+
+        // Remove the elements from all other sets (exclusivity constraint)
+        MObjectArray   connSGObjs( getOutConnectedSG(dpShape) );
+        MObject	   connSGObj;
+        MFnSet	   fnOtherSet;
+        MSelectionList setList, otherSetList, xorList;
+        setList.add( dpShape, comp );
+        int nSG = connSGObjs.length();
+        for( int i=0; i<nSG; i++ )
+        {
+            // Get the current SG Object
+            connSGObj = connSGObjs[i];
+            if( connSGObj != iSet )
+            {
+                // Build the intersection list and remove it from the set
+                otherSetList.clear();
+                fnOtherSet.setObject( connSGObj );
+                fnOtherSet.getMembers( otherSetList, false );
+            
+                // test if it's a full partition
+                if (otherSetList.length()>=1)
+                {
+                    MItSelectionList itSelList( otherSetList );
+                    for( ; itSelList.isDone()!=true; itSelList.next() )
+                    {
+                        MDagPath dp;
+                        MObject  compObj;
+                        itSelList.getDagPath(dp, compObj);
+               
+                        if (!(dp==dpShape) || !compObj.isNull())
+                            continue;
+
+                        fnOtherSet.removeMember( dp, compObj );
+                        
+                        // create a component with the full list
+                        MFnMesh fnMesh(dpShape);
+                        MFnSingleIndexedComponent fnFullSComp;                    
+                        compObj = fnFullSComp.create(
+                                        MFn::kMeshPolygonComponent ); 
+                        fnFullSComp.setCompleteData(fnMesh.numPolygons());
+                        
+                        // fill the sel list
+                        otherSetList.clear();
+                        otherSetList.add( dpShape, compObj );
+                        break;
+                    }
+                }            
+            
+                xorList = otherSetList;
+                xorList.merge( setList, MSelectionList::kXORWithList );
+                otherSetList.merge( xorList, MSelectionList::kRemoveFromList);
+                if( !otherSetList.isEmpty() )
+                    fnOtherSet.removeMembers( otherSetList );
+            }
+        }    
+
+        // Feed the set
+        fnSet.addMember(dpShape, comp);
+    }
+
     void addFaceSets(MObject & iNode, Alembic::Abc::IObject & iObj)
     {
         MStatus status;
@@ -89,35 +182,37 @@ namespace
                 Alembic::AbcGeom::IFaceSet faceSet(child,
                     Alembic::Abc::kWrapExisting);
 
+                // create a shading group for this faceset.
+                MObject shadingGroup;
+                const MString& faceSetName(faceSet.getName().c_str());
+
+                // check if this SG already exists.
+                status = getObjectByName(faceSetName, shadingGroup);
+                if (shadingGroup.isNull())
+                {
+                    shadingGroup = createShadingGroup(faceSetName);
+                }
+
+                // retrive face indices.
                 Alembic::AbcGeom::IFaceSetSchema::Sample samp;
                 faceSet.getSchema().get(samp);
 
-                MString faceName = "FACESET_";
-                faceName += faceSet.getName().c_str();
-
                 MFnIntArrayData fnData;
-                MIntArray arr((int *) samp.getFaces()->getData(),
-                    static_cast<unsigned int>(samp.getFaces()->size()));
-                MObject attrObj = fnData.create(arr);
-                MFnTypedAttribute typedAttr;
-                MObject faceObj = typedAttr.create(faceName, faceName,
-                    MFnData::kIntArray, attrObj);
+                const int* faceArray((int *)samp.getFaces()->getData());
+                const size_t size = samp.getFaces()->size();
 
-                mesh.addAttribute(faceObj,
-                    MFnDependencyNode::kLocalDynamicAttr);
+                MIntArray arr(faceArray, size);
 
-                if (Alembic::AbcGeom::GetVisibility(faceSet) ==
-                    Alembic::AbcGeom::kVisibilityHidden)
-                {
-                    MString visName = "FACESETVIS_";
-                    visName += faceSet.getName().c_str();
+                // copy indices to the set
+                copyIndicesToNode(arr, iNode, shadingGroup);
+                Alembic::Abc::ICompoundProperty arbProp =
+                    faceSet.getSchema().getArbGeomParams();
 
-                    MFnNumericAttribute numAttr;
-                    MObject visObj = numAttr.create(visName, visName,
-                        MFnNumericData::kBoolean, false);
-                    mesh.addAttribute(visObj,
-                        MFnDependencyNode::kLocalDynamicAttr);
-                }
+                Alembic::Abc::ICompoundProperty userProp =
+                    faceSet.getSchema().getUserProperties();
+
+                addProps(arbProp, shadingGroup, false);
+                addProps(userProp, shadingGroup, false);
             }
         }
     }
@@ -171,12 +266,36 @@ namespace
         }
     }
 
+    bool matchesNameWithRegex (const MString& iName,
+                               const MStringArray & iPatterns)
+    {
+        unsigned int length = iPatterns.length();
+        if (length == 0)
+            return true;
+
+        for (size_t i=0; i<length; ++i)
+        {
+            // use 'match' function provided in the maya mel script.
+            MString scriptStr, result;
+            scriptStr.format("match \"^1s\" \"^2s\";", iPatterns[i], iName);
+            MGlobal::executeCommand(scriptStr, result);
+
+            // found a match!
+            if (result.length() > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 
 CreateSceneVisitor::CreateSceneVisitor(double iFrame,
-    bool iUnmarkedFaceVaryingColors, const MObject & iParent, Action iAction,
-    MString iRootNodes) :
+    bool iUnmarkedFaceVaryingColors, const MObject & iParent,
+    Action iAction, MString iRootNodes,
+    MString iIncludeFilterString, MString iExcludeFilterString) :
     mFrame(iFrame), mParent(iParent),
     mUnmarkedFaceVaryingColors(iUnmarkedFaceVaryingColors), mAction(iAction)
 {
@@ -207,6 +326,20 @@ CreateSceneVisitor::CreateSceneVisitor(double iFrame,
     else if (iRootNodes == MString("/"))
     {
         mAnyRoots = true;
+    }
+
+    mOnlyPatterns.clear();
+    if (iIncludeFilterString != MString() &&
+        iIncludeFilterString != MString("*"))
+    {
+        iIncludeFilterString.split(' ', mOnlyPatterns);
+    }
+
+    mExceptPatterns.clear();
+    if (iExcludeFilterString != MString() &&
+        iExcludeFilterString != MString("*"))
+    {
+        iExcludeFilterString.split(' ', mExceptPatterns);
     }
 }
 
@@ -296,47 +429,48 @@ void CreateSceneVisitor::checkShaderSelection(MFnMesh & iMesh,
     }
 }
 
-void CreateSceneVisitor::visit(Alembic::Abc::IObject & iObj)
+void CreateSceneVisitor::visit(AlembicObjectPtr iObject)
 {
-    const Alembic::AbcCoreAbstract::ObjectHeader & header = iObj.getHeader();
-    if ( Alembic::AbcGeom::IXform::matches(header) )
+    Alembic::Abc::IObject iObj = iObject->object();
+
+    if ( Alembic::AbcGeom::IXform::matches(iObj.getHeader()) )
     {
         Alembic::AbcGeom::IXform xform(iObj, Alembic::Abc::kWrapExisting);
-        (*this)(xform);
+        (*this)(xform, iObject);
     }
-    else if ( Alembic::AbcGeom::ISubD::matches(header) )
+    else if ( Alembic::AbcGeom::ISubD::matches(iObj.getHeader()) )
     {
         Alembic::AbcGeom::ISubD mesh(iObj, Alembic::Abc::kWrapExisting);
         (*this)(mesh);
     }
-    else if ( Alembic::AbcGeom::IPolyMesh::matches(header) )
+    else if ( Alembic::AbcGeom::IPolyMesh::matches(iObj.getHeader()) )
     {
         Alembic::AbcGeom::IPolyMesh mesh(iObj, Alembic::Abc::kWrapExisting);
         (*this)(mesh);
     }
-    else if ( Alembic::AbcGeom::ICamera::matches(header) )
+    else if ( Alembic::AbcGeom::ICamera::matches(iObj.getHeader()) )
     {
         Alembic::AbcGeom::ICamera cam(iObj, Alembic::Abc::kWrapExisting);
         (*this)(cam);
     }
-    else if ( Alembic::AbcGeom::ICurves::matches(header) )
+    else if ( Alembic::AbcGeom::ICurves::matches(iObj.getHeader()) )
     {
         Alembic::AbcGeom::ICurves curves(iObj, Alembic::Abc::kWrapExisting);
         (*this)(curves);
     }
-    else if ( Alembic::AbcGeom::INuPatch::matches(header) )
+    else if ( Alembic::AbcGeom::INuPatch::matches(iObj.getHeader()) )
     {
         Alembic::AbcGeom::INuPatch nurbs(iObj, Alembic::Abc::kWrapExisting);
         (*this)(nurbs);
     }
-    else if ( Alembic::AbcGeom::IPoints::matches(header) )
+    else if ( Alembic::AbcGeom::IPoints::matches(iObj.getHeader()) )
     {
         Alembic::AbcGeom::IPoints pts(iObj, Alembic::Abc::kWrapExisting);
         (*this)(pts);
     }
-    else if ( header.getMetaData().get("schema") == "" )
+    else if ( iObj.getHeader().getMetaData().get("schema") == "" )
     {
-        createEmptyObject(iObj);
+        createEmptyObject(iObject);
     }
     else
     {
@@ -345,6 +479,44 @@ void CreateSceneVisitor::visit(Alembic::Abc::IObject & iObj)
         theWarning += iObj.getMetaData().get("schema").c_str();
         printWarning(theWarning);
     }
+}
+
+AlembicObjectPtr CreateSceneVisitor::previsit(AlembicObjectPtr iParentObject)
+{
+    Alembic::Abc::IObject parent = iParentObject->object();
+    const MString name = parent.getName().c_str();
+    const size_t numChildren = parent.getNumChildren();
+
+    // Apply exclude filters first as a preorder traversal.
+    if (mExceptPatterns.length() > 0 && 
+        matchesNameWithRegex(name, mExceptPatterns))
+    {
+        return AlembicObjectPtr();
+    }
+
+    for (size_t i = 0; i < numChildren; ++i)
+    {
+        Alembic::Abc::IObject child = parent.getChild(i);
+        AlembicObjectPtr childObject =
+            previsit(AlembicObjectPtr(new AlembicObject(child)));
+
+        if (childObject)
+        {
+            iParentObject->addChild(childObject);
+        }
+    }
+
+    // We traverse a tree in postorder. The invarient is that iParentObject
+    // will have no child unless any descendent of it has the matching name. 
+    if (iParentObject->getNumChildren() == 0)
+    {
+        if (!matchesNameWithRegex(name, mOnlyPatterns))
+        {
+            return AlembicObjectPtr();
+        }
+    }
+
+    return iParentObject;
 }
 
  // root of file, no creation of DG node
@@ -356,8 +528,13 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
 
     if (!iRoot.valid()) return MS::kFailure;
 
-    Alembic::Abc::IObject top = iRoot.getTop();
-    size_t numChildren = top.getNumChildren();
+    // preload the cache hierarchy with an optional filtering.
+    AlembicObjectPtr topObject =
+        previsit(AlembicObjectPtr(new AlembicObject(iRoot.getTop())));
+
+    if (!topObject) return status;
+
+    size_t numChildren = topObject->getNumChildren();
 
     if (numChildren == 0) return status;
 
@@ -365,8 +542,7 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
     {
         for (size_t i = 0; i < numChildren; i++)
         {
-            Alembic::Abc::IObject child = top.getChild(i);
-            this->visit(child);
+            this->visit(topObject->getChild(i));
             mParent = saveParent;
         }
         return status;
@@ -380,8 +556,8 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
         connectCurNodesInFile.end();
     for (size_t i = 0; i < numChildren; i++)
     {
-        Alembic::Abc::IObject obj = top.getChild(i);
-        std::string name = obj.getName();
+        AlembicObjectPtr object = topObject->getChild(i);
+        std::string name = object->object().getName();
         connectCurNodesInFile.insert(name);
 
         // see if this name is part of the input to AlembicNode
@@ -398,7 +574,7 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
                 connectUpdateNodes.insert(name);
                 mConnectDagNode = dagPath;
                 mConnectDagNode.pop();
-                this->visit(obj);
+                this->visit(object);
                 mParent = saveParent;
             }
             else if (mAction != CREATE && mAction != CREATE_REMOVE)
@@ -413,7 +589,7 @@ MStatus CreateSceneVisitor::walk(Alembic::Abc::IArchive & iRoot)
             {
                 mConnectDagNode = MDagPath();
                 connectUpdateNodes.insert(name);
-                this->visit(obj);
+                this->visit(object);
                 mParent = saveParent;
 
             }
@@ -788,6 +964,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ISubD& iNode)
         setConstantVisibility(visProp, subDObj);
         addProps(arbProp, subDObj, mUnmarkedFaceVaryingColors);
         addProps(userProp, subDObj, mUnmarkedFaceVaryingColors);
+        addFaceSets(subDObj, iNode);
     }
 
     if ( mAction >= CONNECT )
@@ -818,7 +995,6 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::ISubD& iNode)
             readSubD(mFrame, fn, subDObj, subdColors, false);
         }
         addToPropList(firstProp, subDObj);
-        addFaceSets(subDObj, iNode);
     }
 
     if (hasDag)
@@ -1009,7 +1185,8 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::INuPatch& iNode)
     return status;
 }
 
-MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
+MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode,
+                                       AlembicObjectPtr iNodeObject)
 {
     MStatus status = MS::kSuccess;
     MObject xformObj = MObject::kNullObj;
@@ -1099,7 +1276,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
     {
         MString name(iNode.getName().c_str());
 
-        size_t numChildren = iNode.getNumChildren();
+        size_t numChildren = iNodeObject->getNumChildren();
         bool isConstant = iNode.getSchema().isConstant();
 
         Alembic::Abc::IScalarProperty visProp = getVisible(iNode,
@@ -1141,7 +1318,7 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
             std::set< std::string > childNodesInFile;
             for (size_t j = 0; j < numChildren; ++j)
             {
-                Alembic::Abc::IObject child = iNode.getChild(j);
+                Alembic::Abc::IObject child = iNodeObject->getChild(j)->object();
                 childNodesInFile.insert(child.getName());
             }
 
@@ -1230,10 +1407,9 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
         MObject saveParent = xformObj;
         for (size_t i = 0; i < numChildren; ++i)
         {
-            Alembic::Abc::IObject child = iNode.getChild(i);
             mParent = saveParent;
 
-            this->visit(child);
+            this->visit(iNodeObject->getChild(i));
         }
 
         if (hasDag)
@@ -1245,14 +1421,16 @@ MStatus CreateSceneVisitor::operator()(Alembic::AbcGeom::IXform & iNode)
     return status;
 }
 
-MStatus CreateSceneVisitor::createEmptyObject(Alembic::Abc::IObject & iNode)
+MStatus CreateSceneVisitor::createEmptyObject(AlembicObjectPtr iNodeObject)
 {
+    Alembic::Abc::IObject iNode = iNodeObject->object();
+
     MStatus status = MS::kSuccess;
     MObject xformObj = MObject::kNullObj;
 
     MString name(iNode.getName().c_str());
 
-    size_t numChildren = iNode.getNumChildren();
+    size_t numChildren = iNodeObject->getNumChildren();
 
     bool hasDag = false;
 
@@ -1279,7 +1457,7 @@ MStatus CreateSceneVisitor::createEmptyObject(Alembic::Abc::IObject & iNode)
         std::set< std::string > childNodesInFile;
         for (size_t j = 0; j < numChildren; ++j)
         {
-            Alembic::Abc::IObject child = iNode.getChild(j);
+            Alembic::Abc::IObject child = iNodeObject->getChild(j)->object();
             childNodesInFile.insert(child.getName());
         }
 
@@ -1335,10 +1513,9 @@ MStatus CreateSceneVisitor::createEmptyObject(Alembic::Abc::IObject & iNode)
     MObject saveParent = xformObj;
     for (size_t i = 0; i < numChildren; ++i)
     {
-        Alembic::Abc::IObject child = iNode.getChild(i);
         mParent = saveParent;
 
-        this->visit(child);
+        this->visit(iNodeObject->getChild(i));
     }
 
     if (hasDag)
