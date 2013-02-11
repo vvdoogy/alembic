@@ -1,6 +1,6 @@
 ##-*****************************************************************************
 ##
-## Copyright (c) 2009-2012,
+## Copyright (c) 2009-2013,
 ##  Sony Pictures Imageworks Inc. and
 ##  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 ##
@@ -52,7 +52,7 @@ ENDIF()
 # Declare the version
 SET( PROJECT_VERSION_MAJOR  1 )
 SET( PROJECT_VERSION_MINOR  1 )
-SET( PROJECT_VERSION_PATCH  2 )
+SET( PROJECT_VERSION_PATCH  3 )
 SET( PROJECT_VERSION
      ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} )
 SET( VERSION ${PROJECT_VERSION} )
@@ -74,6 +74,12 @@ SET( LINUX FALSE )
 IF( "${CMAKE_SYSTEM_NAME}" MATCHES "Linux" )
   SET( LINUX TRUE )
 ENDIF()
+
+# Windows support for ILMBase libraries
+IF ( WIN32 )
+  ADD_DEFINITIONS ( -DOPENEXR_DLL -DHALF_EXPORTS )
+  INCLUDE_DIRECTORIES ( $ENV{GLEW_ROOT}/include )
+ENDIF ()
 
 # Set some debug vs opt flags
 IF ( "${CMAKE_BUILD_TYPE}" MATCHES "Debug" )
@@ -119,9 +125,14 @@ endif ()
 #-******************************************************************************
 #-******************************************************************************
 
-SET( ORIGINAL_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} )
-SET( CMAKE_INSTALL_PREFIX
-     ${ORIGINAL_INSTALL_PREFIX}/alembic-${VERSION} )
+IF ( DEFINED ENV{ALEMBIC_INSTALL_PREFIX} )
+  SET( CMAKE_INSTALL_PREFIX
+    $ENV{ALEMBIC_INSTALL_PREFIX}/alembic-${VERSION} )
+ELSE ()
+  SET( ORIGINAL_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} )
+  SET( CMAKE_INSTALL_PREFIX
+    ${ORIGINAL_INSTALL_PREFIX}/alembic-${VERSION} )
+ENDIF ()
 
 # Tell me what my install location would be
 MESSAGE(STATUS "The install dir is ${CMAKE_INSTALL_PREFIX}" )
@@ -165,9 +176,9 @@ IF(BOOTSTRAP_MODE)
 ELSE()
 
 # Set up the include directories
-IF( WINDOWS )
-  INCLUDE_DIRECTORIES( "C:/Program Files (x86)/Microsoft Visual Studio 9.0/VC/include" )
-ENDIF()
+# IF( WINDOWS )
+#  INCLUDE_DIRECTORIES( "C:/Program Files (x86)/Microsoft Visual Studio 9.0/VC/include" )
+# ENDIF()
 
 FIND_PACKAGE(Threads REQUIRED)
 FIND_PACKAGE(ZLIB REQUIRED)
@@ -182,7 +193,10 @@ FIND_PACKAGE( GLUT )
 
 IF ( ${WINDOWS} )
   # Do a windows OpenGL thing, whatever that may be
-  SET( ALEMBIC_GL_LIBS GLEW ${GLUT_LIBRARY} ${OPENGL_LIBRARIES} )
+  SET( ALEMBIC_GL_LIBS glew32s ${GLUT_LIBRARY} ${OPENGL_LIBRARIES} )
+  INCLUDE_DIRECTORIES ( ${GLUT_INCLUDE_DIR} )
+  INCLUDE_DIRECTORIES ( $ENV{GLEW_ROOT}/include )
+  LINK_DIRECTORIES ( $ENV{GLEW_ROOT}/lib )
 ELSEIF( ${DARWIN} )
   # Do a darwin OpenGL thing.
   SET( ALEMBIC_GL_LIBS ${GLUT_LIBRARY} "-framework OpenGL" )
@@ -226,8 +240,13 @@ INCLUDE_DIRECTORIES( ${ALEMBIC_BOOST_INCLUDE_PATH} )
 INCLUDE( "./build/AlembicIlmBase.cmake" )
 INCLUDE_DIRECTORIES( ${ALEMBIC_ILMBASE_INCLUDE_DIRECTORY} )
 
-INCLUDE( "./build/AlembicPyIlmBase.cmake" )
-INCLUDE_DIRECTORIES( ${ALEMBIC_PYILMBASE_INCLUDE_DIRECTORY} )
+IF(DEFINED USE_PYILMBASE AND NOT USE_PYILMBASE)
+    MESSAGE(STATUS "Skipping PyILMBase")
+ELSE()
+    MESSAGE( STATUS "About to include AlembicPyIlmBase.cmake" )
+  INCLUDE( "./build/AlembicPyIlmBase.cmake" )
+  INCLUDE_DIRECTORIES( ${ALEMBIC_PYILMBASE_INCLUDE_DIRECTORY} )
+ENDIF ()
 
 # Include Python stuff
 INCLUDE("./build/AlembicPython.cmake")

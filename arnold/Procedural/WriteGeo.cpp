@@ -279,6 +279,7 @@ AtNode * ProcessPolyMeshBase(
         
         instanceNode = AiNode( "ginstance" );
         AiNodeSetStr( instanceNode, "name", name.c_str() );
+        args.createdNodes.push_back(instanceNode);
         
         if ( args.proceduralNode )
         {
@@ -409,8 +410,8 @@ AtNode * ProcessPolyMeshBase(
         }
         
         AiNodeSetArray(meshNode, "uvlist",
-            ArrayConvert( uvlist.size() / sampleTimes.size(), 
-                    sampleTimes.size(), AI_TYPE_FLOAT, (void*)(&(uvlist[0]))));
+            ArrayConvert( uvlist.size(), 1, AI_TYPE_FLOAT,
+                (void*)(&(uvlist[0]))));
         
         if ( !uvidxs.empty() )
         {

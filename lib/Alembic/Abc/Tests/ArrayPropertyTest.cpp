@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2012,
+// Copyright (c) 2009-2013,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -78,7 +78,7 @@ void writeUInt32ArrayProperty(const std::string &archiveName)
     OUInt32ArrayProperty primes( childProps,  // owner
                                  "primes"); // uniform with cycle=dt
 
-    std::vector<uint32_t> vals;
+    std::vector<Alembic::Util::uint32_t> vals;
     for (int ss=0; ss<5; ss++)
     {
         // This vector increases in length as we go, increasing the
@@ -166,19 +166,29 @@ void readUInt32ArrayProperty(const std::string &archiveName)
             ABCA_ASSERT( (*samplePtr)[jj] == g_primes[jj],
                          "Incorrect value read from archive." );
 
-        std::vector< uint32_t > uintPrimes( numPoints );
+        std::vector< Alembic::Util::uint32_t > uintPrimes( numPoints );
         primes.getAs( &uintPrimes.front(), iss );
         for ( size_t jj=0 ; jj<numPoints ; jj++ )
             ABCA_ASSERT( uintPrimes[jj] == g_primes[jj],
                          "Incorrect value via getAs from archive." );
 
-        std::vector< int16_t > shortPrimes( numPoints );
+        std::vector< Alembic::Util::int16_t > shortPrimes( numPoints );
         primes.getAs( &shortPrimes.front(), AbcA::kInt16POD, iss );
         for ( size_t jj=0 ; jj<numPoints ; jj++ )
             ABCA_ASSERT( ( unsigned int ) shortPrimes[jj] == g_primes[jj],
                          "Incorrect value via getAs(POD) from archive." );
     }
     std::cout << std::endl;
+
+    ABCA_ASSERT(
+        archive.getMaxNumSamplesForTimeSamplingIndex(1) == (index_t) numSamples,
+        "Incorrect number of max samples in readUInt32ArrayProperty");
+
+    double start, end;
+    GetArchiveStartAndEndTime( archive, start, end );
+
+    TESTING_ASSERT( almostEqual(start, 123.0) );
+    TESTING_ASSERT( almostEqual(end, 123.0 + 4.0 / 24.0) );
     // Done - the archive closes itself
 }
 
@@ -205,7 +215,7 @@ void writeV3fArrayProperty(const std::string &archiveName)
     // add the time sampling the other way
     std::vector < chrono_t > timeSamps(1, startTime);
     TimeSampling ts(TimeSamplingType( dt ), timeSamps);
-    uint32_t tsid = archive.addTimeSampling(ts);
+    Alembic::Util::uint32_t tsid = archive.addTimeSampling(ts);
 
     // Create a scalar property on this child object named 'positions'
     OV3fArrayProperty positions( childProps,      // owner
@@ -323,8 +333,17 @@ void readV3fArrayProperty(const std::string &archiveName)
         }
 
     }
+    ABCA_ASSERT(
+        archive.getMaxNumSamplesForTimeSamplingIndex(1) == (index_t) numSamples,
+        "Incorrect number of max samples in readV3fArrayProperty." );
     std::cout << std::endl;
     // Done - the archive closes itself
+
+    double start, end;
+    GetArchiveStartAndEndTime( archive, start, end );
+
+    TESTING_ASSERT( almostEqual(start, 123.0) );
+    TESTING_ASSERT( almostEqual(end, 123.0 + 4.0 / 24.0) );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -413,6 +432,11 @@ void readWriteColorArrayProperty(const std::string &archiveName)
                          "Color [" << i << "] is incorrect.");
         }
 
+        double start, end;
+        GetArchiveStartAndEndTime( archive, start, end );
+
+        TESTING_ASSERT( almostEqual(start, 0.0) );
+        TESTING_ASSERT( almostEqual(end, 0.0) );
     }
 }
 
