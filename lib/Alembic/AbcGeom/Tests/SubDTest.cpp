@@ -67,9 +67,9 @@ void Example1_MeshOut()
         Int32ArraySample( g_indices, g_numIndices ),
         Int32ArraySample( g_counts, g_numCounts ) );
 
-    std::vector<int32_t> creases;
-    std::vector<int32_t> corners;
-    std::vector<int32_t> creaseLengths;
+    std::vector<Alembic::Util::int32_t> creases;
+    std::vector<Alembic::Util::int32_t> corners;
+    std::vector<Alembic::Util::int32_t> creaseLengths;
     std::vector<float32_t> creaseSharpnesses;
     std::vector<float32_t> cornerSharpnesses;
 
@@ -156,8 +156,21 @@ void Example1_MeshIn()
     IGeomBaseObject geomBase( IObject( archive, kTop ), "subd" );
     TESTING_ASSERT( geomBase.getSchema().getSelfBoundsProperty().valid() );
 
-    ISubD meshyObj( IObject( archive, kTop ), "subd" );
+    ISubD meshyObj( IObject( archive, kTop ), "subd",
+        ErrorHandler::kNoisyNoopPolicy );
+
     ISubDSchema &mesh = meshyObj.getSchema();
+
+    TESTING_ASSERT( mesh.getErrorHandlerPolicy() ==
+                    ErrorHandler::kNoisyNoopPolicy );
+
+    TESTING_ASSERT(
+        mesh.getUVsParam().getValueProperty().getErrorHandlerPolicy() ==
+        ErrorHandler::kNoisyNoopPolicy );
+
+    TESTING_ASSERT(
+        mesh.getInterpolateBoundaryProperty().getErrorHandlerPolicy() ==
+        ErrorHandler::kNoisyNoopPolicy );
 
     TESTING_ASSERT( 3 == mesh.getNumSamples() );
 

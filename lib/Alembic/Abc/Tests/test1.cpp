@@ -84,7 +84,7 @@ void simpleTestOut()
 
         TimeSampling ts(TimeSamplingType( TimeSamplingType::kAcyclic ),
             timeSamps);
-        uint32_t tsidx = archive.addTimeSampling(ts);
+        Alembic::Util::uint32_t tsidx = archive.addTimeSampling(ts);
 
         OV3dArrayProperty pointy(
             OCompoundProperty( spaniard, kTop ),
@@ -161,7 +161,7 @@ void simpleTestOut()
         V3f v( ( float )idx );
         clanker.set( v );
 
-        clunker.set( ( int32_t )( 731 - ( int )idx ) );
+        clunker.set( ( Alembic::Util::int32_t )( 731 - ( int )idx ) );
     }
 
     std::cout << "Gonna try to close: " << archive.getName()

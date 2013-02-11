@@ -34,3 +34,4 @@
 ##-*****************************************************************************
 
 ADD_SUBDIRECTORY( PyAlembic )
+ADD_SUBDIRECTORY( PyAbcOpenGL )

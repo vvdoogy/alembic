@@ -60,6 +60,9 @@ using namespace ::Alembic::Util;
 //! Just being pedantic.
 typedef int64_t index_t;
 
+//! Returned by  (to match index_t)
+#define INDEX_UNKNOWN 0x7fffffffffffffffLL
+
 //! Chrono type.
 //! This is used whenever time values are needed in the library. They are
 //! generally assumed to be seconds, but this does not need to be explicitly
@@ -70,9 +73,9 @@ typedef float64_t chrono_t;
 
 //-*****************************************************************************
 // Alembic version information:
-// 
+//
 // Version information is expressed in these locations:
-// - CMakeLists.txt as PROJECT_VERSION 
+// - CMakeLists.txt as PROJECT_VERSION
 //   . Names used in messages and for install directory
 // - lib/Alembic/AbcCoreAbstract/Foundation.h as ALEMBIC_LIBRARY_VERSION
 //   . An easy to compare numeric value.
@@ -84,7 +87,7 @@ typedef float64_t chrono_t;
 //     to express data types and samples in Alembic
 
 //! Alembic version number Major/Minor/Patch XX.YY.ZZ
-#define ALEMBIC_LIBRARY_VERSION 10102
+#define ALEMBIC_LIBRARY_VERSION 10103
 
 //! Helper function which returns the version and date built in a string
 //! e.g. "Alembic 1.0.0 (built Jul  6 2011)"
