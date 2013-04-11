@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2012,
+// Copyright (c) 2009-2013,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -46,7 +46,7 @@ namespace util
 
 struct cmpDag
 {
-    bool operator()( const MDagPath& lhs, const MDagPath& rhs )
+    bool operator()( const MDagPath& lhs, const MDagPath& rhs ) const
     {
             std::string name1(lhs.fullPathName().asChar());
             std::string name2(rhs.fullPathName().asChar());
@@ -79,6 +79,19 @@ inline MStatus isUnsigned(MString str, const MString & usage)
     }
 
     return status;
+}
+
+// safely inverse a scale component
+inline double inverseScale(double scale)
+{
+    const double kScaleEpsilon = 1.0e-12;
+
+    if (scale < kScaleEpsilon && scale >= 0.0)
+        return 1.0 / kScaleEpsilon;
+    else if (scale > -kScaleEpsilon && scale < 0.0)
+        return 1.0 / -kScaleEpsilon;
+    else
+        return 1.0 / scale;
 }
 
 // seconds per frame
