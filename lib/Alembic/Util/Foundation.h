@@ -87,16 +87,17 @@
 
 #ifdef _MSC_VER
 
-#ifndef NOMINMAX
-#define NOMINMAX
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #endif
 
-#define _WINSOCKAPI_
 // needed for mutex stuff
 #include <Windows.h>
 #endif
 
-#define ALEMBIC_VERSION_NS v5
+#ifndef ALEMBIC_VERSION_NS
+#define ALEMBIC_VERSION_NS v6
+#endif
 
 namespace Alembic {
 namespace Util {
