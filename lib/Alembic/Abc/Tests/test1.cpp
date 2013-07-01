@@ -151,7 +151,6 @@ void simpleTestOut()
         jabber.set( emptyStanza );
     }
 
-
     OFloatProperty radius( clampto, "radius" );
     radius.set( 217.0f );
 

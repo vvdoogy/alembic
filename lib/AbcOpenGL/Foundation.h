@@ -39,8 +39,9 @@
 
 #define ABCOPENGL_VERSION_NS v1
 
+#include <Alembic/Abc/All.h>
 #include <Alembic/AbcGeom/All.h>
-#include <Alembic/AbcCoreHDF5/All.h>
+#include <Alembic/AbcCoreFactory/All.h>
 #include <Alembic/Util/All.h>
 
 #include <ImathMath.h>
