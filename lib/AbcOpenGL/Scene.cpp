@@ -45,8 +45,8 @@ void setMaterials( float o, bool negMatrix = false )
 {
     if ( negMatrix )
     {
-        GLfloat mat_front_diffuse[] = { 0.1 * o, 0.1 * o, 0.9 * o, o };
-        GLfloat mat_back_diffuse[] = { 0.9 * o, 0.1 * o, 0.9 * o, o };
+        GLfloat mat_front_diffuse[] = { 0.1f * o, 0.1f * o, 0.9f * o, o };
+        GLfloat mat_back_diffuse[] = { 0.9f * o, 0.1f * o, 0.9f * o, o };
 
         GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
         GLfloat mat_shininess[] = { 100.0 };
@@ -160,14 +160,13 @@ void Scene::setTime( chrono_t iSeconds )
 }
 
 //-*****************************************************************************
-void Scene::draw( SceneState &s_state )
+void Scene::draw( SceneState &s_state, bool visibleOnly )
 {
     ABCA_ASSERT( m_archive && m_topObject &&
                  m_drawable && m_drawable->valid(),
                  "Invalid Scene: " << m_fileName );
 
     glEnable( GL_LIGHTING );
-    //setMaterials( 1.0, false );
 
     // Get the matrix
     M44d currentMatrix;
@@ -176,6 +175,7 @@ void Scene::draw( SceneState &s_state )
     DrawContext dctx;
     dctx.setWorldToCamera( currentMatrix );
     dctx.setPointSize( s_state.pointSize );
+    dctx.setVisibleOnly( visibleOnly );
 
     m_drawable->draw( dctx );
 
