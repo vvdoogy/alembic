@@ -51,7 +51,7 @@ ENDIF()
 
 # Declare the version
 SET( PROJECT_VERSION_MAJOR  1 )
-SET( PROJECT_VERSION_MINOR  3 )
+SET( PROJECT_VERSION_MINOR  5 )
 SET( PROJECT_VERSION_PATCH  0 )
 SET( PROJECT_VERSION
      ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} )
@@ -315,10 +315,11 @@ ELSE()
     ADD_SUBDIRECTORY( python )
 ENDIF()
 
-# example code not supported
+# Example code not supported
 ADD_SUBDIRECTORY( examples )
 
-# docs
+# Uncomment to build python docs Makefile (requires Sphinx)
+# Run `make docs` from build root
 #ADD_SUBDIRECTORY( doc )
 
 ENDIF()
