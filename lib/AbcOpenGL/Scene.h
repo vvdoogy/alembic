@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2012,
+// Copyright (c) 2009-2013,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -47,6 +47,9 @@ namespace ABCOPENGL_VERSION_NS {
 
 //-*****************************************************************************
 void setMaterials( float o, bool negMatrix );
+
+// global object index for GL picking
+extern std::vector<std::string> OBJECT_MAP;
 
 //-*****************************************************************************
 class Timer
@@ -102,9 +105,16 @@ public:
     //! ...
     Box3d getBounds() const { return m_bounds; }
 
+    //! Returns selected object ids
+    //! ...
+    int processHits( GLint hits, GLuint buffer[] );
+    std::string selection( int x, int y, GLCamera &camera, SceneState &s_state );
+
     //! This draws, assuming a camera matrix has already been set.
     //! ...
-    void draw( SceneState &s_state, bool visibleOnly = false );
+    void drawBounds( SceneState &s_state, const int mode = GL_LINES );
+    void draw( SceneState &s_state, bool visibleOnly = false, 
+                                    bool boundsOnly = false);
 
 protected:
     std::string m_fileName;

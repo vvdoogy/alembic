@@ -38,11 +38,64 @@
 import os
 from abcview import config
 
+# path dict
 d = {
     "icons": config.ICON_DIR,
 }
 
-MAIN_STYLE = """
+# normalizes color values (0 to 1)
+CCLAMP = 500.0
+
+def gen_colors(N=1):
+    """
+    Returns a color range as a list of rgb tuples.
+
+    :param N: number of colors to generate. 
+    """
+    import colorsys
+    HSV_tuples = [(x*1.0/N, 0.5, 0.5) for x in range(N)]
+    HSV_tuples.reverse()
+    RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
+    #RGB_tuples = map(lambda x: tuple(map(lambda y: int(y * CCLAMP),x)),RGB_tuples)
+    #HEX_tuples = map(lambda x: tuple(map(lambda y: chr(y).encode('hex'),x)), RGB_tuples)
+    #HEX_tuples = map(lambda x: "".join(x), HEX_tuples)
+    return RGB_tuples
+
+# Qt dialog css
+DIALOG = """
+QMessageBox {
+    background: #222;
+}
+QMessageBox * {
+    background: #222;
+    color: #cccdcc;
+}
+QMessageBox QPushButton {
+    width: 50px;
+    height: 20px;
+    background: #444;
+    color: #aaa;
+}
+"""
+
+# Qt splash screen css
+SPLASH = """
+* {
+    background: #000;
+    color: #05CCB8;
+}
+QProgressBar {
+    border: 1px solid #222;
+    border-radius: 0px;
+}
+QProgressBar::chunk {
+    background-color: #05CCB8;
+    width: 25px;
+}
+"""
+
+# Qt main window css
+MAIN = """
 QGroupBox {
     border: 0px;
     margin: 0px;
@@ -71,11 +124,8 @@ QTreeView {
     outline: 0;
     show-decoration-selected: 1;
 }
-TreeView::branch {
-    width: 0px;
-}
 QTreeView::item {
-    color: #aaa;
+    color: #cccdce;
     border-bottom: 1px solid #333;
     border-right-color: transparent;
     border-top-color: transparent;
@@ -102,6 +152,7 @@ QTreeView::indicator:unchecked {
     image: url("%(icons)s/eye-off.png");
 }
 QTreeView::branch {
+    width: 0px;
     background-color: #373737;
 }
 QTreeView::branch:selected {
@@ -140,12 +191,20 @@ QMenuBar::item:selected {
 }
 QMenu {
     background-color: #111;
+    border: 1px solid #454545;
+    border-top: 0px;
     margin: 1px;
 }
 QMenu::item {
     padding: 2px 25px 2px 20px;
     color: #aaa;
     border: 0px;
+}
+QMenu::item:non-exclusive {
+    text-decoration: none;
+}
+QMenu::item:exclusive {
+    font: italic;
 }
 QMenu::item:selected {
     background: #323332;
@@ -263,6 +322,14 @@ QSlider::handle:horizontal {
     margin-top: 2px;
     color: #888;
 }
+#time_slider QLineEdit {
+    border: 0px;
+    background: #373737;
+    color: #3e6;
+}
+#time_slider QLineEdit:hover {
+    background: #665537;
+}
 #time_slider #play_button {
     background: url(%(icons)s/play.png) center no-repeat;
     width: 50px;
@@ -274,19 +341,18 @@ QSlider::handle:horizontal {
     height: 15px;
 }
 QMenu QPushButton {
-    background: #373737;
-    color: #aaa;
+    background: #222;
+    color: #acadac;
     text-align: left;
     border: 0px;
     margin: 0px;
     padding: 4 6 4 20;
 }
 #edit_button {
-    background: #444;
+    background: #222;
     padding: 0px;
 }
 QMenu QPushButton:hover {
-    background: #555;
+    background: #323332;
 }
 """ % d
-
