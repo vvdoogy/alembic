@@ -1,4 +1,4 @@
-#! /usr/bin/env python2.6
+#! /usr/bin/env python
 #-******************************************************************************
 #
 # Copyright (c) 2012-2013,
@@ -36,9 +36,47 @@
 #-******************************************************************************
 
 import os
-import config
 import logging
 
+from abcview import config
+
+__doc__ = """
+AbcView is a graphical PyQt-based Alembic inspection 
+and visualization tool. It offers a number of widgets 
+to inspect and visualize Alembic data, as well as 
+assemble hierarchical scenes.
+
+What's new:
+
+- Dedicated OpenGL viewer
+- Scene bounds and framing
+- Supports "visible" property
+- Explicit layout saving
+- Camera support
+- Session management
+- Python API
+
+More information:
+http://docs.alembic.io/python/abcview.html
+"""
+
+__todo__ = """
+TODO:
+
+- better object-level selection/framing
+- better session cycle checking on load
+- more stats (poly count, mem usage)
+- support for lights and materials
+- draggable, pop-out widgets
+- support object paths in args
+- save split window layouts
+- better per-time data caching
+- socket connections
+- unit tests
+"""
+
+# logging handler, imported by most other modules
+FORMAT = '%(asctime)-15s %(message)s'
+logging.basicConfig(format=FORMAT)
 log = logging.getLogger(config.__prog__)
-log.addHandler(logging.StreamHandler())
 log.setLevel(int(os.environ.get('ABCVIEW_LOG_LEVEL', logging.WARN)))

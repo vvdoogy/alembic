@@ -45,6 +45,7 @@ from PyQt4 import uic
 class Slider(QtGui.QSlider):
     def __init__(self, parent):
         super(Slider, self).__init__(QtCore.Qt.Horizontal, parent)
+        self._parent = parent
         self.setMouseTracking(True)
         self.mouse_pos_x = 0
         self.__paint_mouse_frame = False
@@ -89,14 +90,17 @@ class Slider(QtGui.QSlider):
         self.repaint()
         super(Slider, self).leaveEvent(event)
 
+    def setValue(self, value):
+        super(Slider, self).setValue(value)
+
     def mousePressEvent(self, event):
-        self.setSliderPosition(self.value(event.pos().x()))
-        self.__paint_mouse_frame = False
+        self._parent.handle_stop()
         self.__mouse_down = True
-        super(Slider, self).mousePressEvent(event)
+        self.__paint_mouse_frame = True
 
     def mouseMoveEvent(self, event):
         if self.__mouse_down:
+            self._parent.set_value(self.value(event.pos().x()))
             self.__paint_mouse_frame = False
         else:
             self.__paint_mouse_frame = True
@@ -105,8 +109,9 @@ class Slider(QtGui.QSlider):
         super(Slider, self).mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
+        self.setSliderPosition(self.value(event.pos().x()))
         self.__mouse_down = False
-        self.__paint_mouse_frame = True
+        self.__paint_mouse_frame = False
         super(Slider, self).mouseReleaseEvent(event)
 
     def paintEvent(self, event):
@@ -122,16 +127,6 @@ class Slider(QtGui.QSlider):
         rect_s.setY(2)
         sr = rect_s.getRect()
 
-        # start position
-        if 0:
-            self.draw_text(rect_s, qp, self.minimum())
-        
-        # end position
-        if 0:
-            rect_e = QtCore.QRect(sr[0], sr[1], sr[2], sr[3])
-            rect_e.setX(self.width() - 25)
-            self.draw_text(rect_e, qp, self.maximum())
-        
         opt = QtGui.QStyleOptionSlider()
         self.initStyleOption(opt)
         style = self.style()
@@ -155,13 +150,22 @@ class Slider(QtGui.QSlider):
 
         qp.end()
 
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Space:
+            self._parent.keyPressEvent(event)
+        else:
+            super(Slider, self).keyPressEvent(event)
+
 class TimeSlider(QtGui.QGroupBox):
     signal_play_fwd = QtCore.pyqtSignal()
     signal_play_stop = QtCore.pyqtSignal()
     signal_frame_changed = QtCore.pyqtSignal(int)
+    signal_first_frame_changed = QtCore.pyqtSignal(int)
+    signal_last_frame_changed = QtCore.pyqtSignal(int)
 
     def __init__(self, parent):
         super(TimeSlider, self).__init__(parent)
+        self._parent = parent
         self.setObjectName("time_slider")
         self.setLayout(QtGui.QHBoxLayout())
         self.setFixedHeight(20)
@@ -173,11 +177,13 @@ class TimeSlider(QtGui.QGroupBox):
         self.slider.setFixedHeight(20)
         self.slider.valueChanged.connect(self.handle_frame_change)
 
-        # buttons
+        # play button
         self.play_button = QtGui.QPushButton(self)
         self.play_button.setObjectName("play_button")
         self.play_button.setFixedSize(50, 20)
         self.play_button.clicked.connect(self.handle_play)
+        
+        # stop button
         self.stop_button = QtGui.QPushButton(self)
         self.stop_button.setObjectName("stop_button")
         self.stop_button.setFixedSize(50, 20)
@@ -185,12 +191,20 @@ class TimeSlider(QtGui.QGroupBox):
         self.stop_button.hide()
 
         # labels
-        self.first_frame_label = QtGui.QLabel()
+        validator = QtGui.QIntValidator(self)
+        self.first_frame_label = QtGui.QLineEdit()
         self.first_frame_label.setFixedSize(40, 20)
+        self.first_frame_label.setMaxLength(4)
+        self.first_frame_label.setValidator(validator)
         self.first_frame_label.setAlignment(QtCore.Qt.AlignHCenter)
-        self.last_frame_label = QtGui.QLabel()
+        self.last_frame_label = QtGui.QLineEdit()
         self.last_frame_label.setFixedSize(40, 20)
+        self.last_frame_label.setMaxLength(4)
+        self.last_frame_label.setValidator(validator)
         self.last_frame_label.setAlignment(QtCore.Qt.AlignHCenter)
+
+        self.first_frame_label.editingFinished.connect(self.handle_first_frame_changed)
+        self.last_frame_label.editingFinished.connect(self.handle_last_frame_changed)
 
         self.layout().addWidget(self.first_frame_label)
         self.layout().addWidget(self.slider)
@@ -201,11 +215,25 @@ class TimeSlider(QtGui.QGroupBox):
         self.set_minimum(0)
         self.set_maximum(0)
 
+        self.setFocusPolicy(QtCore.Qt.ClickFocus)
+
+    def leaveEvent(self, event):
+        self._parent.setFocus()
+        super(TimeSlider, self).leaveEvent(event)
+
     def set_minimum(self, value):
+        """
+        Sets the minimum frame value.
+        """
+        self.__minimum = value
         self.slider.setMinimum(value)
         self.first_frame_label.setText(str(int(value)))
 
     def set_maximum(self, value):
+        """
+        Sets the maximum frame value.
+        """
+        self.__maximum = value
         self.slider.setMaximum(value)
         self.last_frame_label.setText(str(int(value)))
 
@@ -216,22 +244,53 @@ class TimeSlider(QtGui.QGroupBox):
         return self.slider.value()
 
     def set_value(self, value):
+        if value > self.__maximum:
+            self.set_maximum(value)
+        elif value < self.__minimum:
+            self.set_minimum(value)
         self.slider.setValue(value)
+
+    def _get_playing(self):
+        return self.play_button.isHidden()
+
+    def _set_playing(self, play):
+        if play:
+            self.play_button.hide()
+            self.stop_button.show()
+        else:
+            self.stop_button.hide()
+            self.play_button.show()
+
+    playing = property(_get_playing, _set_playing)
 
     def handle_frame_change(self, value):
         self.signal_frame_changed.emit(value)
 
+    def handle_first_frame_changed(self):
+        value, ok = self.first_frame_label.text().toInt()
+        if value <= self.__maximum:
+            self.set_minimum(value)
+            self.signal_first_frame_changed.emit(int(value))
+        else:
+            self.set_minimum(self.__maximum)
+
+    def handle_last_frame_changed(self):
+        value, ok = self.last_frame_label.text().toInt()
+        if value >= self.__minimum:
+            self.set_maximum(int(value))
+            self.signal_last_frame_changed.emit(int(value))
+        else:
+            self.set_maximum(self.__minimum)
+
     def handle_stop(self):
+        self.playing = False
         self.signal_play_stop.emit()
-        self.play_button.show()
-        self.stop_button.hide()
 
     def handle_play(self):
         if self.length() == 0:
             return
+        self.playing = True
         self.signal_play_fwd.emit()
-        self.play_button.hide()
-        self.stop_button.show()
 
     ## base class overrides
 
@@ -244,4 +303,3 @@ class TimeSlider(QtGui.QGroupBox):
             return
         event.accept()
         super(TimeSlider, self).keyPressEvent(event)
-

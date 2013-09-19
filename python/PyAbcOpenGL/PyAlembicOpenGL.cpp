@@ -43,11 +43,16 @@ using namespace boost::python;
 void register_opengl()
 {
 
-    // setMaterials
+    // some functions
     //
     def("setMaterials", 
         &AbcOpenGL::setMaterials,
         ( arg( "o" ) = 1.0, arg( "negMatrix" ) = false ) )
+    ;
+
+    def("drawBounds", 
+        &AbcOpenGL::drawBoundingBox,
+        ( arg( "bounds" ), arg( "mode" ) = 1 ) )
     ;
 
     // GLCamera overloads
@@ -134,9 +139,15 @@ void register_opengl()
         .def( init<const std::string, bool> (
               ( arg( "fileName" ), arg( "verbose" ) = false ),
               "doc"))
+        .def( "selection",
+              &AbcOpenGL::SceneWrapper::selection,
+              ( arg( "x" ), arg( "y" ), arg( "camera" ) ) )
         .def( "draw",
               &AbcOpenGL::SceneWrapper::draw,
-              ( arg( "visibleOnly" ) = false ) )
+              ( arg( "visibleOnly" ) = false , arg( "boundsOnly" ) = false ) )
+        .def( "drawBounds",
+              &AbcOpenGL::SceneWrapper::drawBounds,
+              ( arg( "mode" ) ) )
         .def( "getMinTime",
               &AbcOpenGL::SceneWrapper::getMinTime )
         .def( "getMaxTime",

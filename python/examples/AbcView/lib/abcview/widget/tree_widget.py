@@ -45,7 +45,7 @@ from PyQt4 import uic
 
 import imath
 import alembic
-from abcview.io import Scene, Session
+from abcview.io import Scene, Session, Mode
 from abcview.gl import GLScene
 from abcview.utils import find_objects, get_schema_info
 from abcview import config, log
@@ -88,6 +88,18 @@ class ArrayThread(QtCore.QThread):
         except TypeError, e:
             self.emit(QtCore.SIGNAL('arrayValue (PyQt_PyObject)'), (0, str(self.array)))
 
+class SceneLineEditor(QtGui.QLineEdit):
+    """
+    Top-level delegate for SceneTreeWidgetItems, used on the name column to 
+    facilitate scene renaming.
+    """
+    def __init__(self, parent, name):
+        super(SceneLineEditor, self).__init__()
+        self._parent = parent
+        self.setObjectName("SceneLineEditor")
+        self.setText(name)
+        self.setFocusPolicy(QtCore.Qt.ClickFocus)
+
 ## alembic tree items ---------------------------------------------------------
 class AbcTreeWidgetItem(QtGui.QTreeWidgetItem):
     """
@@ -95,10 +107,11 @@ class AbcTreeWidgetItem(QtGui.QTreeWidgetItem):
     """
     def __init__(self, parent, object=None):
         super(QtGui.QTreeWidgetItem, self).__init__(parent)
+        self._parent = parent
         self.seen = False
         self.valid = True
         self.object = object
-
+    
     def __repr__(self):
         return '<%s "%s">' % (self.__class__.__name__, self.object)
 
@@ -127,6 +140,23 @@ class AbcTreeWidgetItem(QtGui.QTreeWidgetItem):
             parent = parent.parent()
         return parent
 
+    def scene(self):
+        parent = self
+        while parent:
+            if type(parent) == SceneTreeWidgetItem:
+                return parent
+            parent = parent.parent()
+
+    def set_bad(self, bad):
+        """
+        Set this tree widget item as being "bad" for some reason, e.g. an 
+        undrawable scene, with a visual indicator.
+        """
+        log.debug("[%s.set_bad] %s" % (self, bad))
+
+    def keyPressEvent(self, event):
+        self._parent.keyPressEvent(event)
+
 class ObjectTreeWidgetItem(AbcTreeWidgetItem):
     def __init__(self, parent, object=None):
         """
@@ -137,6 +167,7 @@ class ObjectTreeWidgetItem(AbcTreeWidgetItem):
         super(ObjectTreeWidgetItem, self).__init__(parent, object)
         self.setChildIndicatorPolicy(QtGui.QTreeWidgetItem.DontShowIndicator)
         self.setIcon(0, QtGui.QIcon("%s/object.png" % config.ICON_DIR))
+
         self.object = object
         if object:
             if self.object.getNumChildren() > 0:
@@ -146,14 +177,11 @@ class ObjectTreeWidgetItem(AbcTreeWidgetItem):
             self.setToolTip(self.treeWidget().colnum('name'), 
                     QtCore.QString(object.getFullName()))
 
-    def scene(self):
-        parent = self.parent()
-        while parent:
-            if type(parent) == SceneTreeWidgetItem:
-                return parent
-            parent = parent.parent()
-
     def children(self):
+        """
+        Generator that yields ObjectTreeWidgetItem objects.
+        """
+        self.treeWidget().setCursor(QtCore.Qt.WaitCursor)
         for child in self.object.children:
             if self.seen:
                 continue
@@ -162,6 +190,7 @@ class ObjectTreeWidgetItem(AbcTreeWidgetItem):
                 yield CameraTreeWidgetItem(self, child)
             else:
                 yield ObjectTreeWidgetItem(self, child)
+        self.treeWidget().setCursor(QtCore.Qt.ArrowCursor)
 
     def properties(self):
         props = self.object.getProperties()
@@ -170,6 +199,9 @@ class ObjectTreeWidgetItem(AbcTreeWidgetItem):
 
     def bounds(self, sample_index=0):
         return self.object.getProperties().getProperty(".geom").getProperty(".selfBnds").getValue(sample_index)
+
+    def keyPressEvent(self, event):
+        self.treeWidget().keyPressEvent(event)
 
 class CameraTreeWidgetItem(ObjectTreeWidgetItem):
     def __init__(self, parent, object):
@@ -284,7 +316,7 @@ class SessionTreeWidgetItem(AbcTreeWidgetItem):
         """
         super(SessionTreeWidgetItem, self).__init__(parent, object)
         self.setChildIndicatorPolicy(QtGui.QTreeWidgetItem.ShowIndicator)
-        self.setExpanded(False)
+        self.setExpanded(True)
         self.setText(self.treeWidget().colnum('name'), 
                 str(self.object.name))
         self.setToolTip(self.treeWidget().colnum('name'), 
@@ -326,6 +358,28 @@ class SceneTreeWidgetItem(SessionTreeWidgetItem):
         """
         super(SceneTreeWidgetItem, self).__init__(parent, object)
         self.setToolTip(self.treeWidget().colnum(''), 'visible')
+        self.setExpanded(False)
+
+        # color indicator delegate
+        self.g = QtGui.QGroupBox()
+        self.treeWidget().setItemWidget(self, 
+                self.treeWidget().colnum('color'), self.g)
+        self.set_color(QtGui.QColor(*[x*500.0 for x in self.object.color]))
+
+    def set_color(self, color):
+        """
+        Sets the color indicator delegate in the tree widget item.
+
+        :param color: QColor object
+        """
+        # normalize color values
+        self.object.color = (color.red() / 500.0, 
+                   color.green() / 500.0, 
+                   color.blue() / 500.0)
+
+        # update delegate widget stylesheet
+        self.g.setStyleSheet("background: rgb(%.2f, %.2f, %.2f);" 
+                % (color.red(), color.green(), color.blue()))
 
     def children(self):
         yield ObjectTreeWidgetItem(self, self.object.archive.getTop())
@@ -360,6 +414,9 @@ class AbcTreeWidget(DeselectableTreeWidget):
         super(QtGui.QTreeWidget, self).__init__(parent)
         self.main = main
         self.__row_height = 24
+
+        # reserved for editable item
+        self._item = None
 
         # set some default QtTreeWidget values
         self.setIconSize(QtCore.QSize(20, 20))
@@ -411,32 +468,65 @@ class AbcTreeWidget(DeselectableTreeWidget):
         pass
 
     def handle_item_selected(self):
+        """
+        Item selected handler (select can happen with click or arrow keys).
+        """
         items = self.selectedItems()
         if not items:
             return
         self.handle_item_clicked(items[0])
 
     def handle_item_clicked(self, item, col=0):
+        """
+        Item click handler.
+        """
         self.scrollToItem(item, QtGui.QAbstractItemView.EnsureVisible)
         self.emit(QtCore.SIGNAL('itemClicked (PyQt_PyObject)'), 
                     item)
-        
-        if col == self.colnum(""):
+        if col == self.colnum("") and type(item) == SceneTreeWidgetItem:
             if item.checkState(self.colnum("")) == QtCore.Qt.Checked:
                 item.load()
             else:
                 item.unload()
 
     def handle_item_double_clicked(self, item):
+        """
+        Item double-click handler.
+        """
+        if type(item) != SceneTreeWidgetItem:
+            return
+        self._item = item
+        editor = SceneLineEditor(item, item.object.name)
+        #validator = QtGui.QValidator(QtCore.QRegExp(""))
+        #editor.setValidator(validator)
+        self.setItemWidget(item, self.colnum('name'), editor)
         self.emit(QtCore.SIGNAL('itemDoubleClicked (PyQt_PyObject)'), 
                 item)
+        editor.textEdited.connect(self.handle_name_change)
+        editor.editingFinished.connect(self.handle_done_editing)
+
+    def handle_name_change(self, value):
+        """
+        Handles text change for item delegate line edits.
+        """
+        name = str(value.toAscii())
+        if self._item and name:
+            self._item.object.name = name
+            self._item.setText(self.colnum('name'), name)
+
+    def handle_done_editing(self):
+        """
+        Line edit delegate done editing handler.
+        """
+        if self._item:
+            self.removeItemWidget(self._item, self.colnum('name'))
 
     def handle_item_expanded(self, item):
         raise NotImplementedError("implement in subclass")
 
     def selected(self):
         """
-        returns selected item's object
+        Returns selected item's object
         """
         selected = [item for item in self.selectedItems()]
         if not selected:
@@ -486,7 +576,7 @@ class AbcTreeWidget(DeselectableTreeWidget):
             self.setItemSelected(item, True)
 
 class ObjectTreeWidget(AbcTreeWidget):
-    DEFAULT_COLUMN_NAMES = ['name', '', 'hidden', ]
+    DEFAULT_COLUMN_NAMES = ['name', '', 'color', 'hidden', ]
     DEFAULT_COLUMNS = dict(enumerate(DEFAULT_COLUMN_NAMES))
     DEFAULT_COLUMNS.update(dict(zip(DEFAULT_COLUMN_NAMES, range(len(DEFAULT_COLUMN_NAMES)))))
     COLUMNS = copy.copy(DEFAULT_COLUMNS)
@@ -496,6 +586,7 @@ class ObjectTreeWidget(AbcTreeWidget):
     
     def __init__(self, parent, main):
         super(ObjectTreeWidget, self).__init__(parent, main)
+        self.setAutoFillBackground(False)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
 
     def setup_header(self):
@@ -505,6 +596,8 @@ class ObjectTreeWidget(AbcTreeWidget):
         self.header().resizeSection(self.colnum('name'), 150)
         self.header().setResizeMode(self.colnum(''), QtGui.QHeaderView.Fixed)
         self.header().resizeSection(self.colnum(''), 25)
+        self.header().setResizeMode(self.colnum('color'), QtGui.QHeaderView.Fixed)
+        self.header().resizeSection(self.colnum('color'), 3)
         self.header().setResizeMode(self.colnum('hidden'), QtGui.QHeaderView.Fixed)
         self.header().resizeSection(self.colnum('hidden'), 5)
         self.header().setSectionHidden(self.colnum('hidden'), True)
@@ -528,6 +621,35 @@ class ObjectTreeWidget(AbcTreeWidget):
             else:
                 log.warn("can not remove item")
 
+    def handle_set_color(self, ok):
+        """
+        Set item color menu handler
+
+        :param item: SceneTreeWidgetItem
+        """
+        item = self.selectedItems()[0]
+        dialog = QtGui.QColorDialog(QtGui.QColor(*item.object.color), self)
+        rgba, ok = dialog.getRgba()
+        if ok and type(item) == SceneTreeWidgetItem:
+            item.set_color(QtGui.QColor(rgba))
+
+    def handle_set_mode(self, mode):
+        """
+        Set item shading mode menu handler
+
+        :param mode: abcview.io.Mode enum value
+        """
+        if self.sender(): # via menu action 
+            mode = self.sender().data().toInt()[0]
+        
+        self.setCursor(QtCore.Qt.WaitCursor) 
+        item = self.selectedItems()[0]
+        item.object.mode = mode
+        self.setCursor(QtCore.Qt.ArrowCursor)
+
+    def handle_duplicate_item(self):
+        raise NotImplementedError
+
     def view_camera(self):
         """
         view through selected camera
@@ -546,20 +668,100 @@ class ObjectTreeWidget(AbcTreeWidget):
             self.connect(self.add_action, QtCore.SIGNAL("triggered (bool)"), 
                     self.add_item)
             menu.addAction(self.add_action)
+
         elif type(items[0]) == SceneTreeWidgetItem:
-            if items[0].object.loaded:
+            item = items[0]
+
+            # color picker
+            self.color_action = QtGui.QAction("Color", self)
+            self.connect(self.color_action, QtCore.SIGNAL("triggered (bool)"), 
+                        self.handle_set_color)
+            menu.addAction(self.color_action)
+
+            # shading toggle menu item
+            self.shading_menu = QtGui.QMenu("Shading", self)
+            shading_group = QtGui.QActionGroup(self.shading_menu)
+
+            self.clearAct = QtGui.QAction("Clear", self)
+            self.clearAct.setCheckable(True)
+            self.clearAct.setActionGroup(shading_group)
+            self.clearAct.setData(-1)
+            self.clearAct.setChecked(item.object.mode == -1)
+            self.clearAct.toggled.connect(self.handle_set_mode)
+            self.shading_menu.addAction(self.clearAct)
+            self.shading_menu.addSeparator()
+
+            self.offAct = QtGui.QAction("Off", self)
+            #self.offAct.setShortcut("0")
+            self.offAct.setCheckable(True)
+            self.offAct.setActionGroup(shading_group)
+            self.offAct.setData(Mode.OFF)
+            self.offAct.setChecked(item.object.mode == Mode.OFF)
+            self.offAct.toggled.connect(self.handle_set_mode)
+            self.shading_menu.addAction(self.offAct)
+
+            self.fillAct = QtGui.QAction("Fill", self)
+            #self.fillAct.setShortcut("1")
+            self.fillAct.setCheckable(True)
+            self.fillAct.setActionGroup(shading_group)
+            self.fillAct.setData(Mode.FILL)
+            self.fillAct.setChecked(item.object.mode == Mode.FILL)
+            self.fillAct.toggled.connect(self.handle_set_mode)
+            self.shading_menu.addAction(self.fillAct)
+            
+            self.lineAct = QtGui.QAction("Line", self)
+            #self.lineAct.setShortcut("2")
+            self.lineAct.setCheckable(True)
+            self.lineAct.setActionGroup(shading_group)
+            self.lineAct.setData(Mode.LINE)
+            self.lineAct.setChecked(item.object.mode == Mode.LINE)
+            self.lineAct.toggled.connect(self.handle_set_mode)
+            self.shading_menu.addAction(self.lineAct)
+
+            self.pointAct = QtGui.QAction("Point ", self)
+            #self.pointAct.setShortcut("3")
+            self.pointAct.setCheckable(True)
+            self.pointAct.setActionGroup(shading_group)
+            self.pointAct.setData(Mode.POINT)
+            self.pointAct.setChecked(item.object.mode == Mode.POINT)
+            self.pointAct.toggled.connect(self.handle_set_mode)
+            self.shading_menu.addAction(self.pointAct)
+           
+            self.bboxAct = QtGui.QAction("Bounds ", self)
+            #self.bboxAct.setShortcut("4")
+            self.bboxAct.setCheckable(True)
+            self.bboxAct.setActionGroup(shading_group)
+            self.bboxAct.setData(Mode.BOUNDS)
+            self.bboxAct.setChecked(item.object.mode == Mode.BOUNDS)
+            self.bboxAct.toggled.connect(self.handle_set_mode)
+            self.shading_menu.addAction(self.bboxAct)
+
+            menu.addMenu(self.shading_menu)
+            menu.addSeparator()
+
+            # hide/show
+            if item.object.loaded:
                 self.load_action = QtGui.QAction("Hide", self)
                 self.connect(self.load_action, QtCore.SIGNAL("triggered (bool)"), 
-                        items[0].unload)
+                        item.unload)
             else:
                 self.load_action = QtGui.QAction("Show", self)
                 self.connect(self.load_action, QtCore.SIGNAL("triggered (bool)"), 
-                        items[0].load)
+                        item.load)
             menu.addAction(self.load_action)
+
+            # duplicate scene
+            #self.duplicate_action = QtGui.QAction("Duplicate", self)
+            #self.connect(self.duplicate_action, QtCore.SIGNAL("triggered (bool)"), 
+            #            self.handle_duplicate_item)
+            #menu.addAction(self.duplicate_action)
+
+            # remove scene
             self.remove_action = QtGui.QAction("Remove", self)
             self.connect(self.remove_action, QtCore.SIGNAL("triggered (bool)"), 
                         self.remove_item)
             menu.addAction(self.remove_action)
+
         else:
             item = items[0]
             if type(item) == CameraTreeWidgetItem:

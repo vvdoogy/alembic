@@ -1,4 +1,4 @@
-#! /usr/bin/env python2.6
+#! /usr/bin/env python
 #-******************************************************************************
 #
 # Copyright (c) 2012-2013,
@@ -38,16 +38,32 @@
 import os
 import sys
 import time
-import simplejson as json
 
 import imath
 import alembic
 from abcview import config, log
 from abcview.utils import get_object
+from abcview.utils import json
 
 __doc__ = """
-AbcView module that contains IO classes for creating and reading
-sessions, scenes and cameras.
+The IO module handles serialization and deserialization of the assembled 
+scenes and sessions. The hierarchy structure basically consists of a 
+top-level Session object that contains children items which can be either
+Scenes, Sessions, Cameras or ICAmeras. Each item in the hierarchy has
+a properties attribute for storing custom attributes. Only Scenes and ICameras
+reference Alembic archives. 
+
+Session hierarchy: ::
+
+   Session
+       |- Properties
+       |- Cameras
+       `- Items
+             `- Scene
+                  |- Properties
+                  `- file.abc
+
+Sessions can also reference other session files.
 """
 
 __all__ = ["Scene", "Session", "Camera", "ICamera",
@@ -62,6 +78,12 @@ class Mode:
 
 class AbcViewError(Exception):
     pass
+
+def DictListUpdate( lis1, lis2):
+    for aLis1 in lis1:
+        if aLis1 not in lis2:
+            lis2.append(aLis1)
+    return lis2
 
 class Base(object):
     def __init__(self):
@@ -92,11 +114,12 @@ class Base(object):
         raise NotImplementedError("must be implemented in a subclass")
 
 class FileBase(Base):
+    SERIALIZE = []
     EXT = None
     def __init__(self, filepath, parent=None):
         super(FileBase, self).__init__()
         self.__filepath = filepath
-        self.__name = None
+        self.__name = "Unnamed"
         self.parent = parent
 
     def is_archive(self):
@@ -149,10 +172,10 @@ class Scene(FileBase):
     EXT = "abc"
     def __init__(self, filepath=None):
         super(Scene, self).__init__(filepath)
-        self.filepath = filepath
+        self.filepath = os.path.abspath(filepath)
        
     def __repr__(self):
-        return "<%s \"%s\" #%d>" % (self.type(), self.name, self.instance)
+        return "<%s \"%s\">" % (self.type(), self.name)
 
     ## some convenience properties
 
@@ -181,7 +204,7 @@ class Scene(FileBase):
     scale = property(_get_scale, _set_scale, doc="scale property")
 
     def _get_mode(self):
-        return self.properties.get("mode", Mode.LINE)
+        return self.properties.get("mode", -1)
 
     def _set_mode(self, value):
         self.properties["mode"] = value
@@ -189,7 +212,7 @@ class Scene(FileBase):
     mode = property(_get_mode, _set_mode, doc="GL polygon mode property")
 
     def _get_color(self):
-        return self.properties.get("color", (1, 0, 0))
+        return self.properties.get("color", (0.5, 0.5, 0.5))
 
     def _set_color(self, value):
         self.properties["color"] = value
@@ -203,7 +226,6 @@ class Scene(FileBase):
             "loaded": self.loaded,
             "name": self.name,
             "properties": self.properties,
-            #"type": self.type(),
         }
 
     @classmethod
@@ -212,6 +234,7 @@ class Scene(FileBase):
         Deserializes an Alembic scene from json data.
         """
         item = cls(data.get("filepath"))
+        item.name = data.get("name", "Unnamed")
         item.loaded = data.get("loaded", True)
         item.instance = data.get("instance", 1)
         item.properties = data.get("properties", {})
@@ -228,12 +251,16 @@ class CameraBase(Base):
         self.__auto_frame = False
         self.__draw_bounds = False
         self.__draw_hud = False
+        self.__draw_labels = False
         self.__draw_grid = True
         self.__draw_normals = False
         self.__draw_mode = Mode.LINE
 
         # fixed aspect ratio toggle
         self.__fixed = False
+        
+        # draw visible objects only
+        self.__visible = True
 
     def _get_name(self):
         return self.__name
@@ -276,6 +303,17 @@ class CameraBase(Base):
 
     draw_bounds = property(_get_draw_bounds, _set_draw_bounds, doc="draw bounding boxes")
 
+    def _get_draw_labels(self):
+        return self.__draw_labels
+    
+    def _set_draw_labels(self, force=None):
+        if force is not None:
+            self.__draw_labels = force
+        else:
+            self.__draw_labels = not self.__draw_labels
+
+    draw_labels = property(_get_draw_labels, _set_draw_labels, doc="draw scene labels")
+
     def _get_draw_hud(self):
         return self.__draw_hud
     
@@ -317,6 +355,17 @@ class CameraBase(Base):
 
     fixed = property(_get_fixed, _set_fixed, doc="draw fixed aspect ratio")
 
+    def _get_visible(self):
+        return self.__visible
+    
+    def _set_visible(self, force=None):
+        if force is not None:
+            self.__visible = force
+        else:
+            self.__visible = not self.__visible
+
+    visible = property(_get_visible, _set_visible, doc="draw visible objects only")
+
 class Camera(CameraBase):
     """
     AbcView API Camera object. Camera attributes are not
@@ -324,11 +373,10 @@ class Camera(CameraBase):
 
     Acting de/serialization layer for GLCamera objects.
     """
-
-    # list of camera properties to de/serialize
     SERIALIZE = ["translation", "rotation", "scale", "aspect_ratio",
                  "fovx", "fovy", "near", "far", "center", "fixed", "mode",
-                 "draw_hud", "draw_grid", "draw_normals", "draw_bounds"]
+                 "draw_hud", "draw_grid", "draw_normals", "draw_bounds",
+                 "draw_labels", "name", "loaded", "visible"]
 
     def __init__(self, name, loaded=False):
         """
@@ -343,16 +391,14 @@ class Camera(CameraBase):
 
     def serialize(self):
         d = {
-            "name": self.name,
-            "loaded": self.loaded,
             "type": self.type(),
         }
         for attr in self.SERIALIZE:
             val = getattr(self, attr, None)
             if val is not None:
-                try:
+                if attr in ["translation", "rotation", "scale"]:
                     d[attr] = [val[0], val[1], val[2]]
-                except TypeError:
+                else:
                     d[attr] = val
         return d
 
@@ -390,6 +436,9 @@ class ICamera(CameraBase):
         # save session
         >>> session.save("scene.io")
     """
+    SERIALIZE = ["fixed", "mode", "draw_hud", "draw_grid", "draw_normals", 
+                 "draw_labels", "name", "loaded", "draw_bounds", "visible"]
+
     def __init__(self, icamera, loaded=False):
         """
         :param icamera: Alembic ICamera object
@@ -397,7 +446,7 @@ class ICamera(CameraBase):
         self.icamera = icamera
         self.loaded = loaded
         self.__schema = None
-        super(ICamera, self).__init__(self.name)
+        super(ICamera, self).__init__(self._get_name)
 
     def __repr__(self):
         return "<%s \"%s\">" % (self.__class__.__name__, self.name)
@@ -484,21 +533,28 @@ class ICamera(CameraBase):
         return win["left"], win["bottom"], win["left"], win["right"]
 
     def serialize(self):
-        return {
+        d = {
             "filepath": self.icamera.getArchive().getName(), 
             "fullname": self.icamera.getFullName(),
-            "loaded": self.loaded,
             "type": self.type(),
         }
+        for attr in self.SERIALIZE:
+            val = getattr(self, attr, None)
+            if val is not None:
+                d[attr] = val
+        return d
 
     @classmethod
     def deserialize(cls, params):
-        return cls(get_object(
+        cam = cls(get_object(
                        params.get("filepath"),
                        params.get("fullname")
                    ),
                    loaded=params.get("loaded")
                )
+        for attr in cls.SERIALIZE:
+            setattr(cam, attr, params.get(attr))
+        return cam
 
 class Session(FileBase):
     """
@@ -562,6 +618,7 @@ class Session(FileBase):
 
         :param filepath: path to file
         """
+        log.debug("[%s.add_file] %s" % (self, filepath))
         if filepath.endswith(self.EXT):
             item = Session(filepath)
         elif filepath.endswith(Scene.EXT):
@@ -575,7 +632,7 @@ class Session(FileBase):
         """
         :param: GLCamera
         """
-        log.debug("Session.add_camera: %s" % camera)
+        log.debug("[%s.add_camera] %s" % (self, camera))
         if camera.name not in self.__cameras:
             self.__cameras[camera.name] = camera
 
@@ -583,7 +640,7 @@ class Session(FileBase):
         """
         :param: GLCamera
         """
-        log.debug("Session.remove_camera: %s" % camera)
+        log.debug("[%s.remove_camera] %s" % (self, camera))
         if camera.name in self.__cameras:
             del self.__cameras[camera.name]
 
@@ -593,7 +650,7 @@ class Session(FileBase):
 
         :param: GLCamera
         """
-        log.debug("Session.set_camera: %s" % camera)
+        log.debug("[%s.set_camera] %s" % (self, camera))
         if camera.name not in self.__cameras:
             self.__cameras[camera.name] = camera
         for name, cam in self.__cameras.items():
@@ -612,7 +669,6 @@ class Session(FileBase):
                     "name": item.name,
                     "loaded": item.loaded,
                     "properties": item.properties,
-                    #"type": item.type(),
                 }
             else:
                 return item.serialize()
@@ -638,11 +694,53 @@ class Session(FileBase):
         self.program = config.__prog__
         self.properties = {}
         self.date = time.time()
-        self.make_clean()
+        self.min_time = 0
+        self.max_time = 0
+        self.current_time = 0
+        self.frames_per_second = 24.0
         
         # stores objects that need special handling
         self.__cameras = {}
         self.__items = []
+        
+        self.make_clean()
+
+    def merge(self, session):
+        """
+        Merges a given session into this session. 
+
+        :param session: Session object to merge in
+        """
+        self.min_time = session.min_time
+        self.max_time = session.max_time
+        self.current_time = session.current_time
+       
+        # merge items
+        self.__items = DictListUpdate(self.items, session.items)
+
+        # merge cameras
+        self.__cameras.update(session.cameras)
+
+        # merge properties
+        self.properties.update(session.properties)
+
+    def walk(self):
+        """
+        Recursive generator that yields Session, Scene and Camera objects.
+        Adds a .session attribute to each item.
+
+        :yield: Session, Scene or Camera objects
+        """
+        for item in self.items + self.cameras:
+            if item.type() == Session.type():
+                item.session = self
+                yield item
+                for child in item.walk():
+                    child.session = item
+                    yield child
+            else:
+                item.session = self
+                yield item
 
     def load(self, filepath=None):
         """
@@ -662,6 +760,11 @@ class Session(FileBase):
         self.date = state.get("date")
         self.instance = state.get("instance", 1)
         self.properties = state.get("properties")
+        self.frames_per_second = state.get("frames_per_second", 
+                           self.frames_per_second)
+        self.min_time = state.get("min_time", self.min_time)
+        self.max_time = state.get("max_time", self.max_time)
+        self.current_time = state.get("current_time", self.current_time)
 
         # cameras
         for camera in state.get("cameras"):
@@ -690,8 +793,9 @@ class Session(FileBase):
             raise AbcViewError("File path not set")
         elif not filepath.endswith(self.EXT):
             filepath += self.EXT
+        self.filepath = filepath
         self.date = time.time()
-        log.debug("saving: %s" % filepath)
+        log.debug("[%s.save] %s" % (self, filepath))
         state = {
             "app": {
                 "program": self.program,
@@ -699,13 +803,17 @@ class Session(FileBase):
                 "module": os.path.dirname(__file__),
             },
             "env": {
-                "user": os.environ.get("USERNAME"),
-                "host": os.environ.get("HOSTNAME"),
+                "user": os.environ.get("USER", os.environ.get("USERNAME")),
+                "host": os.environ.get("HOST", os.environ.get("HOSTNAME")),
                 "platform": sys.platform,
             },
             "date": self.date,
+            "min_time": self.min_time,
+            "max_time": self.max_time,
+            "current_time": self.current_time,
+            "frames_per_second": self.frames_per_second,
             "properties": self.properties,
-            "cameras": [camera.serialize() for camera in self.__cameras.values() if camera.name != "interactive"],
+            "cameras": [camera.serialize() for camera in self.__cameras.values()],
             "data": self.serialize()
         }
         json.dump(state, open(filepath, "w"), sort_keys=True, indent=4)
