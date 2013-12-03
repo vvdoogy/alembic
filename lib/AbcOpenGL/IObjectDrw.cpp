@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2012,
+// Copyright (c) 2009-2013,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -41,9 +41,38 @@
 #include "IPointsDrw.h"
 #include "ISubDDrw.h"
 #include "INuPatchDrw.h"
+#include "Scene.h"
 
 namespace AbcOpenGL {
 namespace ABCOPENGL_VERSION_NS {
+
+//-*****************************************************************************
+int pushName( IObject &iObj )
+{
+    Abc::MetaData md = iObj.getMetaData();
+    if ( IPolyMesh::matches( md ) ||
+         IPoints::matches( md ) ||
+         ICurves::matches( md ) ||
+         INuPatch::matches( md ) ||
+         ISubD::matches( md )
+       )
+    {
+        OBJECT_MAP.push_back( iObj.getFullName() );
+        glPushName( OBJECT_MAP.size() );
+        //std::cout << OBJECT_MAP.size()
+        //          << "\t"
+        //          << iObj.getFullName()
+        //          << std::endl;
+        return OBJECT_MAP.size();
+    } else {
+        return -1;
+    }
+}
+
+void popName( IObject &iObj )
+{
+    glPopName();
+}
 
 //-*****************************************************************************
 IObjectDrw::IObjectDrw( IObject &iObj, bool iResetIfNoChildren )
@@ -166,6 +195,9 @@ void IObjectDrw::setTime( chrono_t iTime )
 {
     if ( !m_object ) { return; }
 
+    // store the current time on the drawable for easy access later
+    m_currentTime = iTime;
+
     // Object itself has no properties to worry about.
     m_bounds.makeEmpty();
     for ( DrawablePtrVec::iterator iter = m_children.begin();
@@ -191,15 +223,36 @@ void IObjectDrw::draw( const DrawContext &iCtx )
 {
     if ( !m_object ) { return; }
 
+    // Skip objects with "visible" property set to 0
+    if ( iCtx.visibleOnly() ) {
+        Abc::ICompoundProperty props = m_object.getProperties();
+        const Abc::PropertyHeader* header = props.getPropertyHeader( "visible" );
+        if ( header != NULL ) {
+            Abc::IScalarProperty visible( props, "visible" );
+            Abc::ISampleSelector iss( m_currentTime );
+            Alembic::Util::int8_t val = 1;
+            visible.get( reinterpret_cast<void*>( &val ), iss );
+            if ( val == 0 ) 
+                return;
+        }
+    }
+
+    // GL picking, add to global selection index
+    int i = 0;
     for ( DrawablePtrVec::iterator iter = m_children.begin();
-          iter != m_children.end(); ++iter )
+          iter != m_children.end(); ++iter, i++ )
     {
+        Abc::IObject iChild = m_object.getChild( i );
+        int index = pushName( iChild );
         DrawablePtr dptr = (*iter);
         if ( dptr )
         {
             dptr->draw( iCtx );
         }
+        if ( index >= 0 )
+            popName( m_object );
     }
+    
 }
 
 } // End namespace ABCOPENGL_VERSION_NS

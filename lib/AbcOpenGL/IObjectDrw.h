@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2012,
+// Copyright (c) 2009-2013,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -69,6 +69,7 @@ public:
 protected:
     IObject m_object;
 
+    chrono_t m_currentTime;
     chrono_t m_minTime;
     chrono_t m_maxTime;
 

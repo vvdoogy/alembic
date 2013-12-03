@@ -67,6 +67,7 @@
 #include <Alembic/Abc/OTypedScalarProperty.h>
 
 #include <Alembic/Abc/Reference.h>
+#include <Alembic/Abc/SourceName.h>
 
 #include <Alembic/Abc/TypedArraySample.h>
 #include <Alembic/Abc/TypedPropertyTraits.h>

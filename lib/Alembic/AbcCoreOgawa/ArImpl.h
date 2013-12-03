@@ -53,7 +53,7 @@ class ArImpl
     , public Alembic::Util::enable_shared_from_this<ArImpl>
 {
 private:
-    friend struct ReadArchive;
+    friend class ReadArchive;
 
     ArImpl( const std::string &iFileName,
             size_t iNumStreams=1 );
@@ -114,6 +114,7 @@ private:
 
     Alembic::Util::weak_ptr< AbcA::ObjectReader > m_top;
     Alembic::Util::shared_ptr < OrData > m_data;
+    Alembic::Util::mutex m_orlock;
 
     Util::int32_t m_archiveVersion;
 

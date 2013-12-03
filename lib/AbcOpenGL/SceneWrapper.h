@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2012,
+// Copyright (c) 2013,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -39,6 +39,7 @@
 
 #include <sstream>
 #include "Foundation.h"
+#include <AbcOpenGL/GLCamera.h>
 
 namespace AbcOpenGL {
 namespace ABCOPENGL_VERSION_NS {
@@ -53,7 +54,9 @@ class SceneWrapper {
 public:
     SceneWrapper( const std::string &fileName, bool verbose = false );
 
-    void draw();
+    std::string selection(int x, int y, GLCamera &camera);
+    void drawBounds( const int mode = GL_LINES );
+    void draw(bool visibleOnly = false, bool boundsOnly = false);
 
     void setTime(chrono_t newTime);
     void playForward(int fps);
