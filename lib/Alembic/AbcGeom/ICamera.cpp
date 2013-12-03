@@ -134,6 +134,15 @@ void ICameraSchema::init( const Abc::Argument &iArg0,
     ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
 
+bool ICameraSchema::isConstant() const
+{
+    return ( m_coreProperties.isConstant() &&
+        ( !m_smallFilmBackChannels.valid() ||
+          m_smallFilmBackChannels.isConstant() ) &&
+        ( !m_largeFilmBackChannels.valid() ||
+          m_largeFilmBackChannels.isConstant() ) );
+}
+
 void ICameraSchema::get( CameraSample & oSample,
     const Abc::ISampleSelector &iSS ) const
 {
@@ -164,11 +173,16 @@ void ICameraSchema::get( CameraSample & oSample,
     oSample.setNearClippingPlane(sampleData[14]);
     oSample.setFarClippingPlane(sampleData[15]);
 
-    if ( m_smallFilmBackChannels )
+    if ( m_smallFilmBackChannels &&
+         m_smallFilmBackChannels.getNumSamples() > 0 )
     {
+        AbcA::index_t sampIdx = iSS.getIndex(
+            m_coreProperties.getTimeSampling(),
+            m_smallFilmBackChannels.getNumSamples() );
+
         std::vector < double > channels (
             m_smallFilmBackChannels.getDataType().getExtent() );
-        m_smallFilmBackChannels.get( &channels.front(), iSS );
+        m_smallFilmBackChannels.get( &channels.front(), sampIdx );
 
         std::size_t numOps = m_ops.size();
         std::size_t curChan = 0;
@@ -183,10 +197,15 @@ void ICameraSchema::get( CameraSample & oSample,
             }
         }
     }
-    else if ( m_largeFilmBackChannels )
+    else if ( m_largeFilmBackChannels &&
+              m_largeFilmBackChannels.getNumSamples() > 0 )
     {
+        AbcA::index_t sampIdx = iSS.getIndex(
+            m_coreProperties.getTimeSampling(),
+            m_largeFilmBackChannels.getNumSamples() );
+
         Abc::DoubleArraySamplePtr chanSamp;
-        m_largeFilmBackChannels.get( chanSamp, iSS );
+        m_largeFilmBackChannels.get( chanSamp, sampIdx );
 
         std::size_t numOps = m_ops.size();
         std::size_t curChan = 0;

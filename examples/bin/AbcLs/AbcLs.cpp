@@ -48,6 +48,17 @@
 #include <sstream>
 #include <sys/stat.h>
 
+#ifdef _MSC_VER
+#include <locale>         // std::locale, std::isdigit
+// set up _S_ISDIR()
+#if !defined(S_ISDIR)
+#  if defined( _S_IFDIR) && !defined( __S_IFDIR)
+#    define __S_IFDIR _S_IFDIR
+#  endif
+#  define S_ISDIR(mode)    (mode&__S_IFDIR)
+#endif
+#endif // _MSC_VER
+
 namespace Abc  = ::Alembic::Abc;
 namespace AbcA = ::Alembic::AbcCoreAbstract;
 namespace AbcF = ::Alembic::AbcCoreFactory;
@@ -66,16 +77,68 @@ using AbcA::index_t;
 #define COL_2 15
 
 //-*****************************************************************************
-#define CASE_PRINT_VALUE( TPTraits, VALUE_TYPE, PROP, PARENT, HEADER, SELECTOR ) \
-case TPTraits::pod_enum:                                         \
-    return printSampleValue<VALUE_TYPE, PROP>( PARENT, HEADER, SELECTOR );
+// overload to print as a number instead of a character
+std::ostream & operator<<(std::ostream & os, Alembic::Util::uint8_t val)
+{
+    return os << static_cast<int>(val);
+}
 
 //-*****************************************************************************
-bool is_digit(const std::string& s)
+// overload to print as a number instead of a character
+std::ostream & operator<<(std::ostream & os, Alembic::Util::int8_t val)
 {
+    return os << static_cast<int>(val);
+}
+
+//-*****************************************************************************
+bool is_digit( const std::string& s )
+{
+    std::locale loc;
     std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it)) ++it;
+    while (it != s.end() && std::isdigit(*it,loc)) ++it;
     return !s.empty() && it == s.end();
+}
+
+//-*****************************************************************************
+void  printTimeSampling( AbcA::TimeSamplingPtr iTime, index_t iMaxSample,
+                         double fps )
+{
+    AbcA::TimeSamplingType timeType = iTime->getTimeSamplingType();
+    if ( timeType.isUniform() ) {
+        std::cout  << "Uniform Sampling. Start time: " <<
+            iTime->getStoredTimes()[0] * fps << " Time per cycle: " <<
+            timeType.getTimePerCycle() * fps << std::endl;
+    }
+    else if ( timeType.isCyclic() ) {
+        std::cout << "Cyclic Sampling. Time per cycle:" <<
+            timeType.getTimePerCycle() * fps << std::endl;
+
+        const std::vector < double > & storedTimes = iTime->getStoredTimes();
+        std::size_t numTimes = iTime->getNumStoredTimes();
+        std::cout << "Start cycle times: ";
+        for (std::size_t i = 0; i < numTimes; ++i ) {
+            if (i != 0) {
+                std::cout << ", ";
+            }
+            std::cout << storedTimes[i] * fps;
+        }
+        std:: cout << std::endl;
+    }
+    else {
+        std::cout << "Acyclic Sampling." << std::endl;
+        const std::vector < double > & storedTimes = iTime->getStoredTimes();
+        std::size_t numTimes = iTime->getNumStoredTimes();
+
+        for (std::size_t i = 0; i < numTimes; ++i ) {
+            if (i != 0) {
+                std::cout << ", ";
+            }
+            std::cout << storedTimes[i] * fps;
+        }
+        std:: cout << std::endl;
+    }
+
+    std::cout << "Max Num Samples: " << iMaxSample << std::endl;
 }
 
 //-*****************************************************************************
@@ -149,36 +212,115 @@ void getMetaData( Abc::ICompoundProperty iParent, Abc::PropertyHeader header,
 }
 
 //-*****************************************************************************
-template<class TYPE, class PROPERTY>
-void printSampleValue( Abc::ICompoundProperty iParent, Abc::PropertyHeader header,
-                       const Abc::ISampleSelector &iSS )
+template<class TPTraits>
+void getScalarValue( Abc::IScalarProperty &p,
+                           const Abc::ISampleSelector &iSS )
 {
-    Abc::DataType dType = header.getDataType();
+    typedef typename TPTraits::value_type U;
+    std::size_t extent = p.getDataType().getExtent();
+    std::vector< U > val( extent );
+    p.get( reinterpret_cast<void*>( &val.front() ), iSS );
 
-    if ( header.isArray() ) {
-        Abc::IArrayProperty iProp( iParent, header.getName() );
-        Abc::ArraySamplePtr ptr;
-        iProp.get( ptr, iSS );
-        size_t numPoints = ptr->getDimensions().numPoints();
-        TYPE *vals = (TYPE*)(ptr->getData());
-        for ( size_t i=0; i<numPoints; ++i ) {
-            std::cout << vals[i];
-            if ( i > 0 && i % dType.getExtent() == 0 )
-                std::cout << std::endl;
-            else
-                std::cout << ", ";
+    std::string interp = p.getHeader().getMetaData().get("interpretation");
+    bool needsClose = false;
+    std::size_t subExtent = 0;
+    if (interp == "box")
+    {
+        std::cout << "Box(";
+        needsClose = true;
+        if (extent == 6)
+        {
+            subExtent = 3;
         }
-        std::cout << std::endl << std::endl;
-
-    } else {
-        PROPERTY iProp( iParent, header.getName() );
-        std::cout << iProp.getValue( iSS ) << std::endl;
+        else if (extent == 4)
+        {
+            subExtent = 2;
+        }
     }
+    else if (interp == "rgb" || interp == "rbga")
+    {
+        std::cout << "Color(";
+        needsClose = true;
+    }
+    else if (interp == "matrix" && extent == 9)
+    {
+        std::cout << "M33(";
+        needsClose =true;
+        subExtent = 3;
+    }
+    else if (interp == "matrix" && extent == 16)
+    {
+        std::cout << "M44(";
+        needsClose =true;
+        subExtent = 4;
+    }
+
+    for ( std::size_t i = 0; i < extent; ++i )
+    {
+
+        if ( i != 0 ) {
+            std::cout << ", ";
+        }
+
+        if ( subExtent != 0 && ( i % subExtent ) == 0) {
+            std::cout << "(";
+        }
+
+        std::cout << val[i];
+
+        if ( subExtent != 0 && ( i % subExtent ) == subExtent - 1 ) {
+            std::cout << ")";
+        }
+
+    }
+
+    if ( needsClose )
+    {
+        std::cout << ")";
+    }
+
+    std::cout << std::endl;
 }
 
 //-*****************************************************************************
+#define CASE_RETURN_SCALAR_VALUE( TPTraits, PROP, SELECTOR )    \
+case TPTraits::pod_enum:                                        \
+    return getScalarValue<TPTraits>( PROP, SELECTOR );
+
+//-*****************************************************************************
+template<class TYPE>
+void getArrayValue( Abc::IArrayProperty &p, Abc::PropertyHeader &header,
+                       const Abc::ISampleSelector &iSS )
+{
+    Abc::DataType dt = header.getDataType();
+    AbcU ::uint8_t extent = dt.getExtent();
+
+    Abc::ArraySamplePtr ptr;
+    p.get( ptr, iSS );
+    size_t totalValues = ptr->getDimensions().numPoints() * extent;
+    TYPE *vals = (TYPE*)(ptr->getData());
+    for ( size_t i=0; i<totalValues; ++i ) {
+        std::cout << vals[i];
+        if ( (i + 1) % extent == 0 )
+        {
+            std::cout << std::endl;
+        }
+        else if (totalValues != 1)
+        {
+            std::cout << ", ";
+        }
+    }
+    std::cout << std::endl;
+}
+
+//-*****************************************************************************
+#define CASE_RETURN_ARRAY_VALUE( TPTraits, TYPE, PROP, HEADER, SELECTOR ) \
+case TPTraits::pod_enum:                                         \
+    return getArrayValue<TYPE>( PROP, HEADER, SELECTOR );
+
+//-*****************************************************************************
 void printValue( Abc::ICompoundProperty iParent, Abc::PropertyHeader header,
-                 int index = 0 )
+                 int index, bool justSize, bool printTime, double fps )
 {
     Abc::ISampleSelector iss( (index_t) index );
     Abc::DataType dt = header.getDataType();
@@ -186,81 +328,71 @@ void printValue( Abc::ICompoundProperty iParent, Abc::PropertyHeader header,
     AbcU ::uint8_t extent = dt.getExtent();
 
     if ( header.isArray() ) {
+        Abc::IArrayProperty p( iParent, header.getName() );
+
+        if ( printTime ) {
+            std::cout << "Time: " <<
+                p.getTimeSampling()->getSampleTime( index ) * fps << std::endl;
+        }
+
+        if ( justSize ) {
+            AbcU::Dimensions dims;
+            p.getDimensions( dims, iss );
+            std::cout << "Extent: " << (int) extent << " Num points: " <<
+                dims.numPoints() << std::endl;
+            return;
+        }
+
         switch ( pod )
         {
-            CASE_PRINT_VALUE(Abc::BooleanTPTraits, bool, Abc::IBoolArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Uint8TPTraits, uint8_t, Abc::IUcharArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Int8TPTraits, int8_t, Abc::ICharArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Uint16TPTraits, uint16_t, Abc::IUInt16ArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Int16TPTraits, int16_t, Abc::IInt16ArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Uint32TPTraits, uint32_t, Abc::IUInt32ArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Int32TPTraits, int32_t, Abc::IInt32ArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Uint64TPTraits, uint64_t, Abc::IUInt64ArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Int64TPTraits, int64_t, Abc::IInt64ArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Float32TPTraits, float, Abc::IFloatArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::Float64TPTraits, double, Abc::IDoubleArrayProperty, iParent, header, iss);
-            CASE_PRINT_VALUE(Abc::StringTPTraits, std::string, Abc::IStringArrayProperty, iParent, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::BooleanTPTraits, bool, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Uint8TPTraits, uint8_t, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Int8TPTraits, int8_t, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Uint16TPTraits, uint16_t, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Int16TPTraits, int16_t, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Uint32TPTraits, uint32_t, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Int32TPTraits, int32_t, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Uint64TPTraits, uint64_t, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Int64TPTraits, int64_t, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Float32TPTraits, float, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::Float64TPTraits, double, p, header, iss);
+            CASE_RETURN_ARRAY_VALUE(Abc::StringTPTraits, std::string, p, header, iss);
             default:
                 std::cout << "Unknown property type" << std::endl;
                 break;
         }
-    } else {
-        if ( extent == 1 ) {
-            switch ( pod )
-            {
-                CASE_PRINT_VALUE(Abc::BooleanTPTraits, bool, Abc::IBoolProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Uint8TPTraits, uint8_t, Abc::IUcharProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Int8TPTraits, int8_t, Abc::ICharProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Uint16TPTraits, uint16_t, Abc::IUInt16Property, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Int16TPTraits, int16_t, Abc::IInt16Property, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Uint32TPTraits, uint32_t, Abc::IUInt32Property, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Int32TPTraits, int32_t, Abc::IInt32Property, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Uint64TPTraits, uint64_t, Abc::IUInt64Property, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Int64TPTraits, int64_t, Abc::IInt64Property, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Float32TPTraits, float, Abc::IFloatProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Float64TPTraits, double, Abc::IDoubleProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::StringTPTraits, std::string, Abc::IStringProperty, iParent, header, iss);
-                default:
-                    std::cout << "Unknown property type" << std::endl;
-                    break;
-            }
+    } else if ( header.isScalar() ) {
+        Abc::IScalarProperty p( iParent, header.getName() );
 
-        } else if ( extent == 2 ) {
-            switch ( pod )
-            {
-                CASE_PRINT_VALUE(Abc::V2sTPTraits, Imath::V2s, Abc::IV2sProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::V2iTPTraits, Imath::V2i, Abc::IV2iProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::V2fTPTraits, Imath::V2f, Abc::IV2fProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::V2dTPTraits, Imath::V2d, Abc::IV2dProperty, iParent, header, iss);
-                default:
-                    std::cout << "Unknown property type" << std::endl;
-                    break;
-            }
-        } else if ( extent == 3 ) {
-            switch ( pod )
-            {
-                CASE_PRINT_VALUE(Abc::C3cTPTraits, Imath::C3c, Abc::IC3cProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::C3hTPTraits, Imath::C3h, Abc::IC3hProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::V3sTPTraits, Imath::V3s, Abc::IV3sProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::V3iTPTraits, Imath::V3i, Abc::IV3iProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::V3dTPTraits, Imath::V3d, Abc::IV3dProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::V3fTPTraits, Imath::V3f, Abc::IV3fProperty, iParent, header, iss);
-                default:
-                    std::cout << "Unknown property type" << std::endl;
-                    break;
-            }
-        } /*else if ( extent == 6 ) {
-            switch ( pod )
-            {
-                CASE_PRINT_VALUE(Abc::Box3sTPTraits, Imath::Box3s, Abc::IBox3sProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Box3iTPTraits, Imath::Box3i, Abc::IBox3iProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Box3fTPTraits, Imath::Box3f, Abc::IBox3fProperty, iParent, header, iss);
-                CASE_PRINT_VALUE(Abc::Box3dTPTraits, Imath::Box3d, Abc::IBox3dProperty, iParent, header, iss);
-                default:
-                    std::cout << "Unknown property type" << std::endl;
-                    break;
-            }
-        }*/
+        if ( printTime ) {
+            std::cout << "Time: " <<
+                p.getTimeSampling()->getSampleTime( index ) * fps << std::endl;
+        }
+
+        if ( justSize ) {
+            std::cout << "Extent: " << (int) extent << std::endl;
+            return;
+        }
+
+        switch ( pod )
+        {
+            CASE_RETURN_SCALAR_VALUE( Abc::BooleanTPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Uint8TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Int8TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Uint16TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Int16TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Uint32TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Int32TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Uint64TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Int64TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Float32TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::Float64TPTraits, p, iss );
+            CASE_RETURN_SCALAR_VALUE( Abc::StringTPTraits, p, iss );
+            default:
+                std::cout << "Unknown property type" << std::endl;
+                break;
+        }
+
     }
 }
 
@@ -362,14 +494,14 @@ void visit( Abc::ICompoundProperty iProp,
     }
 
     // children
-    for( size_t i = 0; i < iProp.getNumProperties(); ++i ) {
-        printChild( iProp, iProp.getPropertyHeader( i ), all, long_list, meta );
+    for( size_t c = 0; c < iProp.getNumProperties(); ++c ) {
+        printChild( iProp, iProp.getPropertyHeader( c ), all, long_list, meta );
     }
 
     // visit children
     if ( recursive && all && iProp.getNumProperties() > 0 ) {
-        for( size_t i = 0; i < iProp.getNumProperties(); ++i ) {
-            Abc::PropertyHeader header = iProp.getPropertyHeader( i );
+        for( size_t p = 0; p < iProp.getNumProperties(); ++p ) {
+            Abc::PropertyHeader header = iProp.getPropertyHeader( p );
             if ( header.isCompound() )
                 visit( Abc::ICompoundProperty( iProp, header.getName() ),
                        all, long_list, meta, recursive, false );
@@ -396,21 +528,21 @@ void visit( AbcG::IObject iObj,
     }
 
     // children
-    for( size_t i = 0; i < iObj.getNumChildren(); ++i ) {
-        printChild( iObj, iObj.getChild( i ), all, long_list, meta );
+    for( size_t c = 0; c < iObj.getNumChildren(); ++c ) {
+        printChild( iObj, iObj.getChild( c ), all, long_list, meta );
     }
 
     // properties
     if ( all ) {
-        for( size_t i = 0; i < props.getNumProperties(); ++i ) {
-            printChild( props, props.getPropertyHeader( i ), all, long_list, meta );
+        for( size_t h = 0; h < props.getNumProperties(); ++h ) {
+            printChild( props, props.getPropertyHeader( h ), all, long_list, meta );
         }
     }
 
     // visit property children
     if ( recursive && all && props.getNumProperties() > 0 ) {
-        for( size_t i = 0; i < props.getNumProperties(); ++i ) {
-            Abc::PropertyHeader header = props.getPropertyHeader( i );
+        for( size_t p = 0; p < props.getNumProperties(); ++p ) {
+            Abc::PropertyHeader header = props.getPropertyHeader( p );
             if ( header.isCompound() ) {
                 if ( !long_list )
                     std::cout << std::endl;
@@ -422,8 +554,8 @@ void visit( AbcG::IObject iObj,
 
     // visit object children
     if ( recursive && iObj.getNumChildren() > 0 ) {
-        for( size_t i = 0; i < iObj.getNumChildren(); ++i ) {
-            visit( iObj.getChild( i ), all, long_list, meta, recursive, false );
+        for( size_t c = 0; c < iObj.getNumChildren(); ++c ) {
+            visit( iObj.getChild( c ), all, long_list, meta, recursive, false );
         }
     }
 }
@@ -455,14 +587,18 @@ int main( int argc, char *argv[] )
     bool opt_long = false; // long listing option
     bool opt_meta = false; // metadata option
     bool opt_recursive = false; // recursive option
+    bool opt_size = false; // array sample size option
+    bool opt_time = false; // time info option
     int index = -1; // sample number, at tail of path
     std::string desc( "abcls [OPTION] FILE[/NAME] \n"
     "  -a          include property listings\n"
-    //"  --fps[=FPS] show values in frames per second\n"
+    "  -f          show time sampling as 24 fps\n"
     "  -h, --help  show this help message\n"
     "  -l          long listing format\n"
     "  -m          show archive metadata\n"
     "  -r          list entries recursively\n"
+    "  -s          show the size of a data property sample\n"
+    "  -t          show time sampling information\n"
     );
 
     // check for min args
@@ -494,10 +630,17 @@ int main( int argc, char *argv[] )
     };
 
     // set some flags
+    double fps = 1.0;
     opt_all = optionExists( options, "a" );
     opt_long = optionExists( options, "l" );
     opt_meta = optionExists( options, "m" );
     opt_recursive = optionExists( options, "r" );
+    opt_size = optionExists( options, "s" );
+    opt_time = optionExists( options, "t" );
+    if ( optionExists( options, "f" ) ) {
+        fps = 24.0;
+        opt_time = true;
+    }
 
     // open each file
     for ( std::size_t i = 0; i < files.size(); i++ ) {
@@ -522,12 +665,16 @@ int main( int argc, char *argv[] )
                 if ( j != 0 )
                     fp << "/";
                 fp << segment;
-            } else if ( is_digit( segment ) ) {
-                index = atoi( segment.c_str() );
             } else {
                 seglist.push_back( segment );
             }
             ++j;
+        }
+
+        bool lastIsIndex = false;
+        if (!seglist.empty() && is_digit( seglist.back() ) ) {
+            index = atoi( seglist.back().c_str() );
+            lastIsIndex = true;
         }
 
         // open the iarchive
@@ -576,6 +723,20 @@ int main( int argc, char *argv[] )
             std::cout << "  core type : " << coreName << std::endl;
         };
 
+        if ( opt_time && seglist.size() == 0 ) {
+            uint32_t numTimes = archive.getNumTimeSamplings();
+            std::cout << std::endl << "Time Samplings: " << std::endl;
+            for ( uint32_t k = 0; k < numTimes; ++k ) {
+                AbcA::TimeSamplingPtr ts = archive.getTimeSampling( k );
+                index_t maxSample =
+                    archive.getMaxNumSamplesForTimeSamplingIndex( k );
+                std::cout << k << " ";
+                printTimeSampling( ts, maxSample, fps );
+            }
+            std::cout << std::endl;
+
+        }
+
         // walk object hierarchy and find valid objects
         AbcG::IObject test = archive.getTop();
         AbcG::IObject iObj = test;
@@ -591,6 +752,7 @@ int main( int argc, char *argv[] )
         Abc::ICompoundProperty props = iObj.getProperties();
         const Abc::PropertyHeader* header;
         bool found = false;
+        bool shouldPrintValue = false;
         for ( std::size_t i = 0; i < seglist.size(); ++i ) {
             header = props.getPropertyHeader( seglist[i] );
             if ( header && header->isCompound() ) {
@@ -601,6 +763,14 @@ int main( int argc, char *argv[] )
                 }
             } else if ( header && header->isSimple() ) {
                 found = true;
+
+                // if the last value happens to be an index, and we are a
+                // property  then dont bother checking the last item in seglist
+                if (lastIsIndex && i == seglist.size() - 2)
+                {
+                    shouldPrintValue = true;
+                    break;
+                }
             } else {
                 std::cout << seglist[i]
                           << ": Invalid object or property"
@@ -610,18 +780,15 @@ int main( int argc, char *argv[] )
         }
 
         // do stuff
-        if ( index >= 0 ) {
-            printValue( props, *header, index );
-
+        if ( shouldPrintValue ) {
+            printValue( props, *header, index, opt_size, opt_time, fps );
         } else {
-
             if ( found && header->isCompound() )
                 visit( props, opt_all, opt_long, opt_meta, opt_recursive, true );
             else if ( found && header->isSimple() )
                 printChild( props, *header, opt_all, opt_long );
             else
                 visit( iObj, opt_all, opt_long, opt_meta, opt_recursive, true );
-
             std::cout << RESETCOLOR;
             if ( !opt_long )
                 std::cout << std::endl;

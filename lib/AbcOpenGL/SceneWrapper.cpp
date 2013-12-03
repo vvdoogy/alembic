@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2012,
+// Copyright (c) 2009-2013,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -36,6 +36,7 @@
 
 #include <AbcOpenGL/SceneWrapper.h>
 #include <AbcOpenGL/Scene.h>
+#include <AbcOpenGL/GLCamera.h>
 #include <ctime>
 
 namespace AbcOpenGL {
@@ -52,8 +53,16 @@ public:
     {
     }
 
-    void draw() {
-        m_scene.draw(m_state);
+    std::string selection( int x, int y, GLCamera &camera ) {
+        return m_scene.selection(x, y, camera, m_state);
+    }
+
+    void drawBounds( const int mode ) {
+        m_scene.drawBounds(m_state, mode);
+    }
+
+    void draw( bool visibleOnly, bool boundsOnly ) {
+        m_scene.draw(m_state, visibleOnly, boundsOnly);
     }
 
     void playForward(int fps) {
@@ -110,9 +119,19 @@ SceneWrapper::SceneWrapper( const std::string &fileName, bool verbose ):
     m_state(new _scn_impl( fileName, verbose ))
 {}
 
-void SceneWrapper::draw()
+std::string SceneWrapper::selection(int x, int y, GLCamera &camera)
 {
-    m_state->draw();
+    return m_state->selection(x, y, camera);
+}
+
+void SceneWrapper::drawBounds(const int mode)
+{
+    m_state->drawBounds(mode);
+}
+
+void SceneWrapper::draw(bool visibleOnly, bool boundsOnly)
+{
+    m_state->draw(visibleOnly, boundsOnly);
 }
 
 void SceneWrapper::setTime(chrono_t newTime)

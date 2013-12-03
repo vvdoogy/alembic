@@ -48,6 +48,16 @@
 #include <sstream>
 #include <sys/stat.h>
 
+#ifdef _MSC_VER
+// set up _S_ISDIR()
+#if !defined(S_ISDIR)
+#  if defined( _S_IFDIR) && !defined( __S_IFDIR)
+#    define __S_IFDIR _S_IFDIR
+#  endif
+#  define S_ISDIR(mode)    (mode&__S_IFDIR)
+#endif
+#endif // _MSC_VER
+
 namespace Abc  = ::Alembic::Abc;;
 namespace AbcA = ::Alembic::AbcCoreAbstract;
 namespace AbcF = ::Alembic::AbcCoreFactory;
@@ -312,16 +322,16 @@ int main( int argc, char *argv[] )
          *   \_____________/\______/
          *        file         obj
          */
-        int i = 0;
+        int j = 0;
         while ( std::getline( ss, segment, '/' ) ) {
             if ( !isFile ( fp.str() ) ) {
-                if ( i != 0 )
+                if ( j != 0 )
                     fp << "/";
                 fp << segment;
             } else {
                 seglist.push_back( segment );
             }
-            ++i;
+            ++j;
         }
 
         // open the iarchive

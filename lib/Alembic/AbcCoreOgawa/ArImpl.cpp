@@ -155,11 +155,14 @@ const AbcA::MetaData &ArImpl::getMetaData() const
 //-*****************************************************************************
 AbcA::ObjectReaderPtr ArImpl::getTop()
 {
+    Alembic::Util::scoped_lock l( m_orlock );
+
     AbcA::ObjectReaderPtr ret = m_top.lock();
     if ( ! ret )
     {
         // time to make a new one
-        ret.reset( new OrImpl( shared_from_this(), m_data, m_header ) );
+        ret = Alembic::Util::shared_ptr<OrImpl>(
+            new OrImpl( shared_from_this(), m_data, m_header ) );
         m_top = ret;
     }
 
