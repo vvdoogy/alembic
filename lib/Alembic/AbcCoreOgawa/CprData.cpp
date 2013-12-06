@@ -51,6 +51,7 @@ CprData::CprData( Ogawa::IGroupPtr iGroup,
                   std::size_t iThreadId,
                   AbcA::ArchiveReader & iArchive,
                   const std::vector< AbcA::MetaData > & iIndexedMetaData )
+    : m_propertyHeaders( NULL )
 {
     ABCA_ASSERT( iGroup, "invalid compound data group" );
 
@@ -64,7 +65,7 @@ CprData::CprData( Ogawa::IGroupPtr iGroup,
         ReadPropertyHeaders( m_group, numChildren - 1, iThreadId,
                              iArchive, iIndexedMetaData, headers );
 
-        m_propertyHeaders.resize( headers.size() );
+        m_propertyHeaders = new SubProperty[ headers.size() ];
         for ( std::size_t i = 0; i < headers.size(); ++i )
         {
             m_subProperties[headers[i]->header.getName()] = i;
@@ -76,13 +77,17 @@ CprData::CprData( Ogawa::IGroupPtr iGroup,
 //-*****************************************************************************
 CprData::~CprData()
 {
+    if ( m_propertyHeaders )
+    {
+        delete [] m_propertyHeaders;
+    }
 }
 
 //-*****************************************************************************
 size_t CprData::getNumProperties()
 {
     // fixed length and resize called in ctor, so multithread safe.
-    return m_propertyHeaders.size();
+    return m_subProperties.size();
 }
 
 //-*****************************************************************************
@@ -90,7 +95,7 @@ const AbcA::PropertyHeader &
 CprData::getPropertyHeader( AbcA::CompoundPropertyReaderPtr iParent, size_t i )
 {
     // fixed length and resize called in ctor, so multithread safe.
-    if ( i > m_propertyHeaders.size() )
+    if ( i > m_subProperties.size() )
     {
         ABCA_THROW( "Out of range index in "
                     << "CprData::getPropertyHeader: " << i );
@@ -135,12 +140,13 @@ CprData::getScalarProperty( AbcA::CompoundPropertyReaderPtr iParent,
                     << sub.header->header.getPropertyType() );
     }
 
+    Alembic::Util::scoped_lock l( sub.lock );
     AbcA::BasePropertyReaderPtr bptr = sub.made.lock();
     if ( ! bptr )
     {
         StreamIDPtr streamId = Alembic::Util::dynamic_pointer_cast< ArImpl,
-        AbcA::ArchiveReader > (
-            iParent->getObject()->getArchive() )->getStreamID();
+            AbcA::ArchiveReader > (
+                iParent->getObject()->getArchive() )->getStreamID();
 
         Ogawa::IGroupPtr group = m_group->getGroup( fiter->second, true,
                                                     streamId->getID() );
@@ -148,7 +154,8 @@ CprData::getScalarProperty( AbcA::CompoundPropertyReaderPtr iParent,
         ABCA_ASSERT( group, "Scalar Property not backed by a valid group.");
 
         // Make a new one.
-        bptr.reset( new SprImpl( iParent, group, sub.header ) );
+        bptr = Alembic::Util::shared_ptr<SprImpl>(
+            new SprImpl( iParent, group, sub.header ) );
         sub.made = bptr;
     }
 
@@ -180,12 +187,13 @@ CprData::getArrayProperty( AbcA::CompoundPropertyReaderPtr iParent,
                     << sub.header->header.getPropertyType() );
     }
 
+    Alembic::Util::scoped_lock l( sub.lock );
     AbcA::BasePropertyReaderPtr bptr = sub.made.lock();
     if ( ! bptr )
     {
         StreamIDPtr streamId = Alembic::Util::dynamic_pointer_cast< ArImpl,
-        AbcA::ArchiveReader > (
-            iParent->getObject()->getArchive() )->getStreamID();
+            AbcA::ArchiveReader > (
+                iParent->getObject()->getArchive() )->getStreamID();
 
         Ogawa::IGroupPtr group = m_group->getGroup( fiter->second, true,
                                                     streamId->getID() );
@@ -193,7 +201,8 @@ CprData::getArrayProperty( AbcA::CompoundPropertyReaderPtr iParent,
         ABCA_ASSERT( group, "Array Property not backed by a valid group.");
 
         // Make a new one.
-        bptr.reset( new AprImpl( iParent, group, sub.header ) );
+        bptr = Alembic::Util::shared_ptr<AprImpl>(
+            new AprImpl( iParent, group, sub.header ) );
 
         sub.made = bptr;
     }
@@ -226,6 +235,7 @@ CprData::getCompoundProperty( AbcA::CompoundPropertyReaderPtr iParent,
                     << sub.header->header.getPropertyType() );
     }
 
+    Alembic::Util::scoped_lock l( sub.lock );
     AbcA::BasePropertyReaderPtr bptr = sub.made.lock();
     if ( ! bptr )
     {
@@ -241,9 +251,9 @@ CprData::getCompoundProperty( AbcA::CompoundPropertyReaderPtr iParent,
         ABCA_ASSERT( group, "Compound Property not backed by a valid group.");
 
         // Make a new one.
-        bptr.reset( new CprImpl( iParent, group, sub.header,
-                                 streamId->getID(),
-                                 implPtr->getIndexedMetaData() ) );
+        bptr = Alembic::Util::shared_ptr<CprImpl>(
+            new CprImpl( iParent, group, sub.header, streamId->getID(),
+                         implPtr->getIndexedMetaData() ) );
 
         sub.made = bptr;
     }

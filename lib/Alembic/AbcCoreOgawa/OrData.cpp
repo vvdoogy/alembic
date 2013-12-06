@@ -50,6 +50,7 @@ OrData::OrData( Ogawa::IGroupPtr iGroup,
                 std::size_t iThreadId,
                 AbcA::ArchiveReader & iArchive,
                 const std::vector< AbcA::MetaData > & iIndexedMetaData )
+    : m_children( NULL )
 {
     ABCA_ASSERT( iGroup, "Invalid object data group" );
 
@@ -63,7 +64,11 @@ OrData::OrData( Ogawa::IGroupPtr iGroup,
         ReadObjectHeaders( m_group, numChildren - 1, iThreadId,
                            iParentName, iIndexedMetaData, headers );
 
-        m_children.resize( headers.size() );
+        if ( !headers.empty() )
+        {
+            m_children = new Child[ headers.size() ];
+        }
+
         for ( std::size_t i = 0; i < headers.size(); ++i )
         {
             m_childrenMap[headers[i]->getName()] = i;
@@ -74,25 +79,32 @@ OrData::OrData( Ogawa::IGroupPtr iGroup,
     if ( numChildren > 0 && m_group->isChildGroup( 0 ) )
     {
         Ogawa::IGroupPtr group = m_group->getGroup( 0, false, iThreadId );
-        m_data.reset( new CprData( group, iThreadId, iArchive,
-                                   iIndexedMetaData ) );
+        m_data = Alembic::Util::shared_ptr<CprData>(
+            new CprData( group, iThreadId, iArchive, iIndexedMetaData ) );
     }
 }
 
 //-*****************************************************************************
 OrData::~OrData()
 {
+    if ( m_children )
+    {
+        delete [] m_children;
+    }
 }
 
 //-*****************************************************************************
 AbcA::CompoundPropertyReaderPtr
 OrData::getProperties( AbcA::ObjectReaderPtr iParent )
 {
+    Alembic::Util::scoped_lock l( m_cprlock );
     AbcA::CompoundPropertyReaderPtr ret = m_top.lock();
+
     if ( ! ret )
     {
         // time to make a new one
-        ret.reset( new CprImpl( iParent, m_data ) );
+        ret = Alembic::Util::shared_ptr<CprImpl>(
+            new CprImpl( iParent, m_data ) );
         m_top = ret;
     }
 
@@ -102,14 +114,14 @@ OrData::getProperties( AbcA::ObjectReaderPtr iParent )
 //-*****************************************************************************
 size_t OrData::getNumChildren()
 {
-    return m_children.size();
+    return m_childrenMap.size();
 }
 
 //-*****************************************************************************
 const AbcA::ObjectHeader &
 OrData::getChildHeader( AbcA::ObjectReaderPtr iParent, size_t i )
 {
-    ABCA_ASSERT( i < m_children.size(),
+    ABCA_ASSERT( i < m_childrenMap.size(),
         "Out of range index in OrData::getChildHeader: " << i );
 
     return *( m_children[i].header );
@@ -146,17 +158,20 @@ OrData::getChild( AbcA::ObjectReaderPtr iParent, const std::string &iName )
 AbcA::ObjectReaderPtr
 OrData::getChild( AbcA::ObjectReaderPtr iParent, size_t i )
 {
-    ABCA_ASSERT( i < m_children.size(),
+    ABCA_ASSERT( i < m_childrenMap.size(),
         "Out of range index in OrData::getChild: " << i );
 
+    Alembic::Util::scoped_lock l( m_children[i].lock );
     AbcA::ObjectReaderPtr optr = m_children[i].made.lock();
+
     if ( ! optr )
     {
         // Make a new one.
-        optr.reset ( new OrImpl( iParent, m_group, i + 1,
-                                 m_children[i].header ) );
+        optr = Alembic::Util::shared_ptr<OrImpl>(
+            new OrImpl( iParent, m_group, i + 1, m_children[i].header ) );
         m_children[i].made = optr;
     }
+
     return optr;
 }
 
