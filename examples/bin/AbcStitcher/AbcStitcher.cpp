@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2011,
+// Copyright (c) 2009-2013,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -333,6 +333,10 @@ void visitObjects(std::vector< IObject > & iObjects, OObject & oParentObj)
                 ISubD(iObjects[i], Alembic::Abc::kWrapExisting).getSchema();
             index_t numSamples = iSchema.getNumSamples();
             IV2fGeomParam uvs = iSchema.getUVsParam();
+            if (i == 0 && uvs)
+            {
+                oSchema.setUVSourceName(GetSourceName(uvs.getMetaData()));
+            }
             index_t reqIdx = getIndexSample(oSchema.getNumSamples(),
                 oSchema.getTimeSampling(), numSamples,
                 iSchema.getTimeSampling());
@@ -421,6 +425,10 @@ void visitObjects(std::vector< IObject > & iObjects, OObject & oParentObj)
 
             IN3fGeomParam normals = iSchema.getNormalsParam();
             IV2fGeomParam uvs = iSchema.getUVsParam();
+            if (i == 0 && uvs)
+            {
+                oSchema.setUVSourceName(GetSourceName(uvs.getMetaData()));
+            }
             index_t reqIdx = getIndexSample(oSchema.getNumSamples(),
                 oSchema.getTimeSampling(), numSamples,
                 iSchema.getTimeSampling());
@@ -514,6 +522,9 @@ void visitObjects(std::vector< IObject > & iObjects, OObject & oParentObj)
             IV2fGeomParam iUVs = iSchema.getUVsParam();
             IN3fGeomParam iNormals = iSchema.getNormalsParam();
             IFloatGeomParam iWidths = iSchema.getWidthsParam();
+            IFloatArrayProperty iKnots = iSchema.getKnotsProperty();
+            IUcharArrayProperty iOrders = iSchema.getOrdersProperty();
+
             index_t numSamples = iSchema.getNumSamples();
 
             index_t reqIdx = getIndexSample(oSchema.getNumSamples(),
@@ -538,6 +549,18 @@ void visitObjects(std::vector< IObject > & iObjects, OObject & oParentObj)
                     oSamp.setCurvesNumVertices(*curvsNumPtr);
                 oSamp.setWrap(iSamp.getWrap());
                 oSamp.setBasis(iSamp.getBasis());
+
+                Abc::FloatArraySamplePtr knotsPtr = iSamp.getKnots();
+                if (knotsPtr)
+                {
+                    oSamp.setKnots(*knotsPtr);
+                }
+
+                Abc::UcharArraySamplePtr ordersPtr = iSamp.getOrders();
+                if (ordersPtr)
+                {
+                    oSamp.setOrders(*ordersPtr);
+                }
 
                 IFloatGeomParam::Sample iWidthSample;
                 OFloatGeomParam::Sample oWidthSample;
@@ -710,7 +733,7 @@ void visitObjects(std::vector< IObject > & iObjects, OObject & oParentObj)
     }
     else
     {
-        outObj = OObject(oParentObj, outObj.getName(), outObj.getMetaData());
+        outObj = OObject(oParentObj, header.getName(), header.getMetaData());
 
         // collect the top level compound property
         ICompoundPropertyVec iCompoundProps(iObjects.size());
@@ -727,6 +750,22 @@ void visitObjects(std::vector< IObject > & iObjects, OObject & oParentObj)
     // go deeper.
     // Otherwise we are done here
     size_t numChildren =  iObjects[0].getNumChildren();
+
+    // check to make sure all of our iObjects have the same number of children
+    for (size_t j = 1; j < iObjects.size(); j++)
+    {
+        if (numChildren != iObjects[j].getNumChildren())
+        {
+            std::cerr << "ERROR: " << iObjects[j].getFullName() << " in " <<
+                iObjects[j].getArchive().getName() <<
+                " has a different number of children than " <<
+                iObjects[0].getFullName() << " in " <<
+                iObjects[0].getArchive().getName() << std::endl;
+
+            exit(1);
+        }
+    }
+
     for (size_t i = 0 ; i < numChildren; i++ )
     {
         std::vector< IObject > iChildObjects;
@@ -773,14 +812,15 @@ int main( int argc, char *argv[] )
         {
 
             IArchive archive = factory.getArchive(argv[i], coreType);
-            IObject iRoot = archive.getTop();
-            size_t numChildren = iRoot.getNumChildren();
-            if (!iRoot.valid() || numChildren < 1)
+            if (!archive.valid() || archive.getTop().getNumChildren() < 1)
             {
                 std::cerr << "ERROR: " << argv[i] <<
                     " not a valid Alembic file" << std::endl;
                 return 1;
             }
+
+            IObject iRoot = archive.getTop();
+            size_t numChildren = iRoot.getNumChildren();
 
             if (i == 2)
             {
@@ -869,7 +909,7 @@ int main( int argc, char *argv[] )
         else if (coreType == Alembic::AbcCoreFactory::IFactory::kOgawa)
         {
             oArchive = CreateArchiveWithInfo(
-                Alembic::AbcCoreHDF5::WriteArchive(),
+                Alembic::AbcCoreOgawa::WriteArchive(),
                 fileName, appWriter, userStr, ErrorHandler::kThrowPolicy);
         }
 

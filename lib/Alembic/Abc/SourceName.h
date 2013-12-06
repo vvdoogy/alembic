@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2013,
+// Copyright (c) 2013,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -34,30 +34,23 @@
 //
 //-*****************************************************************************
 
-#ifndef _Alembic_AbcGeom_Tests_CurvesData_h_
-#define _Alembic_AbcGeom_Tests_CurvesData_h_
+#ifndef _Alembic_Abc_SourceName_h_
+#define _Alembic_Abc_SourceName_h_
 
-#include <Alembic/AbcGeom/All.h>
+#include <Alembic/Abc/Foundation.h>
 
-using Alembic::Util::float32_t;
-using Alembic::Util::int32_t;
+namespace Alembic {
+namespace Abc {
+namespace ALEMBIC_VERSION_NS {
 
-//-*****************************************************************************
-// This data is used by both the PolyMesh and SubD tests.
-extern const size_t g_numCurves;
-extern const size_t g_totalVerts;
-extern const int32_t g_numVerts[];
-extern const float32_t g_verts[];
-extern const float32_t g_weights[];
+void SetSourceName( AbcA::MetaData &ioMetaData, const std::string & iName );
+std::string GetSourceName( const AbcA::MetaData &iMetaData );
 
-extern const size_t g_numWidths;
-extern const float32_t g_widths[];
+} // End namespace ALEMBIC_VERSION_NS
 
-extern const float32_t g_uvs[];
+using namespace ALEMBIC_VERSION_NS;
 
-extern const float32_t g_knots[];
-extern const uint8_t g_orders[];
-
-//-*******************************
+} // End namespace Abc
+} // End namespace Alembic
 
 #endif
