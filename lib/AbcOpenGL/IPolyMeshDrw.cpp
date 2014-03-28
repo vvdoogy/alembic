@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2013,
+// Copyright (c) 2009-2014,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -49,6 +49,9 @@ IPolyMeshDrw::IPolyMeshDrw( IPolyMesh &iPmesh )
     {
         return;
     }
+
+    // set constancy on the mesh draw helper
+    m_drwHelper.setConstant( m_polyMesh.getSchema().isConstant() );
 
     if ( m_polyMesh.getSchema().getNumSamples() > 0 )
     {
