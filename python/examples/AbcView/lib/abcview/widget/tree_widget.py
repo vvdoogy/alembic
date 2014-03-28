@@ -1,6 +1,6 @@
 #-******************************************************************************
 #
-# Copyright (c) 2013,
+# Copyright (c) 2012-2014,
 #  Sony Pictures Imageworks Inc. and
 #  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 #
@@ -48,7 +48,13 @@ import alembic
 from abcview.io import Scene, Session, Mode
 from abcview.gl import GLScene
 from abcview.utils import find_objects, get_schema_info
-from abcview import config, log
+from abcview import log, style, config
+
+def message(info):
+    dialog = QtGui.QMessageBox()
+    dialog.setStyleSheet(style.DIALOG)
+    dialog.setText(info)
+    dialog.exec_()
 
 class ArrayThread(QtCore.QThread):
     """
@@ -147,12 +153,29 @@ class AbcTreeWidgetItem(QtGui.QTreeWidgetItem):
                 return parent
             parent = parent.parent()
 
+    def is_removable(self):
+        return False
+
     def set_bad(self, bad):
         """
         Set this tree widget item as being "bad" for some reason, e.g. an 
         undrawable scene, with a visual indicator.
         """
         log.debug("[%s.set_bad] %s" % (self, bad))
+
+    def setText(self, name, value):
+        """
+        setText override that looks up the tree column header index.
+        """
+        super(AbcTreeWidgetItem, self).setText(self.treeWidget().colnum(name), 
+                str(value))
+
+    def setToolTip(self, name, value):
+        """
+        setToolTip override that looks up the tree column header index.
+        """
+        super(AbcTreeWidgetItem, self).setToolTip(self.treeWidget().colnum(name), 
+                QtCore.QString(str(value)))
 
     def keyPressEvent(self, event):
         self._parent.keyPressEvent(event)
@@ -173,9 +196,8 @@ class ObjectTreeWidgetItem(AbcTreeWidgetItem):
             if self.object.getNumChildren() > 0:
                 self.setChildIndicatorPolicy(QtGui.QTreeWidgetItem.ShowIndicator)
             self.setExpanded(False)
-            self.setText(self.treeWidget().colnum('name'), object.getName())
-            self.setToolTip(self.treeWidget().colnum('name'), 
-                    QtCore.QString(object.getFullName()))
+            self.setText('name', object.getName())
+            self.setToolTip('name', object.getFullName())
 
     def children(self):
         """
@@ -218,6 +240,22 @@ class CameraTreeWidgetItem(ObjectTreeWidgetItem):
                         self.object.getName())
         return self.__camera
 
+class ScenePropertyTreeWidgetItem(AbcTreeWidgetItem):
+    def __init__(self, parent, property):
+        super(ScenePropertyTreeWidgetItem, self).__init__(parent, property)
+        self.property = property
+
+        for i in range(self.treeWidget().header().count()):
+            self.treeWidget().header().hideSection(i)
+        self.treeWidget().header().showSection(self.treeWidget().colnum('name'))
+        self.treeWidget().header().showSection(self.treeWidget().colnum('value'))
+
+        self.setText('name', self.property[0])
+        self.setText('value', self.property[1])
+
+    def samples(self):
+        return []
+
 class PropertyTreeWidgetItem(AbcTreeWidgetItem):
     def __init__(self, parent, property):
         """
@@ -230,12 +268,16 @@ class PropertyTreeWidgetItem(AbcTreeWidgetItem):
             self.setChildIndicatorPolicy(QtGui.QTreeWidgetItem.ShowIndicator)
         else:
             self.setChildIndicatorPolicy(QtGui.QTreeWidgetItem.DontShowIndicator)
-        
-        self.setText(self.treeWidget().colnum('name'), self.property.getName())
-        self.setText(self.treeWidget().colnum('type'), self.type())
-        self.setText(self.treeWidget().colnum('constant'), str(self.is_constant()))
-        self.setText(self.treeWidget().colnum('datatype'), str(self.property.getDataType()))
-        self.setToolTip(self.treeWidget().colnum('name'), self.property.getName())
+      
+        for i in range(self.treeWidget().header().count()):
+            self.treeWidget().header().showSection(i)
+        self.treeWidget().header().hideSection(self.treeWidget().colnum('value'))
+
+        self.setText('name', self.property.getName())
+        self.setText('type', self.type())
+        self.setText('constant', self.is_constant())
+        self.setText('datatype', self.property.getDataType())
+        self.setToolTip('name', self.property.getName())
 
     def _get_object(self):
         return self.property
@@ -279,9 +321,9 @@ class SampleTreeWidgetItem(AbcTreeWidgetItem):
         
         self.setChildIndicatorPolicy(QtGui.QTreeWidgetItem.DontShowIndicator)
         
-        self.setText(self.treeWidget().colnum('index'), str(index))
-        self.setText(self.treeWidget().colnum('size'), str(self.length()))
-        self.setText(self.treeWidget().colnum('value'), str(self.value()))
+        self.setText('index', index)
+        self.setText('size', self.length())
+        self.setText('value', self.value())
 
     def _get_object(self):
         return self.sample
@@ -299,14 +341,14 @@ class SampleTreeWidgetItem(AbcTreeWidgetItem):
 
     def _set_valid(self, value=True):
         super(SampleTreeWidgetItem, self)._set_valid(value)
-        self.setText(self.treeWidget().colnum('size'), str(self.length()))
+        self.setText('size', self.length())
 
 class ArrayTreeWidgetItem(AbcTreeWidgetItem):
     def __init__(self, parent, index, value, array=None):
         super(ArrayTreeWidgetItem, self).__init__(parent, array)
         self.setChildIndicatorPolicy(QtGui.QTreeWidgetItem.DontShowIndicator)
-        self.setText(self.treeWidget().colnum('index'), str(index))
-        self.setText(self.treeWidget().colnum('value'), str(value))
+        self.setText('index', index)
+        self.setText('value', value)
 
 ## session tree items ---------------------------------------------------------
 class SessionTreeWidgetItem(AbcTreeWidgetItem):
@@ -317,10 +359,8 @@ class SessionTreeWidgetItem(AbcTreeWidgetItem):
         super(SessionTreeWidgetItem, self).__init__(parent, object)
         self.setChildIndicatorPolicy(QtGui.QTreeWidgetItem.ShowIndicator)
         self.setExpanded(True)
-        self.setText(self.treeWidget().colnum('name'), 
-                str(self.object.name))
-        self.setToolTip(self.treeWidget().colnum('name'), 
-                QtCore.QString(str(self.object.filepath)))
+        self.setText('name', self.object.name)
+        self.setToolTip('name', self.object.filepath)
         self.setCheckState(self.treeWidget().colnum(""), QtCore.Qt.Unchecked)
 
     def load(self):
@@ -335,9 +375,11 @@ class SessionTreeWidgetItem(AbcTreeWidgetItem):
         self.treeWidget().emit(QtCore.SIGNAL('itemUnloaded (PyQt_PyObject)'), self)
         self.setCheckState(self.treeWidget().colnum(""), QtCore.Qt.Unchecked)
 
-    #TODO: populate properties tree with scene properties
     def properties(self):
-        return []
+        return self.object.properties.items()
+
+    def is_removable(self):
+        return True
 
     def children(self):
         if self.seen:
@@ -357,8 +399,11 @@ class SceneTreeWidgetItem(SessionTreeWidgetItem):
         :param object: Scene
         """
         super(SceneTreeWidgetItem, self).__init__(parent, object)
-        self.setToolTip(self.treeWidget().colnum(''), 'visible')
+        self.setToolTip('', 'visible')
         self.setExpanded(False)
+
+        # for GL selection
+        self.object.tree = self
 
         # color indicator delegate
         self.g = QtGui.QGroupBox()
@@ -380,6 +425,9 @@ class SceneTreeWidgetItem(SessionTreeWidgetItem):
         # update delegate widget stylesheet
         self.g.setStyleSheet("background: rgb(%.2f, %.2f, %.2f);" 
                 % (color.red(), color.green(), color.blue()))
+
+    def is_removable(self):
+        return True
 
     def children(self):
         yield ObjectTreeWidgetItem(self, self.object.archive.getTop())
@@ -603,23 +651,36 @@ class ObjectTreeWidget(AbcTreeWidget):
         self.header().setSectionHidden(self.colnum('hidden'), True)
         self.header().setStretchLastSection(False)
 
+    def add_item(self):
+        self.main.handle_import()
+
+    def remove_item(self, item=None):
+        '''
+        removes an item from the tree and session.
+
+        :param: objecttreewidgetitem or subclass.
+        '''
+        if item is None:
+            if self.selectedItems():
+                item = self.selectedItems()[0]
+        if item is None or item.parent() is not None or not item.is_removable():
+            message("Item is not removable")
+            return
+        self.takeTopLevelItem(self.indexOfTopLevelItem(item))
+        self.signal_item_removed.emit(item)
+
+    def handle_remove_item(self, triggered):
+        '''
+        remove item action handler, calls remove_item().
+        '''
+        if self.selectedItems():
+            self.remove_item(self.selectedItems()[0])
+
     def handle_item_expanded(self, item):
         if not item.seen:
             for child in item.children():
                 item.addChild(child)
             item.seen = True
-
-    def add_item(self):
-        self.main.handle_import()
-
-    def remove_item(self):
-        for item in self.selectedItems():
-            if item == item.root() or item.object in item.root().object.items:
-                self.removeItemWidget(item, 0)
-                self.signal_item_removed.emit(item)
-                del item
-            else:
-                log.warn("can not remove item")
 
     def handle_set_color(self, ok):
         """
@@ -759,7 +820,7 @@ class ObjectTreeWidget(AbcTreeWidget):
             # remove scene
             self.remove_action = QtGui.QAction("Remove", self)
             self.connect(self.remove_action, QtCore.SIGNAL("triggered (bool)"), 
-                        self.remove_item)
+                        self.handle_remove_item)
             menu.addAction(self.remove_action)
 
         else:
@@ -773,7 +834,7 @@ class ObjectTreeWidget(AbcTreeWidget):
         menu.popup(self.mapToGlobal(pos))
 
 class PropertyTreeWidget(AbcTreeWidget):
-    DEFAULT_COLUMN_NAMES = ['name', 'type', 'datatype', ]
+    DEFAULT_COLUMN_NAMES = ['name', 'type', 'datatype', 'value', ]
     DEFAULT_COLUMNS = dict(enumerate(DEFAULT_COLUMN_NAMES))
     DEFAULT_COLUMNS.update(dict(zip(DEFAULT_COLUMN_NAMES, range(len(DEFAULT_COLUMN_NAMES)))))
     COLUMNS = copy.copy(DEFAULT_COLUMNS)
@@ -785,11 +846,20 @@ class PropertyTreeWidget(AbcTreeWidget):
         self.setColumnCount(len(self.COLUMNS)/2)
         self.setHeaderLabels(self.column_names)
         self.header().resizeSection(self.colnum('name'), 150)
+        self.header().hideSection(self.colnum('value'))
 
     def show_properties(self, item):
         self.clear()
-        for property in item.properties():    
-            self.addTopLevelItem(PropertyTreeWidgetItem(self, property))
+        if type(item) in (SessionTreeWidgetItem, SceneTreeWidgetItem):
+            if type(item) == SceneTreeWidgetItem:
+                info = alembic.Abc.GetArchiveInfo(item.object.archive)
+                for key, value in info.items():
+                    self.addTopLevelItem(ScenePropertyTreeWidgetItem(self, (key, value)))
+            for property in item.properties():
+                self.addTopLevelItem(ScenePropertyTreeWidgetItem(self, property))
+        else:
+            for property in item.properties():
+                self.addTopLevelItem(PropertyTreeWidgetItem(self, property))
 
     def handle_item_expanded(self, item):
         if not item.seen:
@@ -821,7 +891,7 @@ class SampleTreeWidget(AbcTreeWidget):
                 sample = "[Error: %s]" % (msg)
             sample_item = SampleTreeWidgetItem(self, index, sample, item)
             sample_item.valid = valid
-            sample_item.setToolTip(self.colnum("value"), tooltip)
+            sample_item.setToolTip("value", tooltip)
             self.addTopLevelItem(sample_item)
 
 class ArrayTreeWidget(AbcTreeWidget):

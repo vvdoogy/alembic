@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2013,
+// Copyright (c) 2009-2014,
 //  Sony Pictures Imageworks, Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -237,7 +237,7 @@ void MeshDrwHelper::updateNormals( V3fArraySamplePtr iN )
 
     // Now see if we need to calculate normals.
     if ( ( m_meshN && iN == m_meshN ) ||
-         ( !iN && m_customN.size() > 0 ) )
+         ( isConstant() && m_customN.size() > 0 ) )
     {
         return;
     }
@@ -254,9 +254,6 @@ void MeshDrwHelper::updateNormals( V3fArraySamplePtr iN )
         m_meshN.reset();
         m_customN.resize( numPoints );
         std::fill( m_customN.begin(), m_customN.end(), V3f( 0.0f ) );
-
-        //std::cout << "Recalcing normals for object: "
-        //          << m_host.name() << std::endl;
 
         for ( size_t tidx = 0; tidx < m_triangles.size(); ++tidx )
         {

@@ -46,6 +46,7 @@ d = {
 # normalizes color values (0 to 1)
 CCLAMP = 500.0
 
+#TODO turn this into a generator to handle open ended item count
 def gen_colors(N=1):
     """
     Returns a color range as a list of rgb tuples.
@@ -56,16 +57,13 @@ def gen_colors(N=1):
     HSV_tuples = [(x*1.0/N, 0.5, 0.5) for x in range(N)]
     HSV_tuples.reverse()
     RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
-    #RGB_tuples = map(lambda x: tuple(map(lambda y: int(y * CCLAMP),x)),RGB_tuples)
-    #HEX_tuples = map(lambda x: tuple(map(lambda y: chr(y).encode('hex'),x)), RGB_tuples)
-    #HEX_tuples = map(lambda x: "".join(x), HEX_tuples)
     return RGB_tuples
 
 # Qt dialog css
 DIALOG = """
 * {
     background: #222;
-    color: #cccdcc;
+    color: #ddcedd;
     border: 0px;
 }
 QLabel {
