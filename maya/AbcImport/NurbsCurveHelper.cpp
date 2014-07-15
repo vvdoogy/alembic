@@ -140,7 +140,7 @@ MStatus readCurves(double iFrame, const Alembic::AbcGeom::ICurves & iNode,
             {
                 for (unsigned int j = 0; j < degree; ++j)
                 {
-                    if (cvs[j] != cvs[numVerts-degree-j])
+                    if (cvs[j] != cvs[numVerts-degree+j])
                     {
                         form = MFnNurbsCurve::kOpen;
                         break;
@@ -199,6 +199,7 @@ MStatus readCurves(double iFrame, const Alembic::AbcGeom::ICurves & iNode,
                     knots.append(knot);
                 }
             }
+            curKnot += numKnots;
         }
 
         MFnNurbsCurveData curveData;
@@ -312,7 +313,7 @@ MObject createCurves(const std::string & iName,
             {
                 for (unsigned int j = 0; j < degree; ++j)
                 {
-                    if (cvs[j] != cvs[numVerts-degree-j])
+                    if (cvs[j] != cvs[numVerts-degree+j])
                     {
                         form = MFnNurbsCurve::kOpen;
                         break;
@@ -362,6 +363,7 @@ MObject createCurves(const std::string & iName,
                 float knot = (*knotsSamp)[curKnot + j];
                 knots.append(knot);
             }
+            curKnot += numKnots;
         }
 
         MFnNurbsCurve curve;

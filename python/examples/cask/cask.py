@@ -1,6 +1,6 @@
 #-******************************************************************************
 #
-# Copyright (c) 2012-2013,
+# Copyright (c) 2012-2014,
 #  Sony Pictures Imageworks Inc. and
 #  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 #
@@ -33,6 +33,16 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #-******************************************************************************
+
+__doc__ = """
+Cask is a high level convenience wrapper for the Alembic Python API. It blurs
+the lines between Alembic "I" and "O" objects and properties, abstracting both
+into a single class object. It also wraps up a number of lower-level functions
+into high level convenience methods.
+
+More information can be found at http://docs.alembic.io/python/cask.html
+"""
+__version__ = "0.9"
 
 import os
 import re
@@ -128,6 +138,10 @@ OPROPERTIES = {
         'scalar': alembic.Abc.OV3dArrayProperty,
         'array': alembic.Abc.OV3dArrayProperty,
     },
+    imath.V3d: {
+        'scalar': alembic.Abc.OV3dProperty,
+        'array': alembic.Abc.OV3dProperty,
+    },
     imath.UnsignedCharArray: {
         'scalar': alembic.Abc.OUcharArrayProperty,
         'array': alembic.Abc.OUcharArrayProperty,
@@ -143,6 +157,10 @@ OPROPERTIES = {
     imath.FloatArray: {
         'scalar': alembic.Abc.OFloatArrayProperty,
         'array': alembic.Abc.OFloatArrayProperty,
+    },
+    imath.DoubleArray: {
+        'scalar': alembic.Abc.ODoubleArrayProperty,
+        'array': alembic.Abc.ODoubleArrayProperty,
     },
     imath.StringArray: {
         'scalar': alembic.Abc.OStringArrayProperty,
@@ -243,7 +261,7 @@ def wrapped(func):
         return func(*args, **kwargs)
     return with_wrapped_object
 
-def wrap(iobject):
+def wrap(iobject, time_sampling_id=None):
     """
     Returns a cask-wrapped class object based on the class method "matches".
     """
@@ -251,7 +269,7 @@ def wrap(iobject):
         return Top(iobject)
     for cls in Object.__subclasses__():
         if cls.matches(iobject):
-            return cls(iobject)
+            return cls(iobject, time_sampling_id=time_sampling_id)
     return iobject
 
 def is_valid(archive):
@@ -430,8 +448,8 @@ class Archive(object):
         self.iobject = None
         self.oobject = None
         self.top = None
-        self.time_sampling_id = 0
         self.__get_iobject()
+        self.time_sampling_id = max(len(self.timesamplings) - 1, 0)
 
     def info(self):
         """Returns a metadata dictionary."""
@@ -536,18 +554,18 @@ class Archive(object):
                 close_tree(child)
                 del child
             del obj
+
         for child in self.top.children.values():
             close_tree(child)
             del child
         
-        del self._iobject
-        del self._oobject
-        del self._top._iobject
-        del self._top._oobject
-        del self._top._parent
+        self._iobject = None
+        self._oobject = None
+        self._top._iobject = None
+        self._top._oobject = None
+        self._top._parent = None
         self._top._child_dict.clear()
         self._top._prop_dict.clear()
-        del self._top
 
     def __write(self):
         """
@@ -566,15 +584,16 @@ class Archive(object):
             save_tree(child)
         self.top.close()
 
-    def write_to_file(self, filepath=None):
+    # TODO: non-destructive saving (changes are lost)
+    def write_to_file(self, filepath=None, asOgawa=True):
         """
         Writes this archive to a file on disk and closes the Archive.
         """
         smps = []
         if self.iobject and not self.oobject:
-            smps = [(i, ts) for i, ts in enumerate(self.timesamplings) if i > 0]
+            smps = [(i, ts) for i, ts in enumerate(self.timesamplings)]
         if not self.oobject:
-            self.oobject = alembic.Abc.OArchive(filepath)
+            self.oobject = alembic.Abc.OArchive(filepath, asOgawa)
             self.top.oobject = self.oobject.getTop()
         for i, time_sample in smps:
             self.oobject.addTimeSampling(time_sample)
@@ -604,7 +623,7 @@ class Property(object):
         # if we have an iproperty, get some values from it
         if iproperty:
             self.__read_property(iproperty)
-
+        
     def __repr__(self):
         return '<Property "%s">' % self.name
 
@@ -744,7 +763,11 @@ class Property(object):
             self.name = iproperty.getName()
         if iproperty.isCompound():
             for i in range(self.iobject.getNumProperties()):
-                self.add_property(Property(iproperty.getProperty(i)))
+                self.add_property(Property(
+                        iproperty = iproperty.getProperty(i),
+                        time_sampling_id = self.time_sampling_id
+                    )
+                 )
 
     @property
     def properties(self):
@@ -1119,7 +1142,10 @@ class Object(object):
         """Returns children sub-tree accessor. """
         if not self._child_dict and self.iobject:
             for i in range(self.iobject.getNumChildren()):
-                child = wrap(self.iobject.getChild(i))
+                child = wrap(
+                    iobject = self.iobject.getChild(i),
+                    time_sampling_id = self.time_sampling_id
+                )
                 self._child_dict[child.name] = child
         return self._child_dict
 
@@ -1129,7 +1155,10 @@ class Object(object):
         if not self._prop_dict and self.iobject:
             props = self.iobject.getProperties()
             for i in range(len(props.propertyheaders)):
-                prop = Property(props.getProperty(i))
+                prop = Property(
+                    iproperty = props.getProperty(i),
+                    time_sampling_id = self.time_sampling_id
+                )
                 self._prop_dict[prop.name] = prop
         return self._prop_dict
 
