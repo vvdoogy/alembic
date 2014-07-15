@@ -1,6 +1,6 @@
 //-*****************************************************************************
 //
-// Copyright (c) 2009-2012,
+// Copyright (c) 2009-2014,
 //  Sony Pictures Imageworks Inc. and
 //  Industrial Light & Magic, a division of Lucasfilm Entertainment Company Ltd.
 //
@@ -126,13 +126,13 @@ void validateTimeSampling( const AbcA::TimeSampling &timeSampling,
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testTimeSampling( const AbcA::TimeSampling &timeSampling,
                        const AbcA::TimeSamplingType &timeSamplingType,
                        index_t numSamples )
 {
-    const index_t lastIndex = numSamples - 1;
 
-    const chrono_t timePerCycle = timeSamplingType.getTimePerCycle();
+    const TIME timePerCycle = timeSamplingType.getTimePerCycle();
     const index_t numSamplesPerCycle = timeSamplingType.getNumSamplesPerCycle();
 
     const index_t numStoredTimes = timeSampling.getNumStoredTimes();
@@ -152,7 +152,7 @@ void testTimeSampling( const AbcA::TimeSampling &timeSampling,
         std::cout << i << ": " << timeSampling.getSampleTime( i )
                   << std::endl;
 
-        chrono_t timeI = timeSampling.getSampleTime( i );
+        TIME timeI = timeSampling.getSampleTime( i );
         index_t floorIndex = timeSampling.getFloorIndex(
             timeI, numSamples ).first;
 
@@ -183,75 +183,74 @@ void testTimeSampling( const AbcA::TimeSampling &timeSampling,
             ". It should be " << i;
         TESTING_MESSAGE_ASSERT( nearIndex == i, nearMsg.str() );
 
+
+        chrono_t smidgeOver = 0.01;
+        chrono_t smidgeUnder = 0.01;
+        index_t loi = i;
+        index_t hii = i;
+
+        // base smidge off of the previous time
         if ( i > 0 )
         {
-            chrono_t timeIm1 = timeSampling.getSampleTime( i - 1 );
+            TIME timeIm1 = timeSampling.getSampleTime( i - 1 );
             TESTING_MESSAGE_ASSERT( timeIm1 < timeI,
                          "Times should be monotonically increasing." );
-
-            if ( i < lastIndex )
-            {
-                chrono_t timeIp1 = timeSampling.getSampleTime( i + 1 );
-                chrono_t smidgeOver = ( timeIp1 - timeI ) / 4.0;
-                chrono_t smidgeUnder = ( timeI - timeIm1 ) / 4.0;
-                chrono_t smidgeOverTimeI = timeI + smidgeOver;
-                chrono_t smidgeUnderTimeI = timeI - smidgeUnder;
-
-                // floor index
-                TESTING_MESSAGE_ASSERT(
-                    timeSampling.getFloorIndex( smidgeOverTimeI,
-                        numSamples ).first == i,
-                    "Time a smidge over time sampled at 'i' should have a floor "
-                    "index of 'i'."
-                           );
-
-                TESTING_MESSAGE_ASSERT(
-                    timeSampling.getFloorIndex( smidgeUnderTimeI,
-                        numSamples ).first == i - 1,
-                    "Time a smidge under time sampled at 'i' should have a "
-                    "floor index of 'i - 1'."
-                           );
-
-                // ceiling index
-                TESTING_MESSAGE_ASSERT(
-                    timeSampling.getCeilIndex( smidgeOverTimeI,
-                        numSamples ).first == i + 1,
-                    "Time a smidge over time sampled at 'i' should have a "
-                    "ceiling index of 'i + 1'."
-                           );
-
-                TESTING_MESSAGE_ASSERT(
-                    timeSampling.getCeilIndex( smidgeUnderTimeI,
-                        numSamples ).first == i,
-                    "Time a smidge under time sampled at 'i' should have a "
-                    "ceiling index of 'i'."
-                           );
-
-                // near index
-                TESTING_MESSAGE_ASSERT(
-                    timeSampling.getNearIndex( smidgeOverTimeI,
-                        numSamples ).first == i,
-                    "Time a smidge over time sampled at 'i' should have a "
-                    "nearest index of 'i'."
-                           );
-
-                TESTING_MESSAGE_ASSERT(
-                    timeSampling.getCeilIndex( smidgeUnderTimeI,
-                        numSamples ).first == i,
-                    "Time a smidge under time sampled at 'i' should have a "
-                    "nearest index of 'i'."
-                           );
-            }
+            smidgeUnder = ( timeI - timeIm1 ) / 4.0;
+            loi = i - 1;
         }
+
+        // base smidge over on a future time
+        if ( i < numSamples - 1 )
+        {
+            chrono_t timeIp1 = timeSampling.getSampleTime( i + 1 );
+            smidgeOver = ( timeIp1 - timeI ) / 4.0;
+            hii = i + 1;
+        }
+
+        chrono_t smidgeOverTimeI = timeI + smidgeOver;
+        chrono_t smidgeUnderTimeI = timeI - smidgeUnder;
+
+        // floor index
+        TESTING_MESSAGE_ASSERT( timeSampling.getFloorIndex(
+            smidgeOverTimeI, numSamples ).first == i,
+            "Time a smidge over time sampled at 'i' should have a floor index "
+            "of 'i'." );
+
+        TESTING_MESSAGE_ASSERT( timeSampling.getFloorIndex(
+            smidgeUnderTimeI, numSamples ).first == loi,
+            "Time a smidge under time sampled at 'i' should have a floor "
+            "index of 'i - 1'." );
+
+        // ceiling index
+        TESTING_MESSAGE_ASSERT( timeSampling.getCeilIndex(
+            smidgeOverTimeI, numSamples ).first == hii,
+            "Time a smidge over time sampled at 'i' should have a ceiling "
+            "index of 'i + 1'." );
+
+        TESTING_MESSAGE_ASSERT( timeSampling.getCeilIndex(
+            smidgeUnderTimeI, numSamples ).first == i,
+            "Time a smidge under time sampled at 'i' should have a ceiling "
+            "index of 'i'." );
+
+        // near index
+        TESTING_MESSAGE_ASSERT( timeSampling.getNearIndex(
+            smidgeOverTimeI, numSamples ).first == i,
+            "Time a smidge over time sampled at 'i' should have a nearest "
+            "index of 'i'." );
+
+        TESTING_MESSAGE_ASSERT( timeSampling.getCeilIndex(
+            smidgeUnderTimeI, numSamples ).first == i,
+            "Time a smidge under time sampled at 'i' should have a nearest "
+            "index of 'i'." );
 
         if ( ( timeSamplingType.isCyclic() || timeSamplingType.isUniform() )
              && i > numSamplesPerCycle )
         {
-            chrono_t cur = timeSampling.getSampleTime( i );
-            chrono_t prev = timeSampling.getSampleTime( i - numSamplesPerCycle );
-            TESTING_MESSAGE_ASSERT( Imath::equalWithAbsError( ( cur - prev ), timePerCycle,
-                                                   0.00001 ),
-                         "Calculated time per cycle is different than given." );
+            TIME cur = timeSampling.getSampleTime( i );
+            TIME prev = timeSampling.getSampleTime( i - numSamplesPerCycle );
+            TESTING_MESSAGE_ASSERT( Imath::equalWithAbsError(
+                (double)( cur - prev ), (double)timePerCycle, 0.00001 ),
+            "Calculated time per cycle is different than given." );
         }
     }
 
@@ -259,6 +258,7 @@ void testTimeSampling( const AbcA::TimeSampling &timeSampling,
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testCyclicTime1()
 {
     // random weird cycle
@@ -280,10 +280,11 @@ void testCyclicTime1()
     validateTimeSampling( tSamp, tSampTyp, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tSamp, tSampTyp, numSamps );
+    testTimeSampling<TIME>( tSamp, tSampTyp, numSamps );
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testCyclicTime2()
 {
     // shutter-open, shutter-close
@@ -304,10 +305,11 @@ void testCyclicTime2()
     validateTimeSampling( tSamp, tSampTyp, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tSamp, tSampTyp, numSamps );
+    testTimeSampling<TIME>( tSamp, tSampTyp, numSamps );
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testCyclicTime3()
 {
     // shutter-open, shutter-close
@@ -328,10 +330,11 @@ void testCyclicTime3()
     validateTimeSampling( tSamp, tSampTyp, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tSamp, tSampTyp, numSamps );
+    testTimeSampling<TIME>( tSamp, tSampTyp, numSamps );
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testCyclicTime4()
 {
     const chrono_t startFrame = 1001.0;
@@ -359,10 +362,11 @@ void testCyclicTime4()
     validateTimeSampling( tsamp, tst, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tsamp, tst, numSamps );
+    testTimeSampling<TIME>( tsamp, tst, numSamps );
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testUniformTime1()
 {
     // sample once at each frame
@@ -382,10 +386,11 @@ void testUniformTime1()
     validateTimeSampling( tSamp, tSampTyp, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tSamp, tSampTyp, numSamps );
+    testTimeSampling<TIME>( tSamp, tSampTyp, numSamps );
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testUniformTime2()
 {
     // sample once at each frame, starting at -10th frame
@@ -405,9 +410,10 @@ void testUniformTime2()
     validateTimeSampling( tSamp, tSampTyp, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tSamp, tSampTyp, numSamps );
+    testTimeSampling<TIME>( tSamp, tSampTyp, numSamps );
 }
 //-*****************************************************************************
+template <class TIME>
 void testUniformTime3()
 {
     // sample once at each frame, starting at +1th frame
@@ -427,10 +433,11 @@ void testUniformTime3()
     validateTimeSampling( tSamp, tSampTyp, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tSamp, tSampTyp, numSamps );
+    testTimeSampling<TIME>( tSamp, tSampTyp, numSamps );
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testDefaultTime1()
 {
     // sample once at each frame
@@ -447,10 +454,11 @@ void testDefaultTime1()
     validateTimeSampling( tSamp, tSampType, tvec, 1,
                           1 );
 
-    testTimeSampling( tSamp, tSampType, 100 );
+    testTimeSampling<TIME>( tSamp, tSampType, 100 );
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testAcyclicTime1()
 {
     TimeVector tvec;
@@ -476,10 +484,11 @@ void testAcyclicTime1()
     validateTimeSampling( tSamp, tSampTyp, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tSamp, tSampTyp, numSamps );
+    testTimeSampling<TIME>( tSamp, tSampTyp, numSamps );
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testAcyclicTime2()
 {
     TimeVector tvec;
@@ -509,10 +518,11 @@ void testAcyclicTime2()
     validateTimeSampling( tSamp, tSampTyp, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tSamp, tSampTyp, numSamps );
+    testTimeSampling<TIME>( tSamp, tSampTyp, numSamps );
 }
 
 //-*****************************************************************************
+template <class TIME>
 void testAcyclicTime3()
 {
     TimeVector tvec;
@@ -544,7 +554,7 @@ void testAcyclicTime3()
     validateTimeSampling( tSamp, tSampTyp, tvec, numSamplesPerCycle,
                           timePerCycle );
 
-    testTimeSampling( tSamp, tSampTyp, numSamps );
+    testTimeSampling<TIME>( tSamp, tSampTyp, numSamps );
 }
 
 //-*****************************************************************************
@@ -585,23 +595,33 @@ int main( int, char** )
         ALEMBIC_LIBRARY_VERSION < 999999);
 
     // cyclic is trickiest
-    testCyclicTime1();
-    testCyclicTime2();
-    testCyclicTime3();
-    testCyclicTime4();
+    testCyclicTime1<chrono_t>();
+    testCyclicTime2<chrono_t>();
+    testCyclicTime3<chrono_t>();
+    testCyclicTime4<chrono_t>();
 
     // uniform is probably most common
-    testUniformTime1();
-    testUniformTime2();
-    testUniformTime3();
+    testUniformTime1<chrono_t>();
+    testUniformTime2<chrono_t>();
+    testUniformTime3<chrono_t>();
 
     // default, uniform sampling
-    testDefaultTime1();
+    testDefaultTime1<chrono_t>();
 
     // acyclic is pretty easy, too
-    testAcyclicTime1();
-    testAcyclicTime2();
-    testAcyclicTime3();
+    testAcyclicTime1<chrono_t>();
+    testAcyclicTime2<chrono_t>();
+    testAcyclicTime3<chrono_t>();
+
+    // test with doubles
+    testCyclicTime1<double>();
+    testUniformTime1<double>();
+    testAcyclicTime1<double>();
+
+    // test with floats
+    testCyclicTime1<float>();
+    testUniformTime1<float>();
+    testAcyclicTime1<float>();
 
     // make sure these bad types throw
     testBadTypes();
