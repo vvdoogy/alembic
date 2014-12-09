@@ -53,133 +53,24 @@
 #include <maya/MFnNumericAttribute.h>
 #include <maya/MGlobal.h>
 #include <maya/MVector.h>
-#include <maya/MDagModifier.h>
 
 
 namespace
 {
-
-    MStatus setMeshUVs(MFnMesh & ioMesh,
-        const MFloatArray & uArray, const MFloatArray & vArray,
-        const MIntArray & uvCounts, const MIntArray & uvIds)
+    // utility to determine if a string is in the string array
+    bool inStrArray( const MStringArray & iArray, const MString & iStr )
     {
-        MStatus status = MS::kSuccess;
+        unsigned int arrLength = iArray.length();
 
-        // Create uv set on ioMesh object
-        MString uvSetName("uvset1");
-        status = ioMesh.getCurrentUVSetName(uvSetName);
-        if ( status != MS::kSuccess )
+        for (unsigned int i = 0; i < arrLength; ++i)
         {
-            uvSetName = MString("uvset1");
-            status = ioMesh.createUVSet(uvSetName);
-            status = ioMesh.setCurrentUVSetName(uvSetName);
-        }
-        status = ioMesh.clearUVs();
-        status = ioMesh.setUVs(uArray, vArray, &uvSetName);
-        status = ioMesh.assignUVs(uvCounts, uvIds);
-
-        if (status != MS::kSuccess)
-            printError(ioMesh.fullPathName() + " Assign UVs failed");
-
-        return status;
-    }  // setMeshUVs
-
-
-    void setUVs(double iFrame, MFnMesh & ioMesh,
-        Alembic::AbcGeom::IV2fGeomParam iUVs)
-    {
-
-        if (!iUVs.valid())
-            return;
-
-        // no interpolation for now
-        Alembic::AbcCoreAbstract::index_t index, ceilIndex;
-        getWeightAndIndex(iFrame, iUVs.getTimeSampling(),
-            iUVs.getNumSamples(), index, ceilIndex);
-
-        MFloatArray uArray;
-        MFloatArray vArray;
-
-        unsigned int numFaceVertices = ioMesh.numFaceVertices();
-        unsigned int numVertices = ioMesh.numVertices();
-
-        MIntArray uvCounts(ioMesh.numPolygons(), 0);
-        MIntArray uvIds(numFaceVertices, 0);
-
-        Alembic::AbcGeom::IV2fGeomParam::Sample samp;
-        iUVs.getIndexed(samp, Alembic::Abc::ISampleSelector(index));
-
-        Alembic::AbcGeom::V2fArraySamplePtr uvPtr = samp.getVals();
-        Alembic::Abc::UInt32ArraySamplePtr indexPtr = samp.getIndices();
-
-        if (numVertices != 0 && numFaceVertices != indexPtr->size() &&
-            numVertices != indexPtr->size())
-        {
-            printWarning(
-                ioMesh.fullPathName() +
-                " UVs aren't per-vertex or per-polygon per-vertex, skipping");
-
-            return;
-        }
-
-        unsigned int numUVs = (unsigned int)uvPtr->size();
-        uArray.setLength(numUVs);
-        vArray.setLength(numUVs);
-        for (unsigned int i = 0; i < numUVs; ++i)
-        {
-            uArray[i] = (*uvPtr)[i].x;
-            vArray[i] = (*uvPtr)[i].y;
-        }
-
-        int uvIndex = 0;
-        int uvCountsIndex = 0;
-
-        int numPolys = ioMesh.numPolygons();
-
-        // per-polygon per-vertex
-        if (numFaceVertices == indexPtr->size())
-        {
-            for (int pIndex = 0; pIndex < numPolys; ++pIndex)
+            if (iArray[i] == iStr)
             {
-                int numPolygonVertices = ioMesh.polygonVertexCount(pIndex);
-                uvCounts[uvCountsIndex++] = numPolygonVertices;
-                if (numPolygonVertices == 0)
-                    continue;
-
-                int startPoint = uvIndex + numPolygonVertices - 1;
-
-                for (int vertexIndex = 0;
-                    vertexIndex < numPolygonVertices; vertexIndex++)
-                {
-                    uvIds[uvIndex++] = (*indexPtr)[startPoint - vertexIndex];
-                }
+                return true;
             }
         }
-        // per-vertex
-        else
-        {
-            MIntArray vertexCount, vertexList;
-            ioMesh.getVertices(vertexCount, vertexList);
-            for (int pIndex = 0; pIndex < numPolys; ++pIndex)
-            {
-                int numPolygonVertices = ioMesh.polygonVertexCount(pIndex);
-                uvCounts[uvCountsIndex++] = numPolygonVertices;
-                if (numPolygonVertices == 0)
-                    continue;
-
-                int startPoint = uvIndex + numPolygonVertices - 1;
-
-                for (int vertexIndex = 0;
-                    vertexIndex < numPolygonVertices; vertexIndex++)
-                {
-                    uvIds[uvIndex++] = (*indexPtr)[
-                        vertexList[startPoint - vertexIndex]];
-                }
-            }
-        }
-
-        setMeshUVs(ioMesh, uArray, vArray, uvCounts, uvIds);
-    }  // setUVs
+        return false;
+    }
 
     // utility to clear pt when doing a swap otherwise
     // the new swap position could get messed up
@@ -397,6 +288,162 @@ namespace
                polyCounts, polyConnects, iParent);
         }
 
+    }
+
+    void setUVSet(MFnMesh & ioMesh,
+        const MFloatArray & iUlist, const MFloatArray & iVlist,
+        const Alembic::Abc::UInt32ArraySamplePtr & iSampIndices,
+        const MString & iUVSetName)
+    {
+        // per vertex per-polygon uv
+        int numFaces = ioMesh.numPolygons();
+        int nIndex = 0;
+
+        MIntArray uvCounts(ioMesh.numPolygons(), 0);
+        MIntArray uvIds(ioMesh.numFaceVertices(), 0);
+        int uvCountsIndex = 0;
+
+        // per-polygon per-vertex
+        if (ioMesh.numFaceVertices() == (int) iSampIndices->size())
+        {
+            for (int faceIndex = 0; faceIndex < numFaces; faceIndex++)
+            {
+                int numVertices = ioMesh.polygonVertexCount(faceIndex);
+                uvCounts[uvCountsIndex++] = numVertices;
+                int curIndex = nIndex;
+                for (int v = numVertices - 1; v >= 0; v--, ++nIndex)
+                {
+                    uvIds[nIndex] = (int)(*iSampIndices)[curIndex + v];
+                }
+            }
+        }
+        // per-vertex
+        else
+        {
+            for (int faceIndex = 0; faceIndex < numFaces; faceIndex++)
+            {
+                int numVertices = ioMesh.polygonVertexCount(faceIndex);
+                uvCounts[uvCountsIndex++] = numVertices;
+                MIntArray vertexList;
+                ioMesh.getPolygonVertices (faceIndex, vertexList);
+                for (int v = numVertices - 1; v >= 0; v--, ++nIndex)
+                {
+                    uvIds[nIndex] =
+                        (int)(*iSampIndices)[vertexList[v]];
+                }
+            }
+        }
+
+        // clear out the UVs if we need to shrink the size of the UV table
+        if (ioMesh.numUVs(iUVSetName) > (int) iUlist.length())
+        {
+            ioMesh.clearUVs(&iUVSetName);
+        }
+
+        MStatus status = ioMesh.setUVs(iUlist, iVlist, &iUVSetName);
+        if (status != MStatus::kSuccess)
+        {
+            MGlobal::displayWarning("Couldnt set UVs for " + iUVSetName +
+                status.errorString());
+            return;
+        }
+        else
+        {
+            status = ioMesh.assignUVs(uvCounts, uvIds, &iUVSetName);
+        }
+
+        if (status != MStatus::kSuccess)
+        {
+            MGlobal::displayWarning("Couldnt assign UVs for " + iUVSetName +
+                status.errorString());
+        }
+    }
+
+    void setUV2f(double iFrame, MFnMesh & ioMesh,
+        const Alembic::AbcGeom::IV2fGeomParam & iV2f,
+        const Alembic::AbcGeom::IUInt32ArrayProperty & indexProperty,
+        const MString & iUVSetName)
+    {
+        //Get the floor sample values
+        Alembic::AbcCoreAbstract::index_t index, ceilIndex;
+        double alpha = getWeightAndIndex(iFrame, iV2f.getTimeSampling(),
+            iV2f.getNumSamples(), index, ceilIndex);
+
+        Alembic::AbcGeom::IV2fGeomParam::Sample samp;
+        iV2f.getIndexed(samp, Alembic::Abc::ISampleSelector(index));
+        Alembic::Abc::V2fArraySamplePtr sampVal = samp.getVals();
+        size_t sampSize = sampVal->size();
+
+        if (ioMesh.numVertices() != 0 &&
+            ioMesh.numFaceVertices() != (int) samp.getIndices()->size() &&
+            ioMesh.numVertices() != (int) samp.getIndices()->size())
+        {
+            MString msg = "UV set sample size is: ";
+            msg += (int) samp.getIndices()->size();
+            msg += " expecting: ";
+            msg += ioMesh.numVertices();
+            msg += " or ";
+            msg += ioMesh.numFaceVertices();
+            MGlobal::displayWarning(msg);
+            return;
+        }
+        else if (ioMesh.numVertices() == 0)
+        {
+            return;
+        }
+
+        MFloatArray uList;
+        MFloatArray vList;
+
+        //Interpolate between 2 samples (as long as the indices are constant)
+        //(non index is considered constant)
+        if ( alpha != 0 && index != ceilIndex &&
+            (!indexProperty || indexProperty.isConstant()) )
+        {
+            Alembic::AbcGeom::IV2fGeomParam::Sample ceilSamp;
+            iV2f.getIndexed(ceilSamp,
+                    Alembic::Abc::ISampleSelector(ceilIndex));
+            Alembic::Abc::V2fArraySamplePtr ceilVal = ceilSamp.getVals();
+            // Make sure the point count hasn't changed
+            if (ceilVal->size() == sampSize)
+            {
+                for (size_t i = 0; i < sampSize; ++i)
+                {
+                    uList.append(
+                            simpleLerp<float>(alpha, (*sampVal)[i].x,
+                                    (*ceilVal)[i].x));
+                    vList.append(
+                            simpleLerp<float>(alpha, (*sampVal)[i].y,
+                                    (*ceilVal)[i].y));
+                }
+            }
+            else
+            {
+                for (size_t i = 0; i < sampSize; ++i)
+                {
+                    uList.append((*sampVal)[i].x);
+                    vList.append((*sampVal)[i].y);
+                }
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < sampSize; ++i)
+            {
+                uList.append((*sampVal)[i].x);
+                vList.append((*sampVal)[i].y);
+            }
+        }
+
+        setUVSet(ioMesh, uList, vList, samp.getIndices(), iUVSetName);
+    }
+
+    void createUVset(MFnMesh & meshIO, MString & iSetName)
+    {
+        if (meshIO.createUVSetDataMesh(iSetName) != MS::kSuccess)
+        {
+            meshIO.createUVSet(iSetName, NULL, NULL);
+        }
     }
 
     void createColorSet(MFnMesh & meshIO, MString & iSetName,
@@ -630,74 +677,94 @@ namespace
         setColor(ioMesh, colorList, indices, colorSetName, MFnMesh::kRGBA);
     }
 
-    bool inStrArray( const MStringArray & iArray, const MString & iStr )
+    typedef std::vector< Alembic::AbcGeom::IV2fGeomParam > IV2fGPVec;
+    typedef std::vector< Alembic::AbcGeom::IC3fGeomParam > IC3fGPVec;
+    typedef std::vector< Alembic::AbcGeom::IC4fGeomParam > IC4fGPVec;
+
+    void setColorsAndUVs(double iFrame, MFnMesh & ioMesh,
+        Alembic::AbcGeom::IV2fGeomParam iPrimaryV2f,
+        IV2fGPVec iV2s, IC3fGPVec iC3s, IC4fGPVec iC4s, bool iSetStatic)
     {
-        unsigned int arrLength = iArray.length();
-
-        for (unsigned int i = 0; i < arrLength; ++i)
-        {
-            if (iArray[i] == iStr)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    void setColors(double iFrame, MFnMesh & ioMesh,
-        std::vector< Alembic::AbcGeom::IC3fGeomParam > iC3s,
-        std::vector< Alembic::AbcGeom::IC4fGeomParam > iC4s,
-        bool iSetStatic)
-    {
-
-        if (iC3s.empty() && iC4s.empty())
+        if (iPrimaryV2f.getNumSamples() < 1 && iV2s.empty() && iC3s.empty() &&
+            iC4s.empty())
         {
             return;
         }
 
-        std::vector< Alembic::AbcGeom::IC3fGeomParam >::iterator c3s;
-        std::vector< Alembic::AbcGeom::IC3fGeomParam >::iterator c3sEnd =
-            iC3s.end();
+        MStringArray uvSetNames;
+        ioMesh.getUVSetNames(uvSetNames);
 
-        MStringArray allSetNames;
-        ioMesh.getColorSetNames(allSetNames);
+        if (iPrimaryV2f.getNumSamples() > 0 &&
+            (iSetStatic || !iPrimaryV2f.isConstant()))
+        {
+            MString uvSetName =
+                Alembic::Abc::GetSourceName(iPrimaryV2f.getMetaData()).c_str();
 
-        for (c3s = iC3s.begin(); c3s != c3sEnd; ++c3s)
+            if (uvSetName.length() == 0)
+            {
+                uvSetName = "map1";
+            }
+
+            if (!inStrArray(uvSetNames, uvSetName))
+            {
+                createUVset(ioMesh, uvSetName);
+                ioMesh.setCurrentUVSetName(uvSetName);
+                uvSetNames.append(uvSetName);
+            }
+            setUV2f(iFrame, ioMesh, iPrimaryV2f,
+                iPrimaryV2f.getIndexProperty(), uvSetName);
+        }
+
+        IV2fGPVec::const_iterator v2sEnd = iV2s.end();
+        for (IV2fGPVec::iterator v2s = iV2s.begin(); v2s != v2sEnd; ++v2s)
+        {
+            if (v2s->getNumSamples() > 0 && (iSetStatic || !v2s->isConstant()))
+            {
+                MString uvSetName(v2s->getName().c_str());
+                if (!inStrArray(uvSetNames, uvSetName))
+                {
+                    createUVset(ioMesh, uvSetName);
+                    uvSetNames.append(uvSetName);
+                }
+                setUV2f(iFrame, ioMesh, *v2s, v2s->getIndexProperty(), uvSetName);
+            }
+        }
+
+        MStringArray colorSetNames;
+        ioMesh.getColorSetNames(colorSetNames);
+
+        IC3fGPVec::const_iterator c3sEnd = iC3s.end();
+        for (IC3fGPVec::iterator c3s = iC3s.begin(); c3s != c3sEnd; ++c3s)
         {
             if (c3s->getNumSamples() > 0 && (iSetStatic || !c3s->isConstant()))
             {
-                MString setName(c3s->getName().c_str());
-                if (!inStrArray(allSetNames, setName))
+                MString colorSetName(c3s->getName().c_str());
+                if (!inStrArray(colorSetNames, colorSetName))
                 {
-                    createColorSet(ioMesh, setName, c3s->getMetaData());
-                    allSetNames.append(setName);
+                    createColorSet(ioMesh, colorSetName, c3s->getMetaData());
+                    colorSetNames.append(colorSetName);
                 }
-
                 setColor3f(iFrame, ioMesh, *c3s);
             }
         }
 
-        std::vector< Alembic::AbcGeom::IC4fGeomParam >::iterator c4s;
-        std::vector< Alembic::AbcGeom::IC4fGeomParam >::iterator c4sEnd =
-            iC4s.end();
-
-        for (c4s = iC4s.begin(); c4s != c4sEnd; ++c4s)
+        IC4fGPVec::const_iterator c4sEnd = iC4s.end();
+        for (IC4fGPVec::iterator c4s = iC4s.begin(); c4s != c4sEnd; ++c4s)
         {
             if (c4s->getNumSamples() > 0 && (iSetStatic || !c4s->isConstant()))
             {
-                MString setName(c4s->getName().c_str());
-                if (!inStrArray(allSetNames, setName))
+                MString colorSetName(c4s->getName().c_str());
+                if (!inStrArray(colorSetNames, colorSetName))
                 {
-                    createColorSet(ioMesh, setName, c4s->getMetaData());
-                    allSetNames.append(setName);
+                    createColorSet(ioMesh, colorSetName, c4s->getMetaData());
+                    colorSetNames.append(colorSetName);
                 }
-
                 setColor4f(iFrame, ioMesh, *c4s);
             }
         }
     }
 
-    void fillCreases(MFnMesh & ioMesh, SubDAndColors & iNode,
+    void fillCreases(MFnMesh & ioMesh, SubDAndFriends & iNode,
                      Alembic::Abc::FloatArraySamplePtr creases,
                      Alembic::Abc::Int32ArraySamplePtr indices,
                      Alembic::Abc::Int32ArraySamplePtr lengths)
@@ -768,7 +835,7 @@ namespace
         }
     }
 
-    void fillCorners(MFnMesh & ioMesh, SubDAndColors & iNode,
+    void fillCorners(MFnMesh & ioMesh, SubDAndFriends & iNode,
                      Alembic::Abc::FloatArraySamplePtr corners,
                      Alembic::Abc::Int32ArraySamplePtr cornerVerts)
     {
@@ -795,7 +862,7 @@ namespace
         }
     }
 
-    void fillHoles(MFnMesh & ioMesh, SubDAndColors & iNode,
+    void fillHoles(MFnMesh & ioMesh, SubDAndFriends & iNode,
                    Alembic::Abc::Int32ArraySamplePtr holes)
     {
     #if MAYA_API_VERSION >= 201100
@@ -820,7 +887,7 @@ namespace
     #endif
     }
 
-    void fillCreasesCornersAndHoles(MFnMesh & ioMesh, SubDAndColors & iNode,
+    void fillCreasesCornersAndHoles(MFnMesh & ioMesh, SubDAndFriends & iNode,
         Alembic::AbcGeom::ISubDSchema::Sample &samp)
     {
         fillCreases(ioMesh, iNode, samp.getCreaseSharpnesses(),
@@ -833,7 +900,7 @@ namespace
 }  // namespace
 
 void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
-    PolyMeshAndColors & iNode, bool iInitialized)
+    PolyMeshAndFriends & iNode, bool iInitialized)
 {
     Alembic::AbcGeom::IPolyMeshSchema schema = iNode.mMesh.getSchema();
     Alembic::AbcGeom::MeshTopologyVariance ttype = schema.getTopologyVariance();
@@ -860,16 +927,13 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
 
         fillPoints(pointArray, points, ceilPoints, alpha);
         ioMesh.setPoints(pointArray, MSpace::kObject);
-        setColors(iFrame, ioMesh, iNode.mC3s, iNode.mC4s, !iInitialized);
+
+        setColorsAndUVs(iFrame, ioMesh, schema.getUVsParam(),
+            iNode.mV2s, iNode.mC3s, iNode.mC4s, !iInitialized);
 
         if (schema.getNormalsParam().getNumSamples() > 1)
         {
             setPolyNormals(iFrame, ioMesh, schema.getNormalsParam());
-        }
-
-        if (schema.getUVsParam().getNumSamples() > 1)
-        {
-            setUVs(iFrame, ioMesh, schema.getUVsParam());
         }
 
         return;
@@ -891,15 +955,15 @@ void readPoly(double iFrame, MFnMesh & ioMesh, MObject & iParent,
         samp.getFaceCounts());
 
     setPolyNormals(iFrame, ioMesh, schema.getNormalsParam());
-    setUVs(iFrame, ioMesh, schema.getUVsParam());
-    setColors(iFrame, ioMesh, iNode.mC3s, iNode.mC4s, !iInitialized);
+    setColorsAndUVs(iFrame, ioMesh, schema.getUVsParam(),
+        iNode.mV2s, iNode.mC3s, iNode.mC4s, !iInitialized);
 }
 
 void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
-    SubDAndColors & iNode, bool iInitialized)
+    SubDAndFriends & iNode, bool iInitialized)
 {
     Alembic::AbcGeom::ISubDSchema schema = iNode.mMesh.getSchema();
-    Alembic::AbcGeom::MeshTopologyVariance ttype = schema.getTopologyVariance();
+    Alembic::AbcGeom::MeshTopologyVariance tv = schema.getTopologyVariance();
 
     Alembic::AbcCoreAbstract::index_t index, ceilIndex;
     double alpha = getWeightAndIndex(iFrame,
@@ -909,7 +973,7 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     Alembic::Abc::P3fArraySamplePtr ceilPoints;
 
     // we can just read the points
-    if (ttype != Alembic::AbcGeom::kHeterogenousTopology && iInitialized)
+    if (tv != Alembic::AbcGeom::kHeterogenousTopology && iInitialized)
     {
         Alembic::Abc::ISampleSelector sampSel(index);
         Alembic::Abc::P3fArraySamplePtr points =
@@ -924,12 +988,8 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
         fillPoints(pointArray, points, ceilPoints, alpha);
         ioMesh.setPoints(pointArray, MSpace::kObject);
 
-        if (schema.getUVsParam().getNumSamples() > 1)
-        {
-            setUVs(iFrame, ioMesh, schema.getUVsParam());
-        }
-
-        setColors(iFrame, ioMesh, iNode.mC3s, iNode.mC4s, !iInitialized);
+        setColorsAndUVs(iFrame, ioMesh, schema.getUVsParam(), iNode.mV2s,
+            iNode.mC3s, iNode.mC4s, !iInitialized);
 
         return;
     }
@@ -938,7 +998,7 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     Alembic::AbcGeom::ISubDSchema::Sample samp;
     schema.get(samp, Alembic::Abc::ISampleSelector(index));
 
-    if (alpha != 0.0 && ttype != Alembic::AbcGeom::kHeterogenousTopology)
+    if (alpha != 0.0 && tv != Alembic::AbcGeom::kHeterogenousTopology)
     {
         ceilPoints = schema.getPositionsProperty().getValue(
             Alembic::Abc::ISampleSelector(ceilIndex) );
@@ -949,8 +1009,8 @@ void readSubD(double iFrame, MFnMesh & ioMesh, MObject & iParent,
     fillTopology(ioMesh, iParent, pointArray, samp.getFaceIndices(),
         samp.getFaceCounts());
 
-    setUVs(iFrame, ioMesh, schema.getUVsParam());
-    setColors(iFrame, ioMesh, iNode.mC3s, iNode.mC4s, !iInitialized);
+    setColorsAndUVs(iFrame, ioMesh, schema.getUVsParam(),
+        iNode.mV2s, iNode.mC3s, iNode.mC4s, !iInitialized);
     fillCreasesCornersAndHoles(ioMesh, iNode, samp);
 }
 
@@ -974,8 +1034,7 @@ void disconnectMesh(MObject & iMeshObject,
 
 }
 
-MObject createPoly(double iFrame, PolyMeshAndColors & iNode,
-    MObject & iParent)
+MObject createPoly(double iFrame, PolyMeshAndFriends & iNode, MObject & iParent)
 {
     Alembic::AbcGeom::IPolyMeshSchema schema = iNode.mMesh.getSchema();
     MString name(iNode.mMesh.getName().c_str());
@@ -1016,7 +1075,6 @@ MObject createPoly(double iFrame, PolyMeshAndColors & iNode,
             samp.getFaceCounts());
         fnMesh.setName(iNode.mMesh.getName().c_str());
         setPolyNormals(iFrame, fnMesh, schema.getNormalsParam());
-        setUVs(iFrame, fnMesh, schema.getUVsParam());
         obj = fnMesh.object();
     }
 
@@ -1025,7 +1083,8 @@ MObject createPoly(double iFrame, PolyMeshAndColors & iNode,
     MString pathName = fnMesh.partialPathName();
     setInitialShadingGroup(pathName);
 
-    setColors(iFrame, fnMesh, iNode.mC3s, iNode.mC4s, true);
+    setColorsAndUVs(iFrame, fnMesh, schema.getUVsParam(),
+        iNode.mV2s, iNode.mC3s, iNode.mC4s, true);
 
 
     if ( !schema.getNormalsParam().valid() )
@@ -1042,8 +1101,7 @@ MObject createPoly(double iFrame, PolyMeshAndColors & iNode,
     return obj;
 }
 
-MObject createSubD(double iFrame, SubDAndColors & iNode,
-    MObject & iParent)
+MObject createSubD(double iFrame, SubDAndFriends & iNode, MObject & iParent)
 {
     Alembic::AbcGeom::ISubDSchema schema = iNode.mMesh.getSchema();
 
@@ -1070,9 +1128,8 @@ MObject createSubD(double iFrame, SubDAndColors & iNode,
 
     MObject obj = fnMesh.object();
 
-    setUVs(iFrame, fnMesh, schema.getUVsParam());
-
-    setColors(iFrame, fnMesh, iNode.mC3s, iNode.mC4s, true);
+    setColorsAndUVs(iFrame, fnMesh, schema.getUVsParam(),
+        iNode.mV2s, iNode.mC3s, iNode.mC4s, true);
 
     // add the mFn-specific attributes to fnMesh node
     MFnNumericAttribute numAttr;
